@@ -76,12 +76,12 @@ h2 {
 
 /* --- Sidebar Navigation (On the LEFT) --- */
 .sidebar {
-    width: 260px; /* Widened for text */
+    width: 260px;
     height: 100vh;
     background-color: var(--primary-dark);
-    border-right: 1px solid var(--border-color); /* Border is on the right now */
+    border-right: 1px solid var(--border-color);
     padding: 20px;
-    order: 1; /* Moves sidebar to the left */
+    order: 1;
     flex-shrink: 0;
 }
 
@@ -103,6 +103,7 @@ h2 {
     font-size: 1rem;
     font-weight: 500;
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .sidebar .nav-link i {
@@ -129,7 +130,7 @@ h2 {
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
-    order: 2; /* Moves main content to the right */
+    order: 2;
 }
 
 /* --- Top Bar Header --- */
@@ -153,23 +154,10 @@ h2 {
 .content-area {
     flex-grow: 1;
     padding: 40px;
-    overflow-y: auto; /* Enables scrolling for content */
+    overflow-y: auto;
 }
 
-.pane {
-    display: none;
-    animation: fadeIn 0.5s ease;
-}
-
-.pane.active {
-    display: block;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
+/* --- Content Section Styling (Applies to all loaded pages) --- */
 .content-section {
     margin-bottom: 30px;
 }
