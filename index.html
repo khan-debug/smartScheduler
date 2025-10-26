@@ -9,221 +9,127 @@
 </head>
 <body>
 
-    <main class="content-area">
+    <div class="main-container">
 
-        <section id="dashboard" class="pane active">
-            <h1>Hello, User</h1>
-            <p class="subtitle">Let's be productive today</p>
+        <header class="top-bar">
+            <h1>Scheduler</h1>
+        </header>
 
-            <div class="content-section">
-                <div class="section-header">
-                    <h2>Today's Schedule</h2>
-                    <a href="#" class="view-all">View all</a>
-                </div>
-                <div class="task-cards">
-                    <div class="task-card">
-                        <span class="task-time">10:00 AM - 11:00 AM</span>
-                        <h3 class="task-title">Meeting with team</h3>
-                    </div>
-                    <div class="task-card">
-                        <span class="task-time">12:00 PM</span>
-                        <h3 class="task-title">Project Deadline</h3>
-                    </div>
-                    <div class="task-card">
-                        <span class="task-time">01:00 PM - 02:00 PM</span>
-                        <h3 class="task-title">Lunch with Client</h3>
-                    </div>
-                </div>
-            </div>
+        <main class="content-area">
 
-            <div class="content-section">
-                <h2>Overall Progress</h2>
-                <div class="progress-item">
-                    <label for="project-a">Project A</label>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" style="width: 75%;"></div>
-                        <span>75%</span>
-                    </div>
-                </div>
-                <div class="progress-item">
-                    <label for="project-b">Project B</label>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" style="width: 40%;"></div>
-                        <span>40%</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+            <section id="dashboard" class="pane active">
+                <h1>Hello, User</h1>
+                <p class="subtitle">Let's be productive today</p>
 
-        <section id="create" class="pane">
-            <h1>Create New Schedule</h1>
-            <form class="create-form">
-                <div class="form-group">
-                    <label for="task-name">Task Name</label>
-                    <input type="text" id="task-name" placeholder="e.g., Team Meeting">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Today's Schedule</h2>
+                        <a href="#" class="view-all">View all</a>
+                    </div>
+                    <div class="task-cards">
+                        <div class="task-card">
+                            <span class="task-time">10:00 AM - 11:00 AM</span>
+                            <h3 class="task-title">Meeting with team</h3>
+                        </div>
+                        <div class="task-card">
+                            <span class="task-time">12:00 PM</span>
+                            <h3 class="task-title">Project Deadline</h3>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="task-type">Task Type</label>
-                    <select id="task-type">
-                        <option value="meeting">Meeting</option>
-                        <option value="work">Work</option>
-                        <option value="personal">Personal</option>
-                    </select>
+
+                <div class="content-section">
+                    <h2>Overall Progress</h2>
+                    <div class="progress-item">
+                        <label for="project-a">Project A</label>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: 75%;"></div>
+                            <span>75%</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-row">
+            </section>
+
+            <section id="generate" class="pane">
+                <h1>Generate New Timetable</h1>
+                <form class="create-form">
                     <div class="form-group">
-                        <label for="date">Date</label>
-                        <input type="date" id="date">
+                        <label for="task-name">Task Name</label>
+                        <input type="text" id="task-name" placeholder="e.g., Team Meeting">
                     </div>
                     <div class="form-group">
-                        <label for="start-time">Start Time</label>
-                        <input type="time" id="start-time">
+                        <label for="task-type">Task Type</label>
+                        <select id="task-type">
+                            <option value="meeting">Meeting</option>
+                            <option value="work">Work</option>
+                            <option value="personal">Personal</option>
+                        </select>
                     </div>
+                    <button type="submit" class="btn-submit">Generate</button>
+                </form>
+            </section>
+
+            <section id="teacher-view" class="pane">
+                <h1>Teacher View</h1>
+                <p class="subtitle">Manage class schedules and office hours.</p>
+                <div class="content-section">
+                    <h2>Upcoming Classes</h2>
+                    <p>No classes scheduled yet.</p>
+                </div>
+            </section>
+
+            <section id="admin-panel" class="pane">
+                <h1>Admin Panel</h1>
+                
+                <div class="settings-section">
+                    <h2>Manage Users</h2>
                     <div class="form-group">
-                        <label for="end-time">End Time</label>
-                        <input type="time" id="end-time">
+                        <label for="name">Find User</label>
+                        <input type="text" id="name" placeholder="Search by name or email...">
                     </div>
+                    <button class="btn">Search</button>
                 </div>
-                <div class="form-group">
-                    <label for="priority">Priority</label>
-                    <select id="priority">
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" rows="4" placeholder="Add task description..."></textarea>
-                </div>
-                <button type="submit" class="btn-submit">Create Task</button>
-            </form>
-        </section>
 
-        <section id="view" class="pane">
-            <h1>View Schedules</h1>
-            <div class="tabs">
-                <button class="tab-btn active">Today</button>
-                <button class="tab-btn">Upcoming</button>
-                <button class="tab-btn">Calendar</button>
-            </div>
-            <div class="task-list">
-                <div class="task-item">
-                    <div class="task-info">
-                        <span class="task-time">10:00 AM - 11:00 AM</span>
-                        <h3 class="task-title">Meeting with Team</h3>
-                        <span class="task-priority high">Priority: High</span>
-                    </div>
-                    <div class="task-controls">
-                        <button class="icon-btn"><i class="fas fa-pencil-alt"></i></button>
-                        <button class="icon-btn"><i class="fas fa-trash"></i></button>
+                <div class="settings-section">
+                    <h2>System Settings</h2>
+                    <div class="toggle-group">
+                        <label for="push">Enable AI Scheduling</label>
+                        <label class="switch">
+                            <input type="checkbox" id="push" checked>
+                            <span class="slider round"></span>
+                        </label>
                     </div>
                 </div>
-                <div class="task-item">
-                    <div class="task-info">
-                        <span class="task-time">01:00 PM - 02:00 PM</span>
-                        <h3 class="task-title">Lunch with Client</h3>
-                        <span class="task-priority medium">Priority: Medium</span>
-                    </div>
-                    <div class="task-controls">
-                        <button class="icon-btn"><i class="fas fa-pencil-alt"></i></button>
-                        <button class="icon-btn"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-                <div class="task-item">
-                    <div class="task-info">
-                        <span class="task-time">03:00 PM - 05:00 PM</span>
-                        <h3 class="task-title">Work on Project A</h3>
-                        <span class="task-priority low">Priority: Low</span>
-                    </div>
-                    <div class="task-controls">
-                        <button class="icon-btn"><i class="fas fa-pencil-alt"></i></button>
-                        <button class="icon-btn"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-            </div>
-        </section>
+                <button type="submit" class="btn-submit">Save Changes</button>
+            </section>
 
-        <section id="settings" class="pane">
-            <h1>Settings</h1>
-            
-            <div class="settings-section">
-                <h2>Profile</h2>
-                <div class="form-group">
-                    <label for="name">Name</label>
-                    <input type="text" id="name" value="User">
-                </div>
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" value="user@example.com">
-                </div>
-                <button class="btn">Change Password</button>
-            </div>
-
-            <div class="settings-section">
-                <h2>Notification</h2>
-                <div class="toggle-group">
-                    <label for="push">Push Notifications</label>
-                    <label class="switch">
-                        <input type="checkbox" id="push" checked>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="toggle-group">
-                    <label for="email-notify">Email Notifications</label>
-                    <label class="switch">
-                        <input type="checkbox" id="email-notify" checked>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="toggle-group">
-                    <label for="sms">SMS Alerts</label>
-                    <label class="switch">
-                        <input type="checkbox" id="sms">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h2>Theme</h2>
-                <div class="theme-options">
-                    <label class="theme-option">
-                        <input type="radio" name="theme" value="light" checked>
-                        <span class="theme-name">Light Mode</span>
-                    </label>
-                    <label class="theme-option">
-                        <input type="radio" name="theme" value="dark">
-                        <span class="theme-name">Dark Mode</span>
-                    </label>
-                </div>
-            </div>
-
-            <button type="submit" class="btn-submit">Save Changes</button>
-        </section>
-
-    </main>
+        </main>
+    </div>
 
     <nav class="sidebar">
         <ul>
             <li>
-                <a href="#dashboard" class="nav-link active" data-tooltip="Dashboard">
+                <a href="#dashboard" class="nav-link active">
                     <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
                 </a>
             </li>
             <li>
-                <a href="#create" class="nav-link" data-tooltip="Create Schedule">
-                    <i class="fas fa-plus-square"></i>
+                <a href="#generate" class="nav-link">
+                    <i class="fas fa-calendar-plus"></i>
+                    <span>Generate Timetable</span>
                 </a>
             </li>
             <li>
-                <a href="#view" class="nav-link" data-tooltip="View Schedules">
-                    <i class="fas fa-calendar-alt"></i>
+                <a href="#teacher-view" class="nav-link">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <span>Teacher View</span>
                 </a>
             </li>
             <li>
-                <a href="#settings" class="nav-link" data-tooltip="Settings">
-                    <i class="fas fa-cog"></i>
+                <a href="#admin-panel" class="nav-link">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Admin Panel</span>
                 </a>
             </li>
         </ul>
@@ -237,8 +143,6 @@
             navLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault(); // Stop anchor link behavior
-
-                    // Get target ID from href (e.g., "#dashboard")
                     const targetId = link.getAttribute('href');
                     const targetPane = document.querySelector(targetId);
 

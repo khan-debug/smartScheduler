@@ -74,36 +74,41 @@ h2 {
     background-color: #0056b3;
 }
 
-/* --- Sidebar Navigation --- */
+/* --- Sidebar Navigation (On the LEFT) --- */
 .sidebar {
-    width: 80px;
+    width: 260px; /* Widened for text */
     height: 100vh;
     background-color: var(--primary-dark);
-    border-left: 1px solid var(--border-color);
-    padding: 20px 0;
-    order: 2; /* Moves sidebar to the right */
+    border-right: 1px solid var(--border-color); /* Border is on the right now */
+    padding: 20px;
+    order: 1; /* Moves sidebar to the left */
+    flex-shrink: 0;
 }
 
 .sidebar ul {
     list-style: none;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 
 .sidebar .nav-link {
     display: flex;
-    justify-content: center;
     align-items: center;
-    width: 50px;
-    height: 50px;
-    border-radius: 10px;
+    gap: 15px;
+    padding: 14px 18px;
+    border-radius: 8px;
     text-decoration: none;
     color: var(--text-secondary);
-    font-size: 1.5rem;
+    font-size: 1rem;
+    font-weight: 500;
     transition: all 0.3s ease;
-    position: relative;
+}
+
+.sidebar .nav-link i {
+    font-size: 1.2rem;
+    width: 20px;
+    text-align: center;
 }
 
 .sidebar .nav-link:hover {
@@ -117,22 +122,47 @@ h2 {
     box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }
 
-/* --- Content Area & Panes --- */
+/* --- Main Content Wrapper (On the RIGHT) --- */
+.main-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    order: 2; /* Moves main content to the right */
+}
+
+/* --- Top Bar Header --- */
+.top-bar {
+    height: 70px;
+    background-color: var(--primary-dark);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 40px;
+    flex-shrink: 0;
+}
+
+.top-bar h1 {
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* --- Content Area --- */
 .content-area {
     flex-grow: 1;
-    height: 100vh;
     padding: 40px;
-    order: 1; /* Moves content to the left */
-    overflow-y: auto;
+    overflow-y: auto; /* Enables scrolling for content */
 }
 
 .pane {
-    display: none; /* Hide all panes by default */
+    display: none;
     animation: fadeIn 0.5s ease;
 }
 
 .pane.active {
-    display: block; /* Show only the active pane */
+    display: block;
 }
 
 @keyframes fadeIn {
@@ -220,7 +250,7 @@ h2 {
     color: var(--text-primary);
 }
 
-/* --- Create Schedule Pane --- */
+/* --- Generate Timetable Pane --- */
 .create-form {
     max-width: 700px;
 }
@@ -253,97 +283,7 @@ h2 {
     color: var(--text-secondary);
 }
 
-.form-row {
-    display: flex;
-    gap: 20px;
-}
-
-.form-row .form-group {
-    flex: 1;
-}
-
-/* --- View Schedule Pane --- */
-.tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 25px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.tab-btn {
-    padding: 10px 20px;
-    background-color: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1rem;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: all 0.3s;
-}
-
-.tab-btn:hover {
-    color: var(--text-primary);
-}
-
-.tab-btn.active {
-    color: var(--accent-blue);
-    border-bottom-color: var(--accent-blue);
-}
-
-.task-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.task-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--card-bg);
-    padding: 20px;
-    border-radius: 12px;
-}
-
-.task-info .task-time {
-    display: block;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 5px;
-}
-
-.task-info .task-title {
-    font-size: 1.2rem;
-    margin-bottom: 5px;
-}
-
-.task-info .task-priority {
-    font-size: 0.9rem;
-    font-weight: bold;
-}
-.task-priority.high { color: #ff6b6b; }
-.task-priority.medium { color: #ffa500; }
-.task-priority.low { color: #51cf66; }
-
-.task-controls {
-    display: flex;
-    gap: 10px;
-}
-
-.icon-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: color 0.3s;
-}
-
-.icon-btn:hover {
-    color: var(--text-primary);
-}
-
-/* --- Settings Pane --- */
+/* --- Admin Panel Pane --- */
 .settings-section {
     background-color: var(--card-bg);
     padding: 25px;
@@ -361,7 +301,6 @@ h2 {
     max-width: 500px;
 }
 
-/* Toggle Switch */
 .toggle-group {
     display: flex;
     justify-content: space-between;
@@ -419,29 +358,4 @@ input:checked + .slider:before {
 
 .slider.round:before {
     border-radius: 50%;
-}
-
-/* Theme Options */
-.theme-options {
-    display: flex;
-    gap: 20px;
-}
-
-.theme-option input {
-    display: none;
-}
-
-.theme-option .theme-name {
-    display: block;
-    padding: 10px 20px;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.theme-option input:checked + .theme-name {
-    border-color: var(--accent-blue);
-    background-color: var(--accent-blue);
-    color: var(--text-primary);
 }
