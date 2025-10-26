@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Scheduler</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+
+ <nav class="sidebar">
+    <ul>
+        <li>
+            <a href="dashboard.html" class="nav-link active">
+                <i class="fas fa-th-large"></i>
+                <span>Dashboard</span>
+            </a>
+        </li>
+        <li>
+            <a href="generate.html" class="nav-link">
+                <i class="fas fa-calendar-plus"></i>
+                <span>Generate Timetable</span>
+            </a>
+        </li>
+        <li>
+            <a href="teacherView.html" class="nav-link">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>Teacher View</span>
+            </a>
+        </li>
+        <li>
+            <a href="adminPanel.html" class="nav-link">
+                <i class="fas fa-user-shield"></i>
+                <span>Admin Panel</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<div class="main-container">
+
+        <header class="top-bar">
+            <h1>Scheduler</h1>
+        </header>
+
+        <main class="content-area" id="content-host">
+            </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const contentHost = document.getElementById('content-host');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            // Function to load content
+            async function loadContent(url) {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const html = await response.text();
+                    contentHost.innerHTML = html;
+                } catch (error) {
+                    console.error('Failed to fetch page:', error);
+                    contentHost.innerHTML = '<h1>Error: Page not found.</h1>';
+                }
+            }
+
+            // Handle navigation link clicks
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault(); // Stop default link behavior
+                    const pageUrl = link.getAttribute('href');
+
+                    // Remove 'active' from all links
+                    navLinks.forEach(nav => nav.classList.remove('active'));
+                    // Add 'active' to the clicked link
+                    link.classList.add('active');
+
+                    // Load the new content
+                    loadContent(pageUrl);
+                });
+            });
+
+            // Load the default page (Dashboard)
+            loadContent('dashboard.html');
+        });
+    </script>
+
+</body>
+</html>
