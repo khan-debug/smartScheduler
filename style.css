@@ -1,0 +1,447 @@
+/* --- Global & Layout --- */
+:root {
+    --bg-dark: #121218;
+    --primary-dark: #1e1e2f;
+    --accent-blue: #007bff;
+    --text-primary: #ffffff;
+    --text-secondary: #aaaaaa;
+    --card-bg: #2a2a45;
+    --border-color: #3a3a5a;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: #3a3a5a;
+}
+
+.btn-submit {
+    padding: 15px;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-submit:hover {
+    background-color: #0056b3;
+}
+
+/* --- Sidebar Navigation --- */
+.sidebar {
+    width: 80px;
+    height: 100vh;
+    background-color: var(--primary-dark);
+    border-left: 1px solid var(--border-color);
+    padding: 20px 0;
+    order: 2; /* Moves sidebar to the right */
+}
+
+.sidebar ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.sidebar .nav-link {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* --- Content Area & Panes --- */
+.content-area {
+    flex-grow: 1;
+    height: 100vh;
+    padding: 40px;
+    order: 1; /* Moves content to the left */
+    overflow-y: auto;
+}
+
+.pane {
+    display: none; /* Hide all panes by default */
+    animation: fadeIn 0.5s ease;
+}
+
+.pane.active {
+    display: block; /* Show only the active pane */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-section {
+    margin-bottom: 30px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.view-all {
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+/* --- Dashboard Pane --- */
+.task-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.task-card {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 5px solid var(--accent-blue);
+}
+
+.task-card .task-time {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.task-card .task-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.progress-item {
+    margin-bottom: 15px;
+}
+
+.progress-item label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.progress-bar-container .progress-bar {
+    flex-grow: 1;
+    height: 10px;
+    background-color: var(--card-bg);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar-container .progress-bar div {
+    height: 100%;
+    background-color: var(--accent-blue);
+    border-radius: 5px;
+}
+
+.progress-bar-container span {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* --- Create Schedule Pane --- */
+.create-form {
+    max-width: 700px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+/* --- View Schedule Pane --- */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background-color: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+}
+
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.task-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.task-info .task-time {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.task-info .task-title {
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+.task-info .task-priority {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+.task-priority.high { color: #ff6b6b; }
+.task-priority.medium { color: #ffa500; }
+.task-priority.low { color: #51cf66; }
+
+.task-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.icon-btn:hover {
+    color: var(--text-primary);
+}
+
+/* --- Settings Pane --- */
+.settings-section {
+    background-color: var(--card-bg);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.settings-section h2 {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section .form-group {
+    max-width: 500px;
+}
+
+/* Toggle Switch */
+.toggle-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    max-width: 500px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #4a4a6a;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: var(--accent-blue);
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* Theme Options */
+.theme-options {
+    display: flex;
+    gap: 20px;
+}
+
+.theme-option input {
+    display: none;
+}
+
+.theme-option .theme-name {
+    display: block;
+    padding: 10px 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.theme-option input:checked + .theme-name {
+    border-color: var(--accent-blue);
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+}
