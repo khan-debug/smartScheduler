@@ -1,32 +1,34 @@
-<section id="dashboard">
-    <h1>Hello, User</h1>
-    <p class="subtitle">Let's be productive today</p>
+{% extends "base.html" %}
 
-    <div class="content-section">
-        <div class="section-header">
-            <h2>Today's Schedule</h2>
-            <a href="#" class="view-all">View all</a>
-        </div>
-        <div class="task-cards">
-            <div class="task-card">
-                <span class="task-time">10:00 AM - 11:00 AM</span>
-                <h3 class="task-title">Meeting with team</h3>
-            </div>
-            <div class="task-card">
-                <span class="task-time">12:00 PM</span>
-                <h3 class="task-title">Project Deadline</h3>
-            </div>
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    
+    <div class="stat-card">
+        <span class="stat-card-number">320</span>
+        <span class="stat-card-label">Total Classes Scheduled</span>
+    </div>
+
+    <div class="stat-card">
+        <span class="stat-card-number">12</span>
+        <span class="stat-card-label">Conflicts</span>
+        <span class="stat-card-badge resolved">Resolved</span>
+    </div>
+
+    <div class="stat-card">
+        <span class="stat-card-number">85%</span>
+        <span class="stat-card-label">Room Utilization</span>
+        <div class="progress-bar-container">
+            <div class="progress-bar" style="width: 85%;"></div>
         </div>
     </div>
 
-    <div class="content-section">
-        <h2>Overall Progress</h2>
-        <div class="progress-item">
-            <label for="project-a">Project A</label>
-            <div class="progress-bar-container">
-                <div class="progress-bar" style="width: 75%;"></div>
-                <span>75%</span>
-            </div>
-        </div>
+    <div class="stat-card">
+        <span class="stat-card-number">Pending</span>
+        <span class="stat-card-label">Faculty Load Balanced</span>
+        <span class="stat-card-badge pending">Pending</span>
     </div>
-</section>
+
+</div>
+{% endblock %}

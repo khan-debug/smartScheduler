@@ -1,0 +1,455 @@
+/* --- Global & Layout --- */
+:root {
+    --bg-dark: #121218;
+    --primary-dark: #1e1e2f;
+    --accent-blue: #007bff;
+    --text-primary: #ffffff;
+    --text-secondary: #aaaaaa;
+    --card-bg: #2a2a45;
+    --border-color: #3a3a5a;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+h1 {
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.btn:hover {
+    background-color: #3a3a5a;
+}
+
+.btn-submit {
+    padding: 15px;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-submit:hover {
+    background-color: #0056b3;
+}
+
+/* --- Sidebar Navigation (On the LEFT) --- */
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    background-color: var(--primary-dark);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    flex-shrink: 0;
+}
+
+.sidebar-title {
+    font-size: 1.8rem;
+    padding: 10px 18px;
+    margin-bottom: 20px;
+}
+
+.sidebar ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.sidebar .nav-link i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* --- Main Content Wrapper (On the RIGHT) --- */
+.main-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* --- Top Bar Header --- */
+.top-bar {
+    height: 70px;
+    background-color: var(--primary-dark);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 40px;
+    flex-shrink: 0;
+}
+
+.top-bar h1 {
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* --- Content Area --- */
+.content-area {
+    flex-grow: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+/* --- Form Styles (Used on Generate) --- */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.form-group input::placeholder {
+    color: var(--text-secondary);
+}
+
+
+/* --- Dashboard Page --- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.stat-card {
+    background-color: var(--primary-dark);
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-card-number {
+    font-size: 2.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-card-label {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.stat-card .progress-bar-container {
+    margin-top: 10px;
+    gap: 0;
+    height: 10px;
+    background-color: var(--card-bg);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.stat-card .progress-bar {
+    height: 100%;
+    background-color: var(--accent-blue);
+    border-radius: 5px;
+}
+
+.stat-card-badge {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 5px;
+}
+
+.stat-card-badge.resolved {
+    background-color: rgba(26, 188, 156, 0.2);
+    color: #1abc9c;
+}
+
+.stat-card-badge.pending {
+    background-color: rgba(243, 156, 18, 0.2);
+    color: #f39c12;
+}
+
+/* --- Generate Timetable Page --- */
+.nlp-command-bar {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.nlp-command-bar input {
+    flex-grow: 1;
+    /* Re-use existing form styles */
+    padding: 12px 15px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.nlp-command-bar .btn-submit {
+    width: auto;
+    flex-shrink: 0;
+}
+
+.separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-secondary);
+    margin: 30px 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.separator::before, .separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+.separator::before { margin-right: 1em; }
+.separator::after { margin-left: 1em; }
+
+.file-dropzone {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    background-color: var(--primary-dark);
+    cursor: pointer;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+.file-dropzone:hover {
+    background-color: var(--card-bg);
+    border-color: var(--accent-blue);
+}
+.file-dropzone .dropzone-icon {
+    font-size: 2.5rem;
+    color: var(--accent-blue);
+}
+.file-dropzone h3 {
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    margin: 10px 0 5px;
+}
+.file-dropzone p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 30px 0;
+}
+
+.timetable-grid-container {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.timetable-grid-header {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background-color: var(--primary-dark);
+}
+.timetable-grid-header span {
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+.timetable-grid-header span:last-child {
+    border-right: none;
+}
+.timetable-grid-body {
+    min-height: 400px; 
+    background-image: 
+        linear-gradient(to right, var(--border-color) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--border-color) 1px, transparent 1px);
+    background-size: 100% 80px, 20% 100%;
+}
+
+/* --- Teacher View Page --- */
+.teacher-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background-color: var(--primary-dark);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.teacher-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--accent-blue);
+}
+
+.teacher-name {
+    margin: 0;
+    font-size: 1.75rem;
+}
+
+.teacher-title {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.teacher-timetable-container {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.teacher-timetable-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background-color: var(--primary-dark);
+}
+.teacher-timetable-header span {
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+.teacher-timetable-header span:last-child {
+    border-right: none;
+}
+.teacher-timetable-body {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    min-height: 400px; 
+    padding: 10px;
+    gap: 10px;
+    background-image: 
+        linear-gradient(to right, var(--border-color) 1px, transparent 1px);
+    background-size: calc(100% / 7) 100%;
+    background-position: 0 0;
+}
+.class-block {
+    background-color: var(--accent-blue);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    height: fit-content;
+}
+
+/* --- Admin Panel Page --- */
+.admin-menu {
+    display: grid;
+    grid-template-columns: 1fr; /* 1 column */
+    gap: 15px;
+    max-width: 800px;
+}
+
+.admin-menu-button {
+    display: block;
+    width: 100%;
+    background-color: var(--primary-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px 25px;
+    
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+    
+    cursor: pointer;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.admin-menu-button:hover {
+    background-color: var(--card-bg);
+    border-color: var(--accent-blue);
+}

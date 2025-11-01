@@ -1,24 +1,13 @@
-<section id="admin-panel">
-    <h1>Admin Panel</h1>
+{% extends "base.html" %}
 
-    <div class="settings-section">
-        <h2>Manage Users</h2>
-        <div class="form-group">
-            <label for="name">Find User</label>
-            <input type="text" id="name" placeholder="Search by name or email...">
-        </div>
-        <button class="btn">Search</button>
-    </div>
+{% block page_title %}Admin Panel{% endblock %}
 
-    <div class="settings-section">
-        <h2>System Settings</h2>
-        <div class="toggle-group">
-            <label for="push">Enable AI Scheduling</label>
-            <label class="switch">
-                <input type="checkbox" id="push" checked>
-                <span class="slider round"></span>
-            </label>
-        </div>
-    </div>
-    <button type="submit" class="btn-submit">Save Changes</button>
-</section>
+{% block content %}
+<div class="admin-menu">
+    <button class="admin-menu-button">Manage Faculty</button>
+    <button class="admin-menu-button">Manage Courses</button>
+    <button class="admin-menu-button">Manage Rooms</button>
+    <button class="admin-menu-button">View Timetables</button>
+    <button class="admin-menu-button">Audit Logs</button>
+</div>
+{% endblock %}
