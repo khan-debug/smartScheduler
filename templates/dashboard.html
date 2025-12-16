@@ -6,29 +6,81 @@
 <div class="stats-grid">
     
     <div class="stat-card">
-        <span class="stat-card-number">320</span>
+        <span class="stat-card-number" id="totalClassesScheduled">...</span>
         <span class="stat-card-label">Total Classes Scheduled</span>
     </div>
 
     <div class="stat-card">
-        <span class="stat-card-number">12</span>
+        <span class="stat-card-number" id="conflicts">...</span>
         <span class="stat-card-label">Conflicts</span>
-        <span class="stat-card-badge resolved">Resolved</span>
+        <span class="stat-card-badge resolved" id="conflictsStatus"></span>
     </div>
 
     <div class="stat-card">
-        <span class="stat-card-number">85%</span>
+        <span class="stat-card-number" id="roomUtilization">...</span>
         <span class="stat-card-label">Room Utilization</span>
         <div class="progress-bar-container">
-            <div class="progress-bar" style="width: 85%;"></div>
+            <div class="progress-bar" id="roomUtilizationBar" style="width: 0%;"></div>
         </div>
     </div>
 
     <div class="stat-card">
-        <span class="stat-card-number">Pending</span>
+        <span class="stat-card-number" id="facultyLoadBalanced">...</span>
         <span class="stat-card-label">Faculty Load Balanced</span>
-        <span class="stat-card-badge pending">Pending</span>
+        <span class="stat-card-badge pending" id="facultyLoadStatus"></span>
     </div>
 
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const timetableResponse = await fetch('/api/timetable');
+            const timetable = await timetableResponse.json();
+
+            // Total Classes Scheduled
+            document.getElementById('totalClassesScheduled').textContent = timetable.length;
+
+            // Conflicts (simplified)
+            document.getElementById('conflicts').textContent = 0;
+            document.getElementById('conflictsStatus').textContent = 'None';
+
+            // Room Utilization
+            const roomsResponse = await fetch('/api/rooms');
+            const rooms = await roomsResponse.json();
+            const uniqueRoomsUsed = new Set(timetable.map(entry => entry.room.id)).size;
+            const totalRooms = rooms.length;
+            let roomUtilizationPercentage = totalRooms > 0 ? (uniqueRoomsUsed / totalRooms) * 100 : 0;
+            document.getElementById('roomUtilization').textContent = `${roomUtilizationPercentage.toFixed(0)}%`;
+            document.getElementById('roomUtilizationBar').style.width = `${roomUtilizationPercentage}%`;
+
+            // Faculty Load Balanced
+            const teachersResponse = await fetch('/api/teachers');
+            const teachers = await teachersResponse.json();
+            const teachersTeaching = new Set(timetable.map(entry => entry.teacher.id));
+            const allTeachersAssigned = teachers.length > 0 && teachers.every(teacher => teachersTeaching.has(teacher.id));
+            
+            if (teachers.length === 0) {
+                 document.getElementById('facultyLoadBalanced').textContent = 'N/A';
+                 document.getElementById('facultyLoadStatus').textContent = 'No Teachers';
+            } else if (allTeachersAssigned) {
+                document.getElementById('facultyLoadBalanced').textContent = 'Balanced';
+                document.getElementById('facultyLoadStatus').textContent = 'Achieved';
+                document.getElementById('facultyLoadStatus').className = 'stat-card-badge resolved';
+            } else {
+                document.getElementById('facultyLoadBalanced').textContent = 'Unbalanced';
+                document.getElementById('facultyLoadStatus').textContent = 'Pending';
+                document.getElementById('facultyLoadStatus').className = 'stat-card-badge pending';
+            }
+
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+            // Display error state
+            document.getElementById('totalClassesScheduled').textContent = 'Error';
+            document.getElementById('conflicts').textContent = 'Error';
+            document.getElementById('roomUtilization').textContent = 'Error';
+            document.getElementById('facultyLoadBalanced').textContent = 'Error';
+        }
+    });
+</script>
 {% endblock %}

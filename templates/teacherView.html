@@ -7,8 +7,8 @@
 <div class="teacher-profile-header">
     <img src="https://via.placeholder.com/80" alt="Professor" class="teacher-avatar">
     <div class="teacher-info">
-        <h1 class="teacher-name">Sarah Yousuf</h1>
-        <p class="teacher-title">Professor</p>
+        <h1 class="teacher-name" id="teacherName">Select a Teacher</h1>
+        <p class="teacher-title" id="teacherInfo"></p>
     </div>
 </div>
 
@@ -19,15 +19,98 @@
         <span>Wednesday</span>
         <span>Thursday</span>
         <span>Friday</span>
-        <span>Saturday</span>
-        <span>Sunday</span>
     </div>
-    <div class="teacher-timetable-body">
-        <div class="class-block" style="grid-column: 2; margin-top: 30px;">ENG160</div>
-        <div class="class-block" style="grid-column: 3; margin-top: 80px;">MATH110</div>
-        <div class="class-block" style="grid-column: 4; margin-top: 30px;">CS150</div>
-        <div class="class-block" style="grid-column: 5; margin-top: 120px;">DLD143</div>
+    <div class="teacher-timetable-body" id="teacherTimetableBody">
+        <!-- Timetable will be dynamically loaded here -->
     </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const teacherId = urlParams.get('id');
+
+        const teacherNameEl = document.getElementById('teacherName');
+        const teacherInfoEl = document.getElementById('teacherInfo');
+        const timetableBodyEl = document.getElementById('teacherTimetableBody');
+
+        if (!teacherId) {
+            teacherInfoEl.textContent = 'Please provide a teacher ID in the URL, e.g., /teacher?id=1';
+            return;
+        }
+
+        try {
+            // Fetch teacher details
+            const teacherResponse = await fetch(`/api/teachers/${teacherId}`);
+            if (!teacherResponse.ok) throw new Error('Teacher not found');
+            const teacher = await teacherResponse.json();
+
+            teacherNameEl.textContent = teacher.name;
+            teacherInfoEl.textContent = teacher.email;
+
+            // Fetch teacher's timetable
+            const timetableResponse = await fetch(`/api/teachers/${teacherId}/timetable`);
+            if (!timetableResponse.ok) throw new Error('Could not fetch timetable');
+            const data = await timetableResponse.json();
+            const timetable = data.timetable;
+
+            timetableBodyEl.innerHTML = ''; // Clear existing
+
+            if (timetable.length === 0) {
+                timetableBodyEl.innerHTML = '<p style="text-align: center; grid-column: 1 / -1; padding: 20px;">No classes scheduled for this teacher.</p>';
+                return;
+            }
+
+            const schedule = {};
+            timetable.forEach(entry => {
+                const day = entry.time_slot.day_of_week;
+                if (!schedule[day]) schedule[day] = [];
+                schedule[day].push(entry);
+            });
+            
+            const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+            daysOfWeek.forEach(day => {
+                const dayColumn = document.createElement('div');
+                dayColumn.className = 'day-column'; // Re-use style from generate.html
+
+                if (schedule[day]) {
+                    schedule[day].forEach(entry => {
+                        const classBlock = document.createElement('div');
+                        classBlock.className = 'class-block';
+                        classBlock.innerHTML = `
+                            <strong>${entry.course.code}</strong><br>
+                            ${entry.course.name}<br>
+                            <em>${entry.room.name}</em><br>
+                            <small>${entry.time_slot.start_time.substring(0,5)} - ${entry.time_slot.end_time.substring(0,5)}</small>
+                        `;
+                        dayColumn.appendChild(classBlock);
+                    });
+                }
+                timetableBodyEl.appendChild(dayColumn);
+            });
+
+
+        } catch (error) {
+            console.error('Error loading teacher view:', error);
+            teacherNameEl.textContent = 'Error';
+            teacherInfoEl.textContent = error.message;
+        }
+    });
+</script>
+<style>
+    .teacher-timetable-body {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        min-height: 400px;
+        background-image: none;
+    }
+    .day-column {
+        padding: 10px;
+        border-right: 1px solid var(--border-color);
+    }
+    .day-column:last-child {
+        border-right: none;
+    }
+</style>
 {% endblock %}

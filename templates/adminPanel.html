@@ -4,10 +4,265 @@
 
 {% block content %}
 <div class="admin-menu">
-    <button class="admin-menu-button">Manage Faculty</button>
-    <button class="admin-menu-button">Manage Courses</button>
-    <button class="admin-menu-button">Manage Rooms</button>
-    <button class="admin-menu-button">View Timetables</button>
-    <button class="admin-menu-button">Audit Logs</button>
+    <button class="admin-menu-button" onclick="showEntityManagement('teachers')">Manage Faculty</button>
+    <button class="admin-menu-button" onclick="showEntityManagement('courses')">Manage Courses</button>
+    <button class="admin-menu-button" onclick="showEntityManagement('rooms')">Manage Rooms</button>
+    <button class="admin-menu-button" disabled>View Timetables (Not Implemented)</button>
+    <button class="admin-menu-button" disabled>Audit Logs (Not Implemented)</button>
 </div>
+
+<!-- Entity Management Section (hidden by default) -->
+<div id="entityManagementSection" style="display: none; margin-top: 30px;">
+    <h2 id="entityManagementTitle"></h2>
+    <button id="addEntityBtn" class="btn-submit" style="width: auto; margin-bottom: 20px;">Add New</button>
+    <div class="table-container">
+        <table id="entityTable">
+            <thead>
+                <!-- Table headers will be injected here -->
+            </thead>
+            <tbody>
+                <!-- Table body will be injected here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal for Add/Edit -->
+<div id="entityModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeModal()">&times;</span>
+        <h2 id="modalTitle"></h2>
+        <form id="entityForm" class="form-group">
+            <!-- Form fields will be injected here -->
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentEntityType = '';
+
+    const entityConfig = {
+        teachers: {
+            title: 'Manage Teachers',
+            headers: ['ID', 'Name', 'Email', 'Actions'],
+            fields: [
+                { name: 'name', type: 'text', placeholder: 'Teacher Name', required: true },
+                { name: 'email', type: 'email', placeholder: 'Teacher Email', required: true },
+            ],
+            apiEndpoint: '/api/teachers'
+        },
+        courses: {
+            title: 'Manage Courses',
+            headers: ['ID', 'Name', 'Code', 'Department', 'Actions'],
+            fields: [
+                { name: 'name', type: 'text', placeholder: 'Course Name', required: true },
+                { name: 'code', type: 'text', placeholder: 'Course Code', required: true },
+                { name: 'department', type: 'text', placeholder: 'Department', required: true },
+            ],
+            apiEndpoint: '/api/courses'
+        },
+        rooms: {
+            title: 'Manage Rooms',
+            headers: ['ID', 'Name', 'Capacity', 'Type', 'Actions'],
+            fields: [
+                { name: 'name', type: 'text', placeholder: 'Room Name', required: true },
+                { name: 'capacity', type: 'number', placeholder: 'Capacity', required: true },
+                { name: 'room_type', type: 'text', placeholder: 'Room Type (e.g., lecture, lab)', required: true },
+            ],
+            apiEndpoint: '/api/rooms'
+        }
+    };
+
+    function showEntityManagement(entityType) {
+        currentEntityType = entityType;
+        const config = entityConfig[entityType];
+        
+        document.getElementById('entityManagementSection').style.display = 'block';
+        document.getElementById('entityManagementTitle').textContent = config.title;
+        document.getElementById('addEntityBtn').onclick = () => openModal();
+
+        const tableHead = document.querySelector('#entityTable thead');
+        tableHead.innerHTML = `<tr>${config.headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+        
+        loadEntities();
+    }
+
+    async function loadEntities() {
+        const config = entityConfig[currentEntityType];
+        try {
+            const response = await fetch(config.apiEndpoint);
+            const entities = await response.json();
+            
+            const tableBody = document.querySelector('#entityTable tbody');
+            tableBody.innerHTML = '';
+            
+            entities.forEach(entity => {
+                const row = tableBody.insertRow();
+                Object.values(entity).forEach(val => {
+                    row.insertCell().textContent = val;
+                });
+                const actionsCell = row.insertCell();
+                const editButton = document.createElement('button');
+                editButton.textContent = 'Edit';
+                editButton.className = 'btn';
+                editButton.onclick = () => openModal(entity);
+                actionsCell.appendChild(editButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.className = 'btn';
+                deleteButton.style.backgroundColor = '#dc3545';
+                deleteButton.onclick = () => deleteEntity(entity.id);
+                actionsCell.appendChild(deleteButton);
+            });
+
+        } catch (error) {
+            console.error(`Error loading ${currentEntityType}:`, error);
+            alert(`Failed to load ${currentEntityType}.`);
+        }
+    }
+
+    function openModal(entity = null) {
+        const config = entityConfig[currentEntityType];
+        const modal = document.getElementById('entityModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const form = document.getElementById('entityForm');
+        
+        form.innerHTML = ''; // Clear previous fields
+        modalTitle.textContent = entity ? `Edit ${config.title}` : `Add New ${config.title}`;
+
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.id = 'entityId';
+        idInput.value = entity ? entity.id : '';
+        form.appendChild(idInput);
+        
+        config.fields.forEach(field => {
+            const input = document.createElement('input');
+            input.type = field.type;
+            input.id = `entity-${field.name}`;
+            input.name = field.name;
+            input.placeholder = field.placeholder;
+            input.required = field.required;
+            input.value = entity ? entity[field.name] : '';
+            form.appendChild(input);
+        });
+
+        const submitButton = document.createElement('button');
+        submitButton.type = 'submit';
+        submitButton.textContent = entity ? 'Update' : 'Add';
+        submitButton.className = 'btn-submit';
+        form.appendChild(submitButton);
+
+        form.onsubmit = saveEntity;
+        modal.style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('entityModal').style.display = 'none';
+    }
+
+    async function saveEntity(event) {
+        event.preventDefault();
+        const config = entityConfig[currentEntityType];
+        const id = document.getElementById('entityId').value;
+        const data = {};
+        config.fields.forEach(field => {
+            data[field.name] = document.getElementById(`entity-${field.name}`).value;
+        });
+
+        const url = id ? `${config.apiEndpoint}/${id}` : config.apiEndpoint;
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Save operation failed');
+            }
+            
+            alert(`${config.title.slice(0, -1)} saved successfully!`);
+            closeModal();
+            loadEntities();
+
+        } catch (error) {
+            console.error(`Error saving ${currentEntityType}:`, error);
+            alert(`Failed to save ${currentEntityType.slice(0, -1)}. ` + error.message);
+        }
+    }
+
+    async function deleteEntity(id) {
+        const config = entityConfig[currentEntityType];
+        if (!confirm(`Are you sure you want to delete this ${config.title.slice(0, -1)}?`)) return;
+
+        try {
+            const response = await fetch(`${config.apiEndpoint}/${id}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Delete operation failed');
+            }
+            alert(`${config.title.slice(0, -1)} deleted successfully!`);
+            loadEntities();
+        } catch (error) {
+            console.error(`Error deleting ${currentEntityType}:`, error);
+            alert(`Failed to delete ${currentEntityType.slice(0, -1)}. ` + error.message);
+        }
+    }
+
+    // Close modal if clicked outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('entityModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+</script>
+
+<style>
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.6);
+    }
+    .modal-content {
+        background-color: var(--primary-dark);
+        margin: 10% auto;
+        padding: 30px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        width: 80%;
+        max-width: 500px;
+        position: relative;
+    }
+    .close-button {
+        color: var(--text-secondary);
+        position: absolute;
+        top: 15px;
+        right: 25px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .close-button:hover,
+    .close-button:focus {
+        color: var(--text-primary);
+    }
+    .table-container {
+        overflow-x: auto;
+    }
+    .admin-menu-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
 {% endblock %}

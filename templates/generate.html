@@ -5,8 +5,8 @@
 {% block content %}
 
 <div class="nlp-command-bar">
-    <input type="text" placeholder="Enter command, e.g. Generate timetable for CS department...">
-    <button type="submit" class="btn-submit">Auto Generate</button>
+    <input type="text" id="generationCommand" placeholder="Enter command, e.g. Generate timetable for CS department...">
+    <button type="submit" id="autoGenerateBtn" class="btn-submit">Auto Generate</button>
 </div>
 
 <div class="separator">OR</div>
@@ -15,8 +15,11 @@
     <div class="dropzone-icon">☁️</div>
     <h3>Attach .csv file</h3>
     <p>Class assignments and slots</p>
-    <input type="file" hidden>
+    <input type="file" id="csvFileUpload" accept=".csv" hidden>
 </div>
+
+<div id="messageArea" style="margin-top: 15px; color: green; text-align: center;"></div>
+<div id="errorArea" style="margin-top: 15px; color: red; text-align: center;"></div>
 
 <div class="action-buttons">
     <button class="btn">Edit Constraints</button>
@@ -34,8 +37,104 @@
         <span>Thursday</span>
         <span>Friday</span>
     </div>
-    <div class="timetable-grid-body">
-        </div>
+    <div class="timetable-grid-body" id="timetableGridBody">
+        <!-- Timetable will be dynamically loaded here -->
+    </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const autoGenerateBtn = document.getElementById('autoGenerateBtn');
+        const messageArea = document.getElementById('messageArea');
+        const errorArea = document.getElementById('errorArea');
+        const timetableGridBody = document.getElementById('timetableGridBody');
+
+        autoGenerateBtn.addEventListener('click', async () => {
+            messageArea.textContent = 'Generating timetable...';
+            errorArea.textContent = '';
+            try {
+                const response = await fetch('/api/generate-timetable', { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageArea.textContent = data.message;
+                    loadTimetable();
+                } else {
+                    errorArea.textContent = 'Error: ' + (data.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error generating timetable:', error);
+                errorArea.textContent = 'Failed to generate timetable: ' + error.message;
+            }
+        });
+
+        async function loadTimetable() {
+            try {
+                const response = await fetch('/api/timetable');
+                const timetable = await response.json();
+                
+                timetableGridBody.innerHTML = ''; // Clear previous timetable
+
+                if (timetable.length === 0) {
+                    timetableGridBody.innerHTML = '<p style="text-align: center; padding: 20px;">No timetable entries found.</p>';
+                    return;
+                }
+
+                // Group entries by day and time slot for grid display
+                const schedule = {};
+                timetable.forEach(entry => {
+                    const day = entry.time_slot.day_of_week;
+                    if (!schedule[day]) schedule[day] = [];
+                    schedule[day].push(entry);
+                });
+
+                const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+                
+                // Create a div for each day column
+                daysOfWeek.forEach(day => {
+                    const dayColumn = document.createElement('div');
+                    dayColumn.className = 'day-column'; // Assuming this class can be styled
+
+                    if (schedule[day]) {
+                        schedule[day].forEach(entry => {
+                            const classBlock = document.createElement('div');
+                            classBlock.className = 'class-block';
+                            classBlock.innerHTML = `
+                                <strong>${entry.course.code}</strong><br>
+                                ${entry.teacher.name}<br>
+                                <em>${entry.room.name}</em><br>
+                                <small>${entry.time_slot.start_time.substring(0,5)} - ${entry.time_slot.end_time.substring(0,5)}</small>
+                            `;
+                            dayColumn.appendChild(classBlock);
+                        });
+                    }
+                    timetableGridBody.appendChild(dayColumn);
+                });
+
+            } catch (error) {
+                console.error('Error loading timetable:', error);
+                errorArea.textContent = 'Failed to load timetable: ' + error.message;
+            }
+        }
+        
+        // Initial load of any existing timetable
+        loadTimetable();
+    });
+</script>
+<style>
+    /* Adding some styles here to make the timetable grid display correctly */
+    .timetable-grid-body {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        min-height: 400px;
+        background-image: none; /* Override default background */
+    }
+    .day-column {
+        padding: 10px;
+        border-right: 1px solid var(--border-color);
+    }
+    .day-column:last-child {
+        border-right: none;
+    }
+</style>
 {% endblock %}
