@@ -1,294 +1,644 @@
 from flask import Flask, render_template, request, jsonify
-from sqlalchemy.orm import Session
-from database import SessionLocal, Teacher, Course, Room, TimeSlot, ScheduleEntry, create_db_tables
-
+from bson import ObjectId
+from bson.errors import InvalidId
+from pymongo.errors import DuplicateKeyError
+import os
+from database import (
+    get_db,
+    teachers_collection,
+    courses_collection,
+    rooms_collection,
+    time_slots_collection,
+    schedule_entries_collection,
+    serialize_doc,
+    serialize_docs,
+    create_indexes
+)
 
 app = Flask(__name__)
 
-# Dependency to get a DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Configuration
+app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+
+# Input validation helpers
+def validate_teacher_data(data):
+    """Validate teacher input data"""
+    errors = []
+    if not data:
+        return ["Request body is required"]
+
+    if 'name' not in data or not data['name'].strip():
+        errors.append("Teacher name is required")
+    elif len(data['name']) > 100:
+        errors.append("Teacher name must be less than 100 characters")
+
+    if 'email' not in data or not data['email'].strip():
+        errors.append("Email is required")
+    elif '@' not in data['email'] or '.' not in data['email']:
+        errors.append("Invalid email format")
+    elif len(data['email']) > 150:
+        errors.append("Email must be less than 150 characters")
+
+    return errors
+
+
+def validate_course_data(data):
+    """Validate course input data"""
+    errors = []
+    if not data:
+        return ["Request body is required"]
+
+    if 'name' not in data or not data['name'].strip():
+        errors.append("Course name is required")
+    elif len(data['name']) > 150:
+        errors.append("Course name must be less than 150 characters")
+
+    if 'code' not in data or not data['code'].strip():
+        errors.append("Course code is required")
+    elif len(data['code']) > 20:
+        errors.append("Course code must be less than 20 characters")
+
+    if 'department' not in data or not data['department'].strip():
+        errors.append("Department is required")
+    elif len(data['department']) > 100:
+        errors.append("Department must be less than 100 characters")
+
+    return errors
+
+
+def validate_room_data(data):
+    """Validate room input data"""
+    errors = []
+    if not data:
+        return ["Request body is required"]
+
+    if 'name' not in data or not data['name'].strip():
+        errors.append("Room name is required")
+    elif len(data['name']) > 50:
+        errors.append("Room name must be less than 50 characters")
+
+    if 'capacity' not in data:
+        errors.append("Room capacity is required")
+    elif not isinstance(data['capacity'], int) or data['capacity'] < 1:
+        errors.append("Room capacity must be a positive integer")
+    elif data['capacity'] > 1000:
+        errors.append("Room capacity must be less than 1000")
+
+    if 'room_type' not in data or not data['room_type'].strip():
+        errors.append("Room type is required")
+    elif data['room_type'] not in ['lecture', 'lab', 'seminar']:
+        errors.append("Room type must be one of: lecture, lab, seminar")
+
+    return errors
+
 
 # API Routes for Teachers
 @app.route("/api/teachers", methods=["POST"])
 def create_teacher():
-    db = next(get_db())
-    teacher_data = request.json
-    new_teacher = Teacher(name=teacher_data["name"], email=teacher_data["email"])
-    db.add(new_teacher)
-    db.commit()
-    db.refresh(new_teacher)
-    return jsonify({"message": "Teacher created successfully", "teacher": {"id": new_teacher.id, "name": new_teacher.name, "email": new_teacher.email}}), 201
+    try:
+        teacher_data = request.get_json()
+
+        # Validate input
+        validation_errors = validate_teacher_data(teacher_data)
+        if validation_errors:
+            return jsonify({"message": "Validation failed", "errors": validation_errors}), 400
+
+        # Create teacher document
+        new_teacher = {
+            "name": teacher_data["name"].strip(),
+            "email": teacher_data["email"].strip().lower()
+        }
+
+        result = teachers_collection.insert_one(new_teacher)
+        new_teacher["id"] = str(result.inserted_id)
+
+        return jsonify({
+            "message": "Teacher created successfully",
+            "teacher": {
+                "id": new_teacher["id"],
+                "name": new_teacher["name"],
+                "email": new_teacher["email"]
+            }
+        }), 201
+
+    except DuplicateKeyError:
+        return jsonify({"message": "A teacher with this email already exists"}), 409
+    except Exception as e:
+        app.logger.error(f"Error creating teacher: {str(e)}")
+        return jsonify({"message": "An error occurred while creating the teacher"}), 500
+
 
 @app.route("/api/teachers", methods=["GET"])
 def get_teachers():
-    db = next(get_db())
-    teachers = db.query(Teacher).all()
-    return jsonify([{"id": t.id, "name": t.name, "email": t.email} for t in teachers])
+    try:
+        teachers = list(teachers_collection.find())
+        return jsonify(serialize_docs(teachers))
+    except Exception as e:
+        app.logger.error(f"Error fetching teachers: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching teachers"}), 500
 
-@app.route("/api/teachers/<int:teacher_id>", methods=["GET"])
+
+@app.route("/api/teachers/<teacher_id>", methods=["GET"])
 def get_teacher(teacher_id):
-    db = next(get_db())
-    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-    if not teacher:
-        return jsonify({"message": "Teacher not found"}), 404
-    return jsonify({"id": teacher.id, "name": teacher.name, "email": teacher.email})
+    try:
+        teacher = teachers_collection.find_one({"_id": ObjectId(teacher_id)})
+        if not teacher:
+            return jsonify({"message": "Teacher not found"}), 404
+        return jsonify(serialize_doc(teacher))
+    except InvalidId:
+        return jsonify({"message": "Invalid teacher ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error fetching teacher: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching the teacher"}), 500
 
-@app.route("/api/teachers/<int:teacher_id>", methods=["PUT"])
+
+@app.route("/api/teachers/<teacher_id>", methods=["PUT"])
 def update_teacher(teacher_id):
-    db = next(get_db())
-    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-    if not teacher:
-        return jsonify({"message": "Teacher not found"}), 404
-    teacher_data = request.json
-    teacher.name = teacher_data["name"]
-    teacher.email = teacher_data["email"]
-    db.commit()
-    db.refresh(teacher)
-    return jsonify({"message": "Teacher updated successfully", "teacher": {"id": teacher.id, "name": teacher.name, "email": teacher.email}})
+    try:
+        teacher_data = request.get_json()
 
-@app.route("/api/teachers/<int:teacher_id>", methods=["DELETE"])
+        # Validate input
+        validation_errors = validate_teacher_data(teacher_data)
+        if validation_errors:
+            return jsonify({"message": "Validation failed", "errors": validation_errors}), 400
+
+        # Check if teacher exists
+        teacher = teachers_collection.find_one({"_id": ObjectId(teacher_id)})
+        if not teacher:
+            return jsonify({"message": "Teacher not found"}), 404
+
+        # Update teacher
+        update_data = {
+            "name": teacher_data["name"].strip(),
+            "email": teacher_data["email"].strip().lower()
+        }
+
+        teachers_collection.update_one(
+            {"_id": ObjectId(teacher_id)},
+            {"$set": update_data}
+        )
+
+        updated_teacher = teachers_collection.find_one({"_id": ObjectId(teacher_id)})
+        return jsonify({
+            "message": "Teacher updated successfully",
+            "teacher": serialize_doc(updated_teacher)
+        })
+
+    except InvalidId:
+        return jsonify({"message": "Invalid teacher ID"}), 400
+    except DuplicateKeyError:
+        return jsonify({"message": "A teacher with this email already exists"}), 409
+    except Exception as e:
+        app.logger.error(f"Error updating teacher: {str(e)}")
+        return jsonify({"message": "An error occurred while updating the teacher"}), 500
+
+
+@app.route("/api/teachers/<teacher_id>", methods=["DELETE"])
 def delete_teacher(teacher_id):
-    db = next(get_db())
-    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-    if not teacher:
-        return jsonify({"message": "Teacher not found"}), 404
-    db.delete(teacher)
-    db.commit()
-    return jsonify({"message": "Teacher deleted successfully"})
+    try:
+        teacher = teachers_collection.find_one({"_id": ObjectId(teacher_id)})
+        if not teacher:
+            return jsonify({"message": "Teacher not found"}), 404
+
+        # Delete associated schedule entries
+        schedule_entries_collection.delete_many({"teacher_id": teacher_id})
+
+        # Delete teacher
+        teachers_collection.delete_one({"_id": ObjectId(teacher_id)})
+
+        return jsonify({"message": "Teacher deleted successfully"})
+    except InvalidId:
+        return jsonify({"message": "Invalid teacher ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error deleting teacher: {str(e)}")
+        return jsonify({"message": "An error occurred while deleting the teacher"}), 500
+
 
 # API Routes for Courses
 @app.route("/api/courses", methods=["POST"])
 def create_course():
-    db = next(get_db())
-    course_data = request.json
-    new_course = Course(name=course_data["name"], code=course_data["code"], department=course_data["department"])
-    db.add(new_course)
-    db.commit()
-    db.refresh(new_course)
-    return jsonify({"message": "Course created successfully", "course": {"id": new_course.id, "name": new_course.name, "code": new_course.code, "department": new_course.department}}), 201
+    try:
+        course_data = request.get_json()
+
+        # Validate input
+        validation_errors = validate_course_data(course_data)
+        if validation_errors:
+            return jsonify({"message": "Validation failed", "errors": validation_errors}), 400
+
+        # Create course document
+        new_course = {
+            "name": course_data["name"].strip(),
+            "code": course_data["code"].strip().upper(),
+            "department": course_data["department"].strip()
+        }
+
+        result = courses_collection.insert_one(new_course)
+        new_course["id"] = str(result.inserted_id)
+
+        return jsonify({
+            "message": "Course created successfully",
+            "course": {
+                "id": new_course["id"],
+                "name": new_course["name"],
+                "code": new_course["code"],
+                "department": new_course["department"]
+            }
+        }), 201
+
+    except DuplicateKeyError:
+        return jsonify({"message": "A course with this code already exists"}), 409
+    except Exception as e:
+        app.logger.error(f"Error creating course: {str(e)}")
+        return jsonify({"message": "An error occurred while creating the course"}), 500
+
 
 @app.route("/api/courses", methods=["GET"])
 def get_courses():
-    db = next(get_db())
-    courses = db.query(Course).all()
-    return jsonify([{"id": c.id, "name": c.name, "code": c.code, "department": c.department} for c in courses])
+    try:
+        courses = list(courses_collection.find())
+        return jsonify(serialize_docs(courses))
+    except Exception as e:
+        app.logger.error(f"Error fetching courses: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching courses"}), 500
 
-@app.route("/api/courses/<int:course_id>", methods=["GET"])
+
+@app.route("/api/courses/<course_id>", methods=["GET"])
 def get_course(course_id):
-    db = next(get_db())
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        return jsonify({"message": "Course not found"}), 404
-    return jsonify({"id": course.id, "name": course.name, "code": course.code, "department": course.department})
+    try:
+        course = courses_collection.find_one({"_id": ObjectId(course_id)})
+        if not course:
+            return jsonify({"message": "Course not found"}), 404
+        return jsonify(serialize_doc(course))
+    except InvalidId:
+        return jsonify({"message": "Invalid course ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error fetching course: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching the course"}), 500
 
-@app.route("/api/courses/<int:course_id>", methods=["PUT"])
+
+@app.route("/api/courses/<course_id>", methods=["PUT"])
 def update_course(course_id):
-    db = next(get_db())
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        return jsonify({"message": "Course not found"}), 404
-    course_data = request.json
-    course.name = course_data["name"]
-    course.code = course_data["code"]
-    course.department = course_data["department"]
-    db.commit()
-    db.refresh(course)
-    return jsonify({"message": "Course updated successfully", "course": {"id": course.id, "name": course.name, "code": course.code, "department": course.department}})
+    try:
+        course_data = request.get_json()
 
-@app.route("/api/courses/<int:course_id>", methods=["DELETE"])
+        # Validate input
+        validation_errors = validate_course_data(course_data)
+        if validation_errors:
+            return jsonify({"message": "Validation failed", "errors": validation_errors}), 400
+
+        # Check if course exists
+        course = courses_collection.find_one({"_id": ObjectId(course_id)})
+        if not course:
+            return jsonify({"message": "Course not found"}), 404
+
+        # Update course
+        update_data = {
+            "name": course_data["name"].strip(),
+            "code": course_data["code"].strip().upper(),
+            "department": course_data["department"].strip()
+        }
+
+        courses_collection.update_one(
+            {"_id": ObjectId(course_id)},
+            {"$set": update_data}
+        )
+
+        updated_course = courses_collection.find_one({"_id": ObjectId(course_id)})
+        return jsonify({
+            "message": "Course updated successfully",
+            "course": serialize_doc(updated_course)
+        })
+
+    except InvalidId:
+        return jsonify({"message": "Invalid course ID"}), 400
+    except DuplicateKeyError:
+        return jsonify({"message": "A course with this code already exists"}), 409
+    except Exception as e:
+        app.logger.error(f"Error updating course: {str(e)}")
+        return jsonify({"message": "An error occurred while updating the course"}), 500
+
+
+@app.route("/api/courses/<course_id>", methods=["DELETE"])
 def delete_course(course_id):
-    db = next(get_db())
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        return jsonify({"message": "Course not found"}), 404
-    db.delete(course)
-    db.commit()
-    return jsonify({"message": "Course deleted successfully"})
+    try:
+        course = courses_collection.find_one({"_id": ObjectId(course_id)})
+        if not course:
+            return jsonify({"message": "Course not found"}), 404
+
+        # Delete associated schedule entries
+        schedule_entries_collection.delete_many({"course_id": course_id})
+
+        # Delete course
+        courses_collection.delete_one({"_id": ObjectId(course_id)})
+
+        return jsonify({"message": "Course deleted successfully"})
+    except InvalidId:
+        return jsonify({"message": "Invalid course ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error deleting course: {str(e)}")
+        return jsonify({"message": "An error occurred while deleting the course"}), 500
+
 
 # API Routes for Rooms
 @app.route("/api/rooms", methods=["POST"])
 def create_room():
-    db = next(get_db())
-    room_data = request.json
-    new_room = Room(name=room_data["name"], capacity=room_data["capacity"], room_type=room_data["room_type"])
-    db.add(new_room)
-    db.commit()
-    db.refresh(new_room)
-    return jsonify({"message": "Room created successfully", "room": {"id": new_room.id, "name": new_room.name, "capacity": new_room.capacity, "room_type": new_room.room_type}}), 201
+    try:
+        room_data = request.get_json()
+
+        # Validate input
+        validation_errors = validate_room_data(room_data)
+        if validation_errors:
+            return jsonify({"message": "Validation failed", "errors": validation_errors}), 400
+
+        # Create room document
+        new_room = {
+            "name": room_data["name"].strip(),
+            "capacity": room_data["capacity"],
+            "room_type": room_data["room_type"].strip().lower()
+        }
+
+        result = rooms_collection.insert_one(new_room)
+        new_room["id"] = str(result.inserted_id)
+
+        return jsonify({
+            "message": "Room created successfully",
+            "room": {
+                "id": new_room["id"],
+                "name": new_room["name"],
+                "capacity": new_room["capacity"],
+                "room_type": new_room["room_type"]
+            }
+        }), 201
+
+    except DuplicateKeyError:
+        return jsonify({"message": "A room with this name already exists"}), 409
+    except Exception as e:
+        app.logger.error(f"Error creating room: {str(e)}")
+        return jsonify({"message": "An error occurred while creating the room"}), 500
+
 
 @app.route("/api/rooms", methods=["GET"])
 def get_rooms():
-    db = next(get_db())
-    rooms = db.query(Room).all()
-    return jsonify([{"id": r.id, "name": r.name, "capacity": r.capacity, "room_type": r.room_type} for r in rooms])
+    try:
+        rooms = list(rooms_collection.find())
+        return jsonify(serialize_docs(rooms))
+    except Exception as e:
+        app.logger.error(f"Error fetching rooms: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching rooms"}), 500
 
-@app.route("/api/rooms/<int:room_id>", methods=["GET"])
+
+@app.route("/api/rooms/<room_id>", methods=["GET"])
 def get_room(room_id):
-    db = next(get_db())
-    room = db.query(Room).filter(Room.id == room_id).first()
-    if not room:
-        return jsonify({"message": "Room not found"}), 404
-    return jsonify({"id": room.id, "name": room.name, "capacity": room.capacity, "room_type": room.room_type})
+    try:
+        room = rooms_collection.find_one({"_id": ObjectId(room_id)})
+        if not room:
+            return jsonify({"message": "Room not found"}), 404
+        return jsonify(serialize_doc(room))
+    except InvalidId:
+        return jsonify({"message": "Invalid room ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error fetching room: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching the room"}), 500
 
-@app.route("/api/rooms/<int:room_id>", methods=["PUT"])
+
+@app.route("/api/rooms/<room_id>", methods=["PUT"])
 def update_room(room_id):
-    db = next(get_db())
-    room = db.query(Room).filter(Room.id == room_id).first()
-    if not room:
-        return jsonify({"message": "Room not found"}), 404
-    room_data = request.json
-    room.name = room_data["name"]
-    room.capacity = room_data["capacity"]
-    room.room_type = room_data["room_type"]
-    db.commit()
-    db.refresh(room)
-    return jsonify({"message": "Room updated successfully", "room": {"id": room.id, "name": room.name, "capacity": room.capacity, "room_type": room.room_type}})
+    try:
+        room_data = request.get_json()
 
-@app.route("/api/rooms/<int:room_id>", methods=["DELETE"])
+        # Validate input
+        validation_errors = validate_room_data(room_data)
+        if validation_errors:
+            return jsonify({"message": "Validation failed", "errors": validation_errors}), 400
+
+        # Check if room exists
+        room = rooms_collection.find_one({"_id": ObjectId(room_id)})
+        if not room:
+            return jsonify({"message": "Room not found"}), 404
+
+        # Update room
+        update_data = {
+            "name": room_data["name"].strip(),
+            "capacity": room_data["capacity"],
+            "room_type": room_data["room_type"].strip().lower()
+        }
+
+        rooms_collection.update_one(
+            {"_id": ObjectId(room_id)},
+            {"$set": update_data}
+        )
+
+        updated_room = rooms_collection.find_one({"_id": ObjectId(room_id)})
+        return jsonify({
+            "message": "Room updated successfully",
+            "room": serialize_doc(updated_room)
+        })
+
+    except InvalidId:
+        return jsonify({"message": "Invalid room ID"}), 400
+    except DuplicateKeyError:
+        return jsonify({"message": "A room with this name already exists"}), 409
+    except Exception as e:
+        app.logger.error(f"Error updating room: {str(e)}")
+        return jsonify({"message": "An error occurred while updating the room"}), 500
+
+
+@app.route("/api/rooms/<room_id>", methods=["DELETE"])
 def delete_room(room_id):
-    db = next(get_db())
-    room = db.query(Room).filter(Room.id == room_id).first()
-    if not room:
-        return jsonify({"message": "Room not found"}), 404
-    db.delete(room)
-    db.commit()
-    return jsonify({"message": "Room deleted successfully"})
+    try:
+        room = rooms_collection.find_one({"_id": ObjectId(room_id)})
+        if not room:
+            return jsonify({"message": "Room not found"}), 404
 
+        # Delete associated schedule entries
+        schedule_entries_collection.delete_many({"room_id": room_id})
+
+        # Delete room
+        rooms_collection.delete_one({"_id": ObjectId(room_id)})
+
+        return jsonify({"message": "Room deleted successfully"})
+    except InvalidId:
+        return jsonify({"message": "Invalid room ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error deleting room: {str(e)}")
+        return jsonify({"message": "An error occurred while deleting the room"}), 500
 
 
 # API Route for Timetable Generation
 @app.route("/api/generate-timetable", methods=["POST"])
 def generate_timetable():
-    db = next(get_db())
-    
-    # 1. Clear existing schedule
-    db.query(ScheduleEntry).delete()
-    db.commit()
+    try:
+        # 1. Clear existing schedule
+        schedule_entries_collection.delete_many({})
 
-    # 2. Fetch all entities
-    teachers = db.query(Teacher).all()
-    courses = db.query(Course).all()
-    rooms = db.query(Room).all()
-    time_slots = db.query(TimeSlot).all()
+        # 2. Fetch all entities
+        teachers = list(teachers_collection.find())
+        courses = list(courses_collection.find())
+        rooms = list(rooms_collection.find())
+        time_slots = list(time_slots_collection.find())
 
-    if not teachers or not courses or not rooms or not time_slots:
-        return jsonify({"message": "Not enough data to generate timetable. Ensure teachers, courses, rooms, and time slots are populated."}), 400
+        if not teachers or not courses or not rooms or not time_slots:
+            return jsonify({
+                "message": "Not enough data to generate timetable. Ensure teachers, courses, rooms, and time slots are populated."
+            }), 400
 
-    # 3. Initialize availability tracking
-    teacher_occupied_slots = set() # (teacher_id, time_slot_id)
-    room_occupied_slots = set()    # (room_id, time_slot_id)
-    
-    generated_schedule = []
-    unassigned_courses = []
+        # 3. Initialize availability tracking
+        teacher_occupied_slots = set()  # (teacher_id, time_slot_id)
+        room_occupied_slots = set()     # (room_id, time_slot_id)
 
-    # 4. Iterate through courses and try to assign
-    for course in courses:
-        assigned = False
-        for time_slot in time_slots:
-            for room in rooms:
-                for teacher in teachers:
-                    # Check for conflicts
-                    teacher_conflict = (teacher.id, time_slot.id) in teacher_occupied_slots
-                    room_conflict = (room.id, time_slot.id) in room_occupied_slots
+        generated_schedule = []
+        unassigned_courses = []
 
-                    if not teacher_conflict and not room_conflict:
-                        # Assign the course
-                        new_entry = ScheduleEntry(
-                            teacher_id=teacher.id,
-                            course_id=course.id,
-                            room_id=room.id,
-                            time_slot_id=time_slot.id
-                        )
-                        db.add(new_entry)
-                        
-                        # Mark as occupied
-                        teacher_occupied_slots.add((teacher.id, time_slot.id))
-                        room_occupied_slots.add((room.id, time_slot.id))
-                        
-                        generated_schedule.append(new_entry)
-                        assigned = True
-                        break # Break from teacher loop, assigned this course
+        # 4. Iterate through courses and try to assign
+        for course in courses:
+            assigned = False
+            course_id = str(course["_id"])
+
+            for time_slot in time_slots:
+                time_slot_id = str(time_slot["_id"])
+
+                for room in rooms:
+                    room_id = str(room["_id"])
+
+                    for teacher in teachers:
+                        teacher_id = str(teacher["_id"])
+
+                        # Check for conflicts
+                        teacher_conflict = (teacher_id, time_slot_id) in teacher_occupied_slots
+                        room_conflict = (room_id, time_slot_id) in room_occupied_slots
+
+                        if not teacher_conflict and not room_conflict:
+                            # Assign the course
+                            new_entry = {
+                                "teacher_id": teacher_id,
+                                "course_id": course_id,
+                                "room_id": room_id,
+                                "time_slot_id": time_slot_id
+                            }
+                            result = schedule_entries_collection.insert_one(new_entry)
+                            new_entry["id"] = str(result.inserted_id)
+
+                            # Mark as occupied
+                            teacher_occupied_slots.add((teacher_id, time_slot_id))
+                            room_occupied_slots.add((room_id, time_slot_id))
+
+                            generated_schedule.append(new_entry)
+                            assigned = True
+                            break  # Break from teacher loop
+                    if assigned:
+                        break  # Break from room loop
                 if assigned:
-                    break # Break from room loop
-            if assigned:
-                break # Break from time_slot loop
-        
-        if not assigned:
-            unassigned_courses.append(course.name)
+                    break  # Break from time_slot loop
 
-    db.commit()
+            if not assigned:
+                unassigned_courses.append(course["name"])
 
-    if unassigned_courses:
-        return jsonify({
-            "message": "Timetable generated with some unassigned courses.",
-            "unassigned_courses": unassigned_courses,
-            "generated_entries_count": len(generated_schedule)
-        }), 200
-    else:
-        return jsonify({
-            "message": "Timetable generated successfully.",
-            "generated_entries_count": len(generated_schedule)
-        }), 200
+        if unassigned_courses:
+            return jsonify({
+                "message": "Timetable generated with some unassigned courses.",
+                "unassigned_courses": unassigned_courses,
+                "generated_entries_count": len(generated_schedule)
+            }), 200
+        else:
+            return jsonify({
+                "message": "Timetable generated successfully.",
+                "generated_entries_count": len(generated_schedule)
+            }), 200
+
+    except Exception as e:
+        app.logger.error(f"Error generating timetable: {str(e)}")
+        return jsonify({"message": "An error occurred while generating the timetable"}), 500
 
 
 # API Route for retrieving the complete timetable
 @app.route("/api/timetable", methods=["GET"])
 def get_full_timetable():
-    db = next(get_db())
-    schedule_entries = db.query(ScheduleEntry).all()
-    result = []
-    for entry in schedule_entries:
-        teacher = db.query(Teacher).filter(Teacher.id == entry.teacher_id).first()
-        course = db.query(Course).filter(Course.id == entry.course_id).first()
-        room = db.query(Room).filter(Room.id == entry.room_id).first()
-        time_slot = db.query(TimeSlot).filter(TimeSlot.id == entry.time_slot_id).first()
+    try:
+        schedule_entries = list(schedule_entries_collection.find())
+        result = []
 
-        result.append({
-            "id": entry.id,
-            "teacher": {"id": teacher.id, "name": teacher.name} if teacher else None,
-            "course": {"id": course.id, "name": course.name, "code": course.code} if course else None,
-            "room": {"id": room.id, "name": room.name} if room else None,
-            "time_slot": {
-                "id": time_slot.id,
-                "day_of_week": time_slot.day_of_week,
-                "start_time": str(time_slot.start_time),
-                "end_time": str(time_slot.end_time),
-            } if time_slot else None,
-        })
-    return jsonify(result)
+        for entry in schedule_entries:
+            teacher = teachers_collection.find_one({"_id": ObjectId(entry["teacher_id"])})
+            course = courses_collection.find_one({"_id": ObjectId(entry["course_id"])})
+            room = rooms_collection.find_one({"_id": ObjectId(entry["room_id"])})
+            time_slot = time_slots_collection.find_one({"_id": ObjectId(entry["time_slot_id"])})
+
+            result.append({
+                "id": str(entry["_id"]),
+                "teacher": {
+                    "id": str(teacher["_id"]),
+                    "name": teacher["name"]
+                } if teacher else None,
+                "course": {
+                    "id": str(course["_id"]),
+                    "name": course["name"],
+                    "code": course["code"]
+                } if course else None,
+                "room": {
+                    "id": str(room["_id"]),
+                    "name": room["name"]
+                } if room else None,
+                "time_slot": {
+                    "id": str(time_slot["_id"]),
+                    "day_of_week": time_slot["day_of_week"],
+                    "start_time": time_slot["start_time"],
+                    "end_time": time_slot["end_time"]
+                } if time_slot else None,
+            })
+
+        return jsonify(result)
+    except Exception as e:
+        app.logger.error(f"Error fetching timetable: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching the timetable"}), 500
+
 
 # API Route for retrieving a specific teacher's timetable
-@app.route("/api/teachers/<int:teacher_id>/timetable", methods=["GET"])
+@app.route("/api/teachers/<teacher_id>/timetable", methods=["GET"])
 def get_teacher_timetable(teacher_id):
-    db = next(get_db())
-    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
-    if not teacher:
-        return jsonify({"message": "Teacher not found"}), 404
+    try:
+        teacher = teachers_collection.find_one({"_id": ObjectId(teacher_id)})
+        if not teacher:
+            return jsonify({"message": "Teacher not found"}), 404
 
-    schedule_entries = db.query(ScheduleEntry).filter(ScheduleEntry.teacher_id == teacher_id).all()
-    result = []
-    for entry in schedule_entries:
-        course = db.query(Course).filter(Course.id == entry.course_id).first()
-        room = db.query(Room).filter(Room.id == entry.room_id).first()
-        time_slot = db.query(TimeSlot).filter(TimeSlot.id == entry.time_slot_id).first()
+        schedule_entries = list(schedule_entries_collection.find({"teacher_id": teacher_id}))
+        result = []
 
-        result.append({
-            "id": entry.id,
-            "course": {"id": course.id, "name": course.name, "code": course.code} if course else None,
-            "room": {"id": room.id, "name": room.name} if room else None,
-            "time_slot": {
-                "id": time_slot.id,
-                "day_of_week": time_slot.day_of_week,
-                "start_time": str(time_slot.start_time),
-                "end_time": str(time_slot.end_time),
-            } if time_slot else None,
+        for entry in schedule_entries:
+            course = courses_collection.find_one({"_id": ObjectId(entry["course_id"])})
+            room = rooms_collection.find_one({"_id": ObjectId(entry["room_id"])})
+            time_slot = time_slots_collection.find_one({"_id": ObjectId(entry["time_slot_id"])})
+
+            result.append({
+                "id": str(entry["_id"]),
+                "course": {
+                    "id": str(course["_id"]),
+                    "name": course["name"],
+                    "code": course["code"]
+                } if course else None,
+                "room": {
+                    "id": str(room["_id"]),
+                    "name": room["name"]
+                } if room else None,
+                "time_slot": {
+                    "id": str(time_slot["_id"]),
+                    "day_of_week": time_slot["day_of_week"],
+                    "start_time": time_slot["start_time"],
+                    "end_time": time_slot["end_time"]
+                } if time_slot else None,
+            })
+
+        return jsonify({
+            "teacher_id": str(teacher["_id"]),
+            "teacher_name": teacher["name"],
+            "timetable": result
         })
-    return jsonify({"teacher_id": teacher.id, "teacher_name": teacher.name, "timetable": result})
+    except InvalidId:
+        return jsonify({"message": "Invalid teacher ID"}), 400
+    except Exception as e:
+        app.logger.error(f"Error fetching teacher timetable: {str(e)}")
+        return jsonify({"message": "An error occurred while fetching the teacher's timetable"}), 500
 
 
 # Route for the Dashboard (main page)
@@ -296,21 +646,27 @@ def get_teacher_timetable(teacher_id):
 def dashboard():
     return render_template("dashboard.html", active_page="dashboard")
 
+
 # Route for Generate Timetable
 @app.route("/generate")
 def generate():
     return render_template("generate.html", active_page="generate")
+
 
 # Route for Teacher View
 @app.route("/teacher")
 def teacher_view():
     return render_template("teacherView.html", active_page="teacher")
 
+
 # Route for Admin Panel
 @app.route("/admin")
 def admin_panel():
     return render_template("adminPanel.html", active_page="admin")
 
+
 if __name__ == "__main__":
-    create_db_tables()
-    app.run(debug=True, port=5000)
+    create_indexes()
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug, port=port, host='0.0.0.0')

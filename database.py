@@ -1,83 +1,76 @@
-from sqlalchemy import create_engine, Column, Integer, String, Time, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-import datetime
+from pymongo import MongoClient, ASCENDING
+from bson import ObjectId
+import os
+from datetime import datetime
 
-# SQLite database URL
-DATABASE_URL = "sqlite:///./smart_scheduler.db"
+# MongoDB connection configuration
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "smart_scheduler")
 
-# Create a SQLAlchemy engine
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Create MongoDB client
+client = MongoClient(MONGODB_URL)
+db = client[DATABASE_NAME]
 
-# Create a SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Collections
+teachers_collection = db["teachers"]
+courses_collection = db["courses"]
+rooms_collection = db["rooms"]
+time_slots_collection = db["time_slots"]
+schedule_entries_collection = db["schedule_entries"]
 
-# Base class for declarative models
-Base = declarative_base()
 
-# Define database models
-class Teacher(Base):
-    __tablename__ = "teachers"
+def create_indexes():
+    """Create indexes for better query performance"""
+    # Teachers indexes
+    teachers_collection.create_index([("name", ASCENDING)])
+    teachers_collection.create_index([("email", ASCENDING)], unique=True)
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    email = Column(String, unique=True, index=True)
+    # Courses indexes
+    courses_collection.create_index([("name", ASCENDING)])
+    courses_collection.create_index([("code", ASCENDING)], unique=True)
 
-    # Relationships
-    schedule_entries = relationship("ScheduleEntry", back_populates="teacher")
+    # Rooms indexes
+    rooms_collection.create_index([("name", ASCENDING)], unique=True)
 
-class Course(Base):
-    __tablename__ = "courses"
+    # Time Slots indexes
+    time_slots_collection.create_index([("day_of_week", ASCENDING)])
+    time_slots_collection.create_index([("start_time", ASCENDING)])
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    code = Column(String, unique=True, index=True) # e.g., CS101, MATH203
-    department = Column(String)
+    # Schedule Entries indexes
+    schedule_entries_collection.create_index([("teacher_id", ASCENDING)])
+    schedule_entries_collection.create_index([("course_id", ASCENDING)])
+    schedule_entries_collection.create_index([("room_id", ASCENDING)])
+    schedule_entries_collection.create_index([("time_slot_id", ASCENDING)])
 
-    # Relationships
-    schedule_entries = relationship("ScheduleEntry", back_populates="course")
+    print("MongoDB indexes created successfully!")
 
-class Room(Base):
-    __tablename__ = "rooms"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    capacity = Column(Integer)
-    room_type = Column(String) # e.g., 'lecture', 'lab', 'seminar'
+def get_db():
+    """Returns the database instance"""
+    return db
 
-    # Relationships
-    schedule_entries = relationship("ScheduleEntry", back_populates="room")
 
-class TimeSlot(Base):
-    __tablename__ = "time_slots"
+# Helper functions for data serialization
+def serialize_doc(doc):
+    """Convert MongoDB document to JSON-serializable format"""
+    if doc is None:
+        return None
+    if isinstance(doc, ObjectId):
+        return str(doc)
+    if isinstance(doc, dict):
+        doc = doc.copy()
+        if "_id" in doc:
+            doc["id"] = str(doc["_id"])
+            del doc["_id"]
+        return doc
+    return doc
 
-    id = Column(Integer, primary_key=True, index=True)
-    day_of_week = Column(String, index=True) # e.g., 'Monday', 'Tuesday'
-    start_time = Column(Time)
-    end_time = Column(Time)
 
-    # Relationships
-    schedule_entries = relationship("ScheduleEntry", back_populates="time_slot")
+def serialize_docs(docs):
+    """Convert list of MongoDB documents to JSON-serializable format"""
+    return [serialize_doc(doc) for doc in docs]
 
-class ScheduleEntry(Base):
-    __tablename__ = "schedule_entries"
-
-    id = Column(Integer, primary_key=True, index=True)
-    teacher_id = Column(Integer, ForeignKey("teachers.id"))
-    course_id = Column(Integer, ForeignKey("courses.id"))
-    room_id = Column(Integer, ForeignKey("rooms.id"))
-    time_slot_id = Column(Integer, ForeignKey("time_slots.id"))
-
-    # Relationships
-    teacher = relationship("Teacher", back_populates="schedule_entries")
-    course = relationship("Course", back_populates="schedule_entries")
-    room = relationship("Room", back_populates="schedule_entries")
-    time_slot = relationship("TimeSlot", back_populates="schedule_entries")
-
-# Function to create all tables
-def create_db_tables():
-    Base.metadata.create_all(bind=engine)
 
 if __name__ == "__main__":
-    create_db_tables()
-    print("Database tables created successfully!")
+    create_indexes()
+    print("Database setup complete!")
