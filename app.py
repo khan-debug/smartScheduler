@@ -665,8 +665,15 @@ def admin_panel():
     return render_template("adminPanel.html", active_page="admin")
 
 
+@app.before_request
+def before_request():
+    if get_db() is None:
+        return jsonify({"message": "Database not available"}), 503
+
 if __name__ == "__main__":
-    create_indexes()
-    port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(debug=debug, port=port, host='0.0.0.0')
+    try:
+        port = int(os.getenv('PORT', 5000))
+        debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+        app.run(debug=debug, port=port, host='0.0.0.0')
+    except Exception as e:
+        print(f"An error occurred while running the app: {e}")

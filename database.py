@@ -2,6 +2,10 @@ from pymongo import MongoClient, ASCENDING
 from bson import ObjectId
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # MongoDB connection configuration
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/")
@@ -21,33 +25,44 @@ schedule_entries_collection = db["schedule_entries"]
 
 def create_indexes():
     """Create indexes for better query performance"""
-    # Teachers indexes
-    teachers_collection.create_index([("name", ASCENDING)])
-    teachers_collection.create_index([("email", ASCENDING)], unique=True)
+    try:
+        # Check if the database is available
+        client.admin.command('ping')
 
-    # Courses indexes
-    courses_collection.create_index([("name", ASCENDING)])
-    courses_collection.create_index([("code", ASCENDING)], unique=True)
+        # Teachers indexes
+        teachers_collection.create_index([("name", ASCENDING)])
+        teachers_collection.create_index([("email", ASCENDING)], unique=True)
 
-    # Rooms indexes
-    rooms_collection.create_index([("name", ASCENDING)], unique=True)
+        # Courses indexes
+        courses_collection.create_index([("name", ASCENDING)])
+        courses_collection.create_index([("code", ASCENDING)], unique=True)
 
-    # Time Slots indexes
-    time_slots_collection.create_index([("day_of_week", ASCENDING)])
-    time_slots_collection.create_index([("start_time", ASCENDING)])
+        # Rooms indexes
+        rooms_collection.create_index([("name", ASCENDING)], unique=True)
 
-    # Schedule Entries indexes
-    schedule_entries_collection.create_index([("teacher_id", ASCENDING)])
-    schedule_entries_collection.create_index([("course_id", ASCENDING)])
-    schedule_entries_collection.create_index([("room_id", ASCENDING)])
-    schedule_entries_collection.create_index([("time_slot_id", ASCENDING)])
+        # Time Slots indexes
+        time_slots_collection.create_index([("day_of_week", ASCENDING)])
+        time_slots_collection.create_index([("start_time", ASCENDING)])
 
-    print("MongoDB indexes created successfully!")
+        # Schedule Entries indexes
+        schedule_entries_collection.create_index([("teacher_id", ASCENDING)])
+        schedule_entries_collection.create_index([("course_id", ASCENDING)])
+        schedule_entries_collection.create_index([("room_id", ASCENDING)])
+        schedule_entries_collection.create_index([("time_slot_id", ASCENDING)])
+
+        print("MongoDB indexes created successfully!")
+    except Exception as e:
+        print(f"Could not connect to MongoDB. Please ensure that the database is running and accessible. Error: {e}")
 
 
 def get_db():
     """Returns the database instance"""
-    return db
+    try:
+        # Check if the database is available
+        client.admin.command('ping')
+        return db
+    except Exception:
+        return None
 
 
 # Helper functions for data serialization

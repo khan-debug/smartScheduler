@@ -29,7 +29,6 @@ wheels/
 # Flask
 instance/
 .webassets-cache
-flask_output.log
 
 # SQLite (old database)
 *.db
