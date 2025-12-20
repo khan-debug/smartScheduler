@@ -66,8 +66,14 @@
             headers: ['ID', 'Name', 'Capacity', 'Type', 'Actions'],
             fields: [
                 { name: 'name', type: 'text', placeholder: 'Room Name', required: true },
-                { name: 'capacity', type: 'number', placeholder: 'Capacity', required: true },
-                { name: 'room_type', type: 'text', placeholder: 'Room Type (e.g., lecture, lab)', required: true },
+                { name: 'capacity', type: 'number', placeholder: 'Capacity', required: true, min: 1 },
+                { name: 'room_type', type: 'select', placeholder: 'Room Type', required: true,
+                  options: [
+                    { value: 'lecture', label: 'Lecture Hall' },
+                    { value: 'lab', label: 'Laboratory' },
+                    { value: 'seminar', label: 'Seminar Room' }
+                  ]
+                },
             ],
             apiEndpoint: '/api/rooms'
         }
@@ -138,13 +144,41 @@
         form.appendChild(idInput);
         
         config.fields.forEach(field => {
-            const input = document.createElement('input');
-            input.type = field.type;
-            input.id = `entity-${field.name}`;
-            input.name = field.name;
-            input.placeholder = field.placeholder;
-            input.required = field.required;
-            input.value = entity ? entity[field.name] : '';
+            let input;
+            if (field.type === 'select') {
+                input = document.createElement('select');
+                input.id = `entity-${field.name}`;
+                input.name = field.name;
+                input.required = field.required;
+
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = field.placeholder;
+                defaultOption.disabled = true;
+                defaultOption.selected = !entity;
+                input.appendChild(defaultOption);
+
+                // Add options
+                field.options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    if (entity && entity[field.name] === opt.value) {
+                        option.selected = true;
+                    }
+                    input.appendChild(option);
+                });
+            } else {
+                input = document.createElement('input');
+                input.type = field.type;
+                input.id = `entity-${field.name}`;
+                input.name = field.name;
+                input.placeholder = field.placeholder;
+                input.required = field.required;
+                input.value = entity ? entity[field.name] : '';
+                if (field.min !== undefined) input.min = field.min;
+            }
             form.appendChild(input);
         });
 
@@ -168,7 +202,12 @@
         const id = document.getElementById('entityId').value;
         const data = {};
         config.fields.forEach(field => {
-            data[field.name] = document.getElementById(`entity-${field.name}`).value;
+            let value = document.getElementById(`entity-${field.name}`).value;
+            // Convert number fields to integers
+            if (field.type === 'number') {
+                value = parseInt(value, 10);
+            }
+            data[field.name] = value;
         });
 
         const url = id ? `${config.apiEndpoint}/${id}` : config.apiEndpoint;
@@ -185,7 +224,7 @@
                 const error = await response.json();
                 throw new Error(error.message || 'Save operation failed');
             }
-            
+
             alert(`${config.title.slice(0, -1)} saved successfully!`);
             closeModal();
             loadEntities();
@@ -263,6 +302,27 @@
     .admin-menu-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+    #entityForm input,
+    #entityForm select {
+        width: 100%;
+        padding: 12px 15px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        margin-bottom: 15px;
+    }
+    #entityForm input::placeholder {
+        color: var(--text-secondary);
+    }
+    #entityForm select {
+        cursor: pointer;
+    }
+    #entityForm select option {
+        background-color: var(--card-bg);
+        color: var(--text-primary);
     }
 </style>
 {% endblock %}
