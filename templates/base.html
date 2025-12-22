@@ -25,18 +25,22 @@
                     <i class="fas fa-plus-square"></i> Generate Timetable
                 </a>
             </li>
+            {% if session['role'] == 'teacher' %}
             <li>
                 <a href="{{ url_for('teacher_view') }}" 
                    class="nav-link {{ 'active' if active_page == 'teacher' else '' }}">
                     <i class="fas fa-user-tie"></i> Teacher View
                 </a>
             </li>
+            {% endif %}
+            {% if session['role'] == 'admin' %}
             <li>
                 <a href="{{ url_for('admin_panel') }}" 
                    class="nav-link {{ 'active' if active_page == 'admin' else '' }}">
                     <i class="fas fa-cogs"></i> Admin Panel
                 </a>
             </li>
+            {% endif %}
         </ul>
     </nav>
 

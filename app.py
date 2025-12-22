@@ -1,18 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
+import os
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
 # Route for the login page
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"]
-        if username == "admin":
+        password = request.form["password"]
+        if username == "admin" and password == "0880":
+            session['role'] = 'admin'
             return redirect(url_for("admin_panel"))
-        elif username.isdigit() and len(username) == 5:
+        elif username.isdigit() and len(username) == 5 and password == "0770":
+            session['role'] = 'teacher'
             return redirect(url_for("dashboard"))
         else:
-            return render_template("login.html", error="Invalid username")
+            return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
 
 # Route for the Dashboard (main page)
