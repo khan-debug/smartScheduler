@@ -1,9 +1,22 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
+# Route for the login page
+@app.route("/", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        if username == "admin":
+            return redirect(url_for("admin_panel"))
+        elif username.isdigit() and len(username) == 5:
+            return redirect(url_for("dashboard"))
+        else:
+            return render_template("login.html", error="Invalid username")
+    return render_template("login.html")
+
 # Route for the Dashboard (main page)
-@app.route("/")
+@app.route("/dashboard")
 def dashboard():
     return render_template("dashboard.html", active_page="dashboard")
 
