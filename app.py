@@ -131,5 +131,13 @@ def add_course():
     courses.append(data)
     return {"success": True}
 
+@app.route("/view_timetable")
+def view_timetable():
+    return render_template("selectFloor.html", active_page="view_timetable")
+
+@app.route("/view_timetable/<int:floor_number>")
+def view_timetable_floor(floor_number):
+    return render_template("viewTimetable.html", floor_number=floor_number, active_page="view_timetable")
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

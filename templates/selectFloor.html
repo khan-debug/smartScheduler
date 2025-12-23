@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Select Floor{% endblock %}
+
+{% block top_bar %}{% endblock %}
+
+{% block content %}
+<button class="back-button" onclick="history.back()">&#8592;</button>
+<div class="admin-menu">
+    <h1 style="margin-bottom: 20px;">Select a Floor to View Timetable</h1>
+    {% for floor_num in range(1, 11) %}
+    <a href="{{ url_for('view_timetable_floor', floor_number=floor_num) }}" class="admin-menu-button">
+        Timetable of Floor {{ floor_num }}
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -151,8 +151,9 @@ h2 {
 /* --- Content Area --- */
 .content-area {
     flex-grow: 1;
-    padding: 40px;
+    padding: 60px 40px 40px 40px;
     overflow-y: auto;
+    position: relative;
 }
 
 /* --- Form Styles (Used on Generate) --- */
@@ -538,4 +539,56 @@ h2 {
     font-size: 1rem;
 }
 
+/* --- Timetable View --- */
+.timetable-container {
+    background-color: var(--primary-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow-x: auto;
+}
 
+.timetable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.timetable th, .timetable td {
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    text-align: center;
+    min-width: 150px;
+}
+
+.timetable thead th {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.timetable .time-col {
+    background-color: var(--card-bg);
+    font-weight: 600;
+    min-width: 80px;
+    max-width: 80px;
+}
+
+.timetable tbody tr:nth-child(odd) {
+    background-color: #22223a;
+}
+
+/* --- Back Button --- */
+.back-button {
+    position: absolute;
+    top: 20px;
+    left: 40px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.back-button:hover {
+    color: var(--accent-blue);
+}

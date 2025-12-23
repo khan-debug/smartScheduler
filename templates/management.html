@@ -2,9 +2,10 @@
 
 {% block title %}{{ header_title }}{% endblock %}
 
-{% block header_title %}{{ header_title }}{% endblock %}
+{% block top_bar %}{% endblock %}
 
 {% block content %}
+<button class="back-button" onclick="history.back()">&#8592;</button>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h1>{{ header_title }}</h1>
     <button id="addBtn" class="btn-success">Add {{ item_name }}</button>

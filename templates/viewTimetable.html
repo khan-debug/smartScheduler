@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}View Timetable{% endblock %}
+
+{% block top_bar %}{% endblock %}
+
+{% block content %}
+<button class="back-button" onclick="history.back()">&#8592;</button>
+<h1 style="margin-bottom: 20px;">Weekly Timetable - Floor {{ floor_number }}</h1>
+<div class="timetable-container">
+    <table class="timetable">
+        <thead>
+            <tr>
+                <th class="time-col">Time</th>
+                <th>Monday</th>
+                <th>Tuesday</th>
+                <th>Wednesday</th>
+                <th>Thursday</th>
+                <th>Friday</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hour in range(8, 22) %}
+            <tr>
+                <td class="time-col">{{ '%02d:00' % hour }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

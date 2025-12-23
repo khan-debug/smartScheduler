@@ -2,9 +2,10 @@
 
 {% block title %}Create User{% endblock %}
 
-{% block header_title %}User List{% endblock %}
+{% block top_bar %}{% endblock %}
 
 {% block content %}
+<button class="back-button" onclick="history.back()">&#8592;</button>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h1>User List</h1>
     <button id="addUserBtn" class="btn-success">Add User</button>
