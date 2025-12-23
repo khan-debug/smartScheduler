@@ -133,7 +133,8 @@ def manage_users():
         get_url="/get_users",
         form_fields=[
             {"name": "username", "label": "Username", "type": "text", "table_display": True, "form_display": True},
-            {"name": "password", "label": "Password", "type": "password", "table_display": True, "form_display": True},
+            {"name": "password", "label": "Password", "type": "password", "table_display": False, "form_display": True},
+            {"name": "confirm_password", "label": "Confirm Password", "type": "password", "table_display": False, "form_display": True},
         ],
         from_dashboard=from_dashboard,
     )

@@ -189,6 +189,24 @@ h2 {
     color: var(--text-secondary);
 }
 
+.password-input-wrapper {
+    position: relative;
+    width: 100%; /* Ensure it takes full width of its parent */
+}
+
+.password-input-wrapper input {
+    padding-right: 40px; /* Make space for the icon */
+}
+
+.password-toggle {
+    position: absolute;
+    right: 15px; /* Adjust as needed for spacing */
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--text-secondary); /* Or any color you prefer */
+}
+
 
 /* --- Dashboard Page --- */
 .stats-grid {
