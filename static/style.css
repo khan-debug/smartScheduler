@@ -76,6 +76,9 @@ h2 {
     border-right: 1px solid var(--border-color);
     padding: 20px;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .sidebar-title {
@@ -84,11 +87,14 @@ h2 {
     margin-bottom: 20px;
 }
 
+.sidebar-content {
+    flex-grow: 1;
+}
+
 .sidebar ul {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 10px;
 }
 
 .sidebar .nav-link {

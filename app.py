@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import os
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -8,6 +9,15 @@ users = []
 faculty = []
 rooms = []
 courses = []
+
+# Decorator for requiring login
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'role' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Route for the login page
 @app.route("/", methods=["GET", "POST"])
@@ -25,47 +35,63 @@ def login():
             return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
 
+# Route for logging out
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
 # Route for the Dashboard (main page)
 @app.route("/dashboard")
+@login_required
 def dashboard():
     return render_template("dashboard.html", active_page="dashboard")
 
 # Route for Generate Timetable
 @app.route("/generate")
+@login_required
 def generate():
     return render_template("generate.html", active_page="generate")
 
 # Route for Teacher View
 @app.route("/teacher")
+@login_required
 def teacher_view():
     return render_template("teacherView.html", active_page="teacher")
 
 # Route for Admin Panel
 @app.route("/admin")
+@login_required
 def admin_panel():
     return render_template("adminPanel.html", active_page="admin")
 
 @app.route("/create_user")
+@login_required
 def create_user():
     return render_template("createUser.html")
 
 @app.route("/get_users", methods=["GET"])
+@login_required
 def get_users():
     return {"users": users}
 
 @app.route("/add_user", methods=["POST"])
+@login_required
 def add_user():
     data = request.get_json()
     users.append(data)
     return {"success": True}
 
 @app.route("/get_user/<int:user_id>", methods=["GET"])
+@login_required
 def get_user(user_id):
     if 0 <= user_id < len(users):
         return users[user_id]
     return {"error": "User not found"}, 404
 
 @app.route("/update_user/<int:user_id>", methods=["PUT"])
+@login_required
 def update_user(user_id):
     if 0 <= user_id < len(users):
         data = request.get_json()
@@ -76,6 +102,7 @@ def update_user(user_id):
     return {"error": "User not found"}, 404
 
 @app.route("/delete_user/<int:user_id>", methods=["DELETE"])
+@login_required
 def delete_user(user_id):
     if 0 <= user_id < len(users):
         users.pop(user_id)
@@ -83,6 +110,7 @@ def delete_user(user_id):
     return {"error": "User not found"}, 404
 
 @app.route("/manage_faculty")
+@login_required
 def manage_faculty():
     return render_template(
         "management.html",
@@ -97,16 +125,19 @@ def manage_faculty():
     )
 
 @app.route("/get_faculty", methods=["GET"])
+@login_required
 def get_faculty():
     return {"items": faculty}
 
 @app.route("/add_faculty", methods=["POST"])
+@login_required
 def add_faculty():
     data = request.get_json()
     faculty.append(data)
     return {"success": True}
 
 @app.route("/manage_rooms")
+@login_required
 def manage_rooms():
     return render_template(
         "management.html",
@@ -121,16 +152,19 @@ def manage_rooms():
     )
 
 @app.route("/get_rooms", methods=["GET"])
+@login_required
 def get_rooms():
     return {"items": rooms}
 
 @app.route("/add_room", methods=["POST"])
+@login_required
 def add_room():
     data = request.get_json()
     rooms.append(data)
     return {"success": True}
 
 @app.route("/manage_courses")
+@login_required
 def manage_courses():
     return render_template(
         "management.html",
@@ -145,20 +179,24 @@ def manage_courses():
     )
 
 @app.route("/get_courses", methods=["GET"])
+@login_required
 def get_courses():
     return {"items": courses}
 
 @app.route("/add_course", methods=["POST"])
+@login_required
 def add_course():
     data = request.get_json()
     courses.append(data)
     return {"success": True}
 
 @app.route("/view_timetable")
+@login_required
 def view_timetable():
     return render_template("selectFloor.html", active_page="view_timetable")
 
 @app.route("/view_timetable/<int:floor_number>")
+@login_required
 def view_timetable_floor(floor_number):
     return render_template("viewTimetable.html", floor_number=floor_number, active_page="view_timetable")
 
@@ -169,6 +207,7 @@ data_stores = {
 }
 
 @app.route("/get_item/<item_type>/<int:item_id>", methods=["GET"])
+@login_required
 def get_item(item_type, item_id):
     if item_type in data_stores:
         data_list = data_stores[item_type]
@@ -177,6 +216,7 @@ def get_item(item_type, item_id):
     return {"error": "Item not found"}, 404
 
 @app.route("/update_item/<item_type>/<int:item_id>", methods=["PUT"])
+@login_required
 def update_item(item_type, item_id):
     if item_type in data_stores:
         data_list = data_stores[item_type]
@@ -189,6 +229,7 @@ def update_item(item_type, item_id):
     return {"error": "Item not found"}, 404
 
 @app.route("/delete_item/<item_type>/<int:item_id>", methods=["DELETE"])
+@login_required
 def delete_item(item_type, item_id):
     if item_type in data_stores:
         data_list = data_stores[item_type]

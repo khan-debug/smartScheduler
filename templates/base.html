@@ -12,36 +12,43 @@
     <nav class="sidebar">
         <h1 class="sidebar-title">Scheduler</h1>
         
-        <ul>
-            <li>
-                <a href="{{ url_for('dashboard') }}" 
-                   class="nav-link {{ 'active' if active_page == 'dashboard' else '' }}">
-                    <i class="fas fa-chart-pie"></i> Dashboard
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('generate') }}" 
-                   class="nav-link {{ 'active' if active_page == 'generate' else '' }}">
-                    <i class="fas fa-plus-square"></i> Generate Timetable
-                </a>
-            </li>
-            {% if session['role'] == 'teacher' %}
-            <li>
-                <a href="{{ url_for('teacher_view') }}" 
-                   class="nav-link {{ 'active' if active_page == 'teacher' else '' }}">
-                    <i class="fas fa-user-tie"></i> Teacher View
-                </a>
-            </li>
-            {% endif %}
-            {% if session['role'] == 'admin' %}
-            <li>
-                <a href="{{ url_for('admin_panel') }}" 
-                   class="nav-link {{ 'active' if active_page == 'admin' else '' }}">
-                    <i class="fas fa-cogs"></i> Admin Panel
-                </a>
-            </li>
-            {% endif %}
-        </ul>
+        <div class="sidebar-content">
+            <ul>
+                <li>
+                    <a href="{{ url_for('dashboard') }}" 
+                       class="nav-link {{ 'active' if active_page == 'dashboard' else '' }}">
+                        <i class="fas fa-chart-pie"></i> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('generate') }}" 
+                       class="nav-link {{ 'active' if active_page == 'generate' else '' }}">
+                        <i class="fas fa-plus-square"></i> Generate Timetable
+                    </a>
+                </li>
+                {% if session['role'] == 'teacher' %}
+                <li>
+                    <a href="{{ url_for('teacher_view') }}" 
+                       class="nav-link {{ 'active' if active_page == 'teacher' else '' }}">
+                        <i class="fas fa-user-tie"></i> Teacher View
+                    </a>
+                </li>
+                {% endif %}
+                {% if session['role'] == 'admin' %}
+                <li>
+                    <a href="{{ url_for('admin_panel') }}" 
+                       class="nav-link {{ 'active' if active_page == 'admin' else '' }}">
+                        <i class="fas fa-cogs"></i> Admin Panel
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <a href="{{ url_for('logout') }}" class="nav-link">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
     </nav>
 
     <div class="main-container">
