@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Scheduler</title>
+    <title>{% block title %}Smart Scheduler{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -47,7 +47,7 @@
     <div class="main-container">
         
         <header class="top-bar">
-            <h1>{% block page_title %}{% endblock %}</h1>
+            <h1>{% block header_title %}{% endblock %}</h1>
         </header>
 
         <main class="content-area">

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Create User{% endblock %}
+
+{% block header_title %}User List{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>User List</h1>
+    <button id="addUserBtn" class="btn-success">Add User</button>
+</div>
+
+<ul id="userList" class="user-list">
+    <!-- User items will be injected by JavaScript -->
+</ul>
+
+<div id="addUserModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add New User</h2>
+            <span class="close">&times;</span>
+        </div>
+        <form id="addUserForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn-submit">Create User</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById("addUserModal");
+    const btn = document.getElementById("addUserBtn");
+    const span = document.getElementsByClassName("close")[0];
+    const userList = document.getElementById("userList");
+
+    function fetchUsers() {
+        fetch("/get_users")
+            .then(response => response.json())
+            .then(data => {
+                userList.innerHTML = "";
+                let userCounter = 1;
+                data.users.forEach(user => {
+                    const li = document.createElement("li");
+                    li.textContent = `${userCounter++}. ${user.username}`;
+                    userList.appendChild(li);
+                });
+            });
+    }
+
+    btn.onclick = function() {
+        modal.style.display = "block";
+    }
+
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    document.getElementById("addUserForm").onsubmit = function(event) {
+        event.preventDefault();
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        fetch("/add_user", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ username, password })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                fetchUsers();
+                modal.style.display = "none";
+                document.getElementById("addUserForm").reset();
+            }
+        });
+    }
+
+    // Fetch users when the page loads
+    fetchUsers();
+</script>
+{% endblock %}

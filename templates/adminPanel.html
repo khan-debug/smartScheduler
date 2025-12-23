@@ -8,6 +8,6 @@
     <button class="admin-menu-button">Manage Courses</button>
     <button class="admin-menu-button">Manage Rooms</button>
     <button class="admin-menu-button">View Timetables</button>
-    <button class="admin-menu-button">Audit Logs</button>
+    <button class="admin-menu-button" onclick="window.location.href='{{ url_for('create_user') }}'">Create User</button>
 </div>
 {% endblock %}
