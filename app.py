@@ -59,6 +59,29 @@ def add_user():
     users.append(data)
     return {"success": True}
 
+@app.route("/get_user/<int:user_id>", methods=["GET"])
+def get_user(user_id):
+    if 0 <= user_id < len(users):
+        return users[user_id]
+    return {"error": "User not found"}, 404
+
+@app.route("/update_user/<int:user_id>", methods=["PUT"])
+def update_user(user_id):
+    if 0 <= user_id < len(users):
+        data = request.get_json()
+        users[user_id]["username"] = data.get("username", users[user_id]["username"])
+        if data.get("password"):
+            users[user_id]["password"] = data.get("password")
+        return {"success": True}
+    return {"error": "User not found"}, 404
+
+@app.route("/delete_user/<int:user_id>", methods=["DELETE"])
+def delete_user(user_id):
+    if 0 <= user_id < len(users):
+        users.pop(user_id)
+        return {"success": True}
+    return {"error": "User not found"}, 404
+
 @app.route("/manage_faculty")
 def manage_faculty():
     return render_template(
@@ -138,6 +161,41 @@ def view_timetable():
 @app.route("/view_timetable/<int:floor_number>")
 def view_timetable_floor(floor_number):
     return render_template("viewTimetable.html", floor_number=floor_number, active_page="view_timetable")
+
+data_stores = {
+    "faculty": faculty,
+    "room": rooms,
+    "course": courses,
+}
+
+@app.route("/get_item/<item_type>/<int:item_id>", methods=["GET"])
+def get_item(item_type, item_id):
+    if item_type in data_stores:
+        data_list = data_stores[item_type]
+        if 0 <= item_id < len(data_list):
+            return data_list[item_id]
+    return {"error": "Item not found"}, 404
+
+@app.route("/update_item/<item_type>/<int:item_id>", methods=["PUT"])
+def update_item(item_type, item_id):
+    if item_type in data_stores:
+        data_list = data_stores[item_type]
+        if 0 <= item_id < len(data_list):
+            data = request.get_json()
+            for key, value in data.items():
+                if key in data_list[item_id]:
+                    data_list[item_id][key] = value
+            return {"success": True}
+    return {"error": "Item not found"}, 404
+
+@app.route("/delete_item/<item_type>/<int:item_id>", methods=["DELETE"])
+def delete_item(item_type, item_id):
+    if item_type in data_stores:
+        data_list = data_stores[item_type]
+        if 0 <= item_id < len(data_list):
+            data_list.pop(item_id)
+            return {"success": True}
+    return {"error": "Item not found"}, 404
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

@@ -592,3 +592,74 @@ h2 {
 .back-button:hover {
     color: var(--accent-blue);
 }
+
+/* --- Action Buttons --- */
+.user-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.action-btn:hover {
+    color: var(--text-primary);
+}
+
+.action-btn.edit:hover {
+    color: var(--accent-blue);
+}
+
+.action-btn.delete:hover {
+    color: #dc3545;
+}
+
+/* --- Delete Confirmation Modal --- */
+#deleteConfirmModal .modal-content {
+    max-width: 400px;
+}
+
+#deleteConfirmModal .modal-header h2 {
+    font-size: 1.2rem;
+}
+
+#deleteConfirmModal p {
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-secondary {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background-color: #3a3a5a;
+}
