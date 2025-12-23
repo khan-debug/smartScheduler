@@ -11,9 +11,22 @@
     <button id="addBtn" class="btn-success">Add {{ item_name }}</button>
 </div>
 
-<ul id="itemList" class="user-list">
-    <!-- Items will be injected by JavaScript -->
-</ul>
+<table id="itemList" class="user-list-table">
+    <thead>
+        <tr>
+            <th>Sr No.</th>
+            {% for field in form_fields %}
+            {% if field.table_display %}
+            <th>{{ field.label }}</th>
+            {% endif %}
+            {% endfor %}
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Items will be injected by JavaScript -->
+    </tbody>
+</table>
 
 <!-- Add Item Modal -->
 <div id="addModal" class="modal">
@@ -24,10 +37,20 @@
         </div>
         <form id="addForm">
             {% for field in form_fields %}
+            {% if field.form_display %}
             <div class="form-group">
                 <label for="{{ field.name }}">{{ field.label }}</label>
-                <input type="{{ field.type }}" id="{{ field.name }}" name="{{ field.name }}" required>
+                {% if field.type == "select" %}
+                <select id="{{ field.name }}" name="{{ field.name }}" required>
+                    {% for option in field.options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="{{ field.type }}" id="{{ field.name }}" name="{{ field.name }}" {% if field.readonly %}readonly{% endif %} required>
+                {% endif %}
             </div>
+            {% endif %}
             {% endfor %}
             <button type="submit" class="btn-submit">Create {{ item_name }}</button>
         </form>
@@ -44,10 +67,20 @@
         <form id="editForm">
             <input type="hidden" id="editItemId" name="itemId">
             {% for field in form_fields %}
+            {% if field.form_display %}
             <div class="form-group">
                 <label for="edit_{{ field.name }}">{{ field.label }}</label>
-                <input type="{{ field.type }}" id="edit_{{ field.name }}" name="{{ field.name }}" required>
+                {% if field.type == "select" %}
+                <select id="edit_{{ field.name }}" name="{{ field.name }}" required>
+                    {% for option in field.options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="{{ field.type }}" id="edit_{{ field.name }}" name="{{ field.name }}" {% if field.readonly %}readonly{% endif %} required>
+                {% endif %}
             </div>
+            {% endif %}
             {% endfor %}
             <button type="submit" class="btn-submit">Update {{ item_name }}</button>
         </form>
@@ -78,7 +111,7 @@
     const addClose = document.getElementById("addClose");
     const editClose = document.getElementById("editClose");
 
-    const itemList = document.getElementById("itemList");
+    const itemList = document.querySelector("#itemList tbody");
     const addUrl = "{{ add_url }}";
     const getUrl = "{{ get_url }}";
     const itemName = "{{ item_name | lower }}";
@@ -88,18 +121,23 @@
         fetch(getUrl)
             .then(response => response.json())
             .then(data => {
-                itemList.innerHTML = "";
+                itemList.innerHTML = ""; // Clear existing table body content
                 data.items.forEach((item, index) => {
-                    const li = document.createElement("li");
-                    const display_text = formFields.map(field => item[field.name]).join(" - ");
-                    li.innerHTML = `
-                        <span>${index + 1}. ${display_text}</span>
-                        <div class="action-buttons">
+                    const tr = document.createElement("tr");
+                    let rowHtml = `<td>${index + 1}</td>`;
+                    formFields.forEach(field => {
+                        if (field.table_display) {
+                            rowHtml += `<td>${item[field.name] || ''}</td>`;
+                        }
+                    });
+                    rowHtml += `
+                        <td>
                             <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
                             <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
-                        </div>
+                        </td>
                     `;
-                    itemList.appendChild(li);
+                    tr.innerHTML = rowHtml;
+                    itemList.appendChild(tr);
                 });
 
                 // Add event listeners for edit and delete buttons
@@ -119,7 +157,18 @@
             .then(item => {
                 document.getElementById('editItemId').value = itemId;
                 formFields.forEach(field => {
-                    document.getElementById(`edit_${field.name}`).value = item[field.name];
+                    if (field.name === "floor_number") {
+                        document.getElementById(`edit_${field.name}`).value = item[field.name] || '';
+                        document.getElementById(`edit_${field.name}`).readOnly = true; // Make it read-only
+                    } else if (field.type === "select") {
+                        const selectElement = document.getElementById(`edit_${field.name}`);
+                        if (selectElement) {
+                            selectElement.value = item[field.name] || '';
+                        }
+                    }
+                    else {
+                        document.getElementById(`edit_${field.name}`).value = item[field.name] || '';
+                    }
                 });
                 editModal.style.display = "block";
             });
@@ -173,7 +222,9 @@
         event.preventDefault();
         const data = {};
         formFields.forEach(field => {
-            data[field.name] = document.getElementById(field.name).value;
+            if (field.form_display) {
+                data[field.name] = document.getElementById(field.name).value;
+            }
         });
 
         fetch(addUrl, {
@@ -196,7 +247,9 @@
         const itemId = document.getElementById('editItemId').value;
         const data = {};
         formFields.forEach(field => {
-            data[field.name] = document.getElementById(`edit_${field.name}`).value;
+            if (field.form_display) {
+                data[field.name] = document.getElementById(`edit_${field.name}`).value;
+            }
         });
 
         fetch(`/update_item/${itemName}/${itemId}`, {

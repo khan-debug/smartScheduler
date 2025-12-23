@@ -530,21 +530,6 @@ h2 {
     cursor: pointer;
 }
 
-.user-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 20px;
-}
-
-.user-list li {
-    background-color: var(--primary-dark);
-    padding: 15px 20px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 10px;
-    font-size: 1rem;
-}
-
 /* --- Timetable View --- */
 .timetable-container {
     background-color: var(--primary-dark);
@@ -582,6 +567,36 @@ h2 {
     background-color: #22223a;
 }
 
+/* --- User List Table (Management) --- */
+.user-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.user-list-table th,
+.user-list-table td {
+    border: 1px solid var(--border-color);
+    padding: 12px 15px;
+    text-align: left;
+}
+
+.user-list-table thead th {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.user-list-table tbody tr:hover {
+    background-color: #22223a;
+}
+
+.user-list-table .action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
 /* --- Back Button --- */
 .back-button {
     position: absolute;
@@ -600,12 +615,6 @@ h2 {
 }
 
 /* --- Action Buttons --- */
-.user-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
 .action-buttons {
     display: flex;
     gap: 10px;
