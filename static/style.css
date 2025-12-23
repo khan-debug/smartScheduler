@@ -535,19 +535,21 @@ h2 {
     background-color: var(--primary-dark);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    overflow-x: auto;
+    overflow-x: scroll;
+    max-height: 75vh;
+    overflow-y: auto;
 }
 
 .timetable {
-    width: 100%;
+    width: 150%;
     border-collapse: collapse;
+    white-space: nowrap;
 }
 
 .timetable th, .timetable td {
     border: 1px solid var(--border-color);
-    padding: 15px;
+    padding: 20px;
     text-align: center;
-    min-width: 150px;
 }
 
 .timetable thead th {
@@ -559,8 +561,8 @@ h2 {
 .timetable .time-col {
     background-color: var(--card-bg);
     font-weight: 600;
-    min-width: 80px;
-    max-width: 80px;
+    min-width: 100px;
+    max-width: 100px;
 }
 
 .timetable tbody tr:nth-child(odd) {
