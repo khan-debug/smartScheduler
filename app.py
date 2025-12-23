@@ -29,11 +29,14 @@ def login():
         if username == "admin" and password == "0880":
             session['role'] = 'admin'
             return redirect(url_for("admin_panel"))
-        elif username.isdigit() and len(username) == 5 and password == "0770":
-            session['role'] = 'teacher'
-            return redirect(url_for("dashboard"))
-        else:
-            return render_template("login.html", error="Invalid credentials")
+        
+        # Check for teacher credentials
+        for user in users:
+            if user['username'] == username and user['password'] == password:
+                session['role'] = 'teacher'
+                return redirect(url_for("dashboard"))
+
+        return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
 
 # Route for logging out
