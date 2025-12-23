@@ -5,6 +5,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 users = []
+faculty = []
+rooms = []
+courses = []
 
 # Route for the login page
 @app.route("/", methods=["GET", "POST"])
@@ -54,6 +57,78 @@ def get_users():
 def add_user():
     data = request.get_json()
     users.append(data)
+    return {"success": True}
+
+@app.route("/manage_faculty")
+def manage_faculty():
+    return render_template(
+        "management.html",
+        header_title="Manage Faculty",
+        item_name="Faculty",
+        add_url="/add_faculty",
+        get_url="/get_faculty",
+        form_fields=[
+            {"name": "username", "label": "Username", "type": "text"},
+            {"name": "subject", "label": "Subject", "type": "text"},
+        ],
+    )
+
+@app.route("/get_faculty", methods=["GET"])
+def get_faculty():
+    return {"items": faculty}
+
+@app.route("/add_faculty", methods=["POST"])
+def add_faculty():
+    data = request.get_json()
+    faculty.append(data)
+    return {"success": True}
+
+@app.route("/manage_rooms")
+def manage_rooms():
+    return render_template(
+        "management.html",
+        header_title="Manage Rooms",
+        item_name="Room",
+        add_url="/add_room",
+        get_url="/get_rooms",
+        form_fields=[
+            {"name": "room_number", "label": "Room Number", "type": "text"},
+            {"name": "type", "label": "Type", "type": "text"},
+        ],
+    )
+
+@app.route("/get_rooms", methods=["GET"])
+def get_rooms():
+    return {"items": rooms}
+
+@app.route("/add_room", methods=["POST"])
+def add_room():
+    data = request.get_json()
+    rooms.append(data)
+    return {"success": True}
+
+@app.route("/manage_courses")
+def manage_courses():
+    return render_template(
+        "management.html",
+        header_title="Manage Courses",
+        item_name="Course",
+        add_url="/add_course",
+        get_url="/get_courses",
+        form_fields=[
+            {"name": "subject_name", "label": "Subject Name", "type": "text"},
+            {"name": "credit_hour", "label": "Credit Hour", "type": "text"},
+        ],
+    )
+
+@app.route("/get_courses", methods=["GET"])
+def get_courses():
+    return {"items": courses}
+
+@app.route("/add_course", methods=["POST"])
+def add_course():
+    data = request.get_json()
+    courses.append(data)
     return {"success": True}
 
 if __name__ == "__main__":

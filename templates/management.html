@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ header_title }}{% endblock %}
+
+{% block header_title %}{{ header_title }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>{{ header_title }}</h1>
+    <button id="addBtn" class="btn-success">Add {{ item_name }}</button>
+</div>
+
+<ul id="itemList" class="user-list">
+    <!-- Items will be injected by JavaScript -->
+</ul>
+
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add New {{ item_name }}</h2>
+            <span class="close">&times;</span>
+        </div>
+        <form id="addForm">
+            {% for field in form_fields %}
+            <div class="form-group">
+                <label for="{{ field.name }}">{{ field.label }}</label>
+                <input type="{{ field.type }}" id="{{ field.name }}" name="{{ field.name }}" required>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-submit">Create {{ item_name }}</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById("addModal");
+    const btn = document.getElementById("addBtn");
+    const span = document.getElementsByClassName("close")[0];
+    const itemList = document.getElementById("itemList");
+    const addUrl = "{{ add_url }}";
+    const getUrl = "{{ get_url }}";
+    const itemName = "{{ item_name }}";
+    const formFields = {{ form_fields | tojson }};
+
+    function fetchItems() {
+        fetch(getUrl)
+            .then(response => response.json())
+            .then(data => {
+                itemList.innerHTML = "";
+                let itemCounter = 1;
+                data.items.forEach(item => {
+                    const li = document.createElement("li");
+                    const display_text = formFields.map(field => item[field.name]).join(" - ");
+                    li.textContent = `${itemCounter++}. ${display_text}`;
+                    itemList.appendChild(li);
+                });
+            });
+    }
+
+    btn.onclick = function() {
+        modal.style.display = "block";
+    }
+
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    document.getElementById("addForm").onsubmit = function(event) {
+        event.preventDefault();
+        const data = {};
+        formFields.forEach(field => {
+            data[field.name] = document.getElementById(field.name).value;
+        });
+
+        fetch(addUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                fetchItems();
+                modal.style.display = "none";
+                document.getElementById("addForm").reset();
+            }
+        });
+    }
+
+    // Fetch items when the page loads
+    fetchItems();
+</script>
+{% endblock %}
