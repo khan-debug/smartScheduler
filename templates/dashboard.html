@@ -4,19 +4,19 @@
 
 {% block content %}
 <div class="stats-grid">
-    <div class="stat-card">
+    <a href="{{ url_for('manage_users', from_dashboard=True) }}" class="stat-card" style="text-decoration: none; color: inherit;">
         <span class="stat-card-number">{{ teacher_count }}</span>
         <span class="stat-card-label">Total Teachers</span>
-    </div>
+    </a>
 
-    <div class="stat-card">
+    <a href="{{ url_for('manage_courses', from_dashboard=True) }}" class="stat-card" style="text-decoration: none; color: inherit;">
         <span class="stat-card-number">{{ course_count }}</span>
         <span class="stat-card-label">Total Courses</span>
-    </div>
+    </a>
 
-    <div class="stat-card">
+    <a href="{{ url_for('manage_rooms', from_dashboard=True) }}" class="stat-card" style="text-decoration: none; color: inherit;">
         <span class="stat-card-number">{{ room_count }}</span>
         <span class="stat-card-label">Total Rooms</span>
-    </div>
+    </a>
 </div>
 {% endblock %}

@@ -8,7 +8,9 @@
 <button class="back-button" onclick="history.back()">&#8592;</button>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h1>{{ header_title }}</h1>
+    {% if not from_dashboard %}
     <button id="addBtn" class="btn-success">Add {{ item_name }}</button>
+    {% endif %}
 </div>
 
 <table id="itemList" class="user-list-table">
@@ -20,7 +22,9 @@
             <th>{{ field.label }}</th>
             {% endif %}
             {% endfor %}
+            {% if not from_dashboard %}
             <th>Actions</th>
+            {% endif %}
         </tr>
     </thead>
     <tbody>
@@ -116,6 +120,7 @@
     const getUrl = "{{ get_url }}";
     const itemName = "{{ item_name | lower }}";
     const formFields = {{ form_fields | tojson }};
+    const fromDashboard = {{ from_dashboard | tojson }};
 
     function fetchItems() {
         fetch(getUrl)
@@ -130,23 +135,27 @@
                             rowHtml += `<td>${item[field.name] || ''}</td>`;
                         }
                     });
-                    rowHtml += `
-                        <td>
-                            <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
-                            <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
-                        </td>
-                    `;
+                    if (!fromDashboard) {
+                        rowHtml += `
+                            <td>
+                                <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
+                            </td>
+                        `;
+                    }
                     tr.innerHTML = rowHtml;
                     itemList.appendChild(tr);
                 });
 
-                // Add event listeners for edit and delete buttons
-                document.querySelectorAll('.edit').forEach(button => {
-                    button.addEventListener('click', handleEdit);
-                });
-                document.querySelectorAll('.delete').forEach(button => {
-                    button.addEventListener('click', handleDelete);
-                });
+                if (!fromDashboard) {
+                    // Add event listeners for edit and delete buttons
+                    document.querySelectorAll('.edit').forEach(button => {
+                        button.addEventListener('click', handleEdit);
+                    });
+                    document.querySelectorAll('.delete').forEach(button => {
+                        button.addEventListener('click', handleDelete);
+                    });
+                }
             });
     }
 
@@ -194,8 +203,10 @@
         }
     }
 
-    addBtn.onclick = function() {
-        addModal.style.display = "block";
+    if (addBtn) {
+        addBtn.onclick = function() {
+            addModal.style.display = "block";
+        }
     }
 
     addClose.onclick = function() {
@@ -218,28 +229,30 @@
         }
     }
 
-    document.getElementById("addForm").onsubmit = function(event) {
-        event.preventDefault();
-        const data = {};
-        formFields.forEach(field => {
-            if (field.form_display) {
-                data[field.name] = document.getElementById(field.name).value;
-            }
-        });
+    if (addBtn) {
+        document.getElementById("addForm").onsubmit = function(event) {
+            event.preventDefault();
+            const data = {};
+            formFields.forEach(field => {
+                if (field.form_display) {
+                    data[field.name] = document.getElementById(field.name).value;
+                }
+            });
 
-        fetch(addUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                fetchItems();
-                addModal.style.display = "none";
-                document.getElementById("addForm").reset();
-            }
-        });
+            fetch(addUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    fetchItems();
+                    addModal.style.display = "none";
+                    document.getElementById("addForm").reset();
+                }
+            });
+        }
     }
 
     document.getElementById("editForm").onsubmit = function(event) {
