@@ -18,24 +18,8 @@
     <input type="file" hidden>
 </div>
 
-<div class="action-buttons">
-    <button class="btn">Edit Constraints</button>
-    <button class="btn">Edit Timetable</button>
-    <button class="btn">Save</button>
-    <button class="btn">Save ▾</button>
-    <button class="btn">Export</button>
-</div>
-
-<div class="timetable-grid-container">
-    <div class="timetable-grid-header">
-        <span>Monday</span>
-        <span>Tuesday</span>
-        <span>Wednesday</span>
-        <span>Thursday</span>
-        <span>Friday</span>
-    </div>
-    <div class="timetable-grid-body">
-        </div>
+<div style="margin-top: 20px;">
+    <a href="{{ url_for('view_generated_timetable') }}" class="btn-submit" style="text-decoration: none; display: inline-block; text-align: center;">View Created Timetable</a>
 </div>
 
 {% endblock %}

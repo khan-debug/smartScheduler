@@ -59,6 +59,11 @@ def dashboard():
 def generate():
     return render_template("generate.html", active_page="generate")
 
+@app.route("/view_generated_timetable")
+@login_required
+def view_generated_timetable():
+    return render_template("viewGeneratedTimetable.html", active_page="generate")
+
 # Route for Teacher View
 @app.route("/teacher")
 @login_required
