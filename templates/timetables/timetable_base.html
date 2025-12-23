@@ -1,12 +1,34 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 
-{% block title %}View Timetable{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
+{% if hide_top_bar %}
 {% block top_bar %}{% endblock %}
+{% endif %}
 
 {% block content %}
+
+{% if show_back_button %}
 <button class="back-button" onclick="history.back()">&#8592;</button>
-<h1 style="margin-bottom: 20px;">Weekly Timetable - Floor {{ floor_number }}</h1>
+{% endif %}
+
+{% if show_teacher_header %}
+<div class="header-container">
+    <div class="teacher-profile-header">
+        <div class="teacher-info">
+            <h1 class="teacher-name">Timetable</h1>
+        </div>
+    </div>
+    <div class="username-display">
+        Welcome, {{ username }}!
+    </div>
+</div>
+{% endif %}
+
+{% if show_page_title %}
+<h1 class="mb-20">{{ page_title_text }}</h1>
+{% endif %}
+
 <div class="timetable-container">
     <table class="timetable">
         <thead>
@@ -37,4 +59,5 @@
         </tbody>
     </table>
 </div>
+
 {% endblock %}

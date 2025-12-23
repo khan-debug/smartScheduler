@@ -36,8 +36,8 @@ def login():
                 session['username'] = user['username']
                 return redirect(url_for("teacher_view"))
 
-        return render_template("login.html", error="Invalid credentials")
-    return render_template("login.html")
+        return render_template("auth/login.html", error="Invalid credentials")
+    return render_template("auth/login.html")
 
 # Route for logging out
 @app.route("/logout")
@@ -53,35 +53,48 @@ def dashboard():
     teacher_count = len(users)
     course_count = len(courses)
     room_count = len(rooms)
-    return render_template("dashboard.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
+    return render_template("pages/dashboard.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
 
 # Route for Generate Timetable
 @app.route("/generate")
 @login_required
 def generate():
-    return render_template("generate.html", active_page="generate")
+    return render_template("pages/generate.html", active_page="generate")
 
 @app.route("/view_generated_timetable")
 @login_required
 def view_generated_timetable():
-    return render_template("viewGeneratedTimetable.html", active_page="generate")
+    return render_template(
+        "timetables/timetable_base.html",
+        active_page="generate",
+        page_title="View Generated Timetable",
+        hide_top_bar=False,
+        show_back_button=True,
+        show_teacher_header=False,
+        show_page_title=True,
+        page_title_text="Generated Timetable"
+    )
 
 # Route for Teacher View
 @app.route("/teacher")
 @login_required
 def teacher_view():
-    return render_template("teacherView.html", active_page="teacher", username=session.get('username'))
+    return render_template(
+        "timetables/timetable_base.html",
+        active_page="teacher",
+        page_title="Timetable",
+        hide_top_bar=False,
+        show_back_button=False,
+        show_teacher_header=True,
+        show_page_title=False,
+        username=session.get('username')
+    )
 
 # Route for Admin Panel
 @app.route("/admin")
 @login_required
 def admin_panel():
-    return render_template("adminPanel.html", active_page="admin")
-
-@app.route("/create_user")
-@login_required
-def create_user():
-    return redirect(url_for("manage_users"))
+    return render_template("pages/adminPanel.html", active_page="admin")
 
 @app.route("/get_users", methods=["GET"])
 @login_required
@@ -95,38 +108,12 @@ def add_user():
     users.append(data)
     return {"success": True}
 
-@app.route("/get_user/<int:user_id>", methods=["GET"])
-@login_required
-def get_user(user_id):
-    if 0 <= user_id < len(users):
-        return users[user_id]
-    return {"error": "User not found"}, 404
-
-@app.route("/update_user/<int:user_id>", methods=["PUT"])
-@login_required
-def update_user(user_id):
-    if 0 <= user_id < len(users):
-        data = request.get_json()
-        users[user_id]["username"] = data.get("username", users[user_id]["username"])
-        if data.get("password"):
-            users[user_id]["password"] = data.get("password")
-        return {"success": True}
-    return {"error": "User not found"}, 404
-
-@app.route("/delete_user/<int:user_id>", methods=["DELETE"])
-@login_required
-def delete_user(user_id):
-    if 0 <= user_id < len(users):
-        users.pop(user_id)
-        return {"success": True}
-    return {"error": "User not found"}, 404
-
 @app.route("/manage_users")
 @login_required
 def manage_users():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management.html",
+        "management/management.html",
         header_title="Manage Users",
         item_name="User",
         add_url="/add_user",
@@ -144,7 +131,7 @@ def manage_users():
 def manage_rooms():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management.html",
+        "management/management.html",
         header_title="Manage Rooms",
         item_name="Room",
         add_url="/add_room",
@@ -193,7 +180,7 @@ def add_room():
 def manage_courses():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management.html",
+        "management/management.html",
         header_title="Manage Courses",
         item_name="Course",
         add_url="/add_course",
@@ -221,12 +208,22 @@ def add_course():
 @app.route("/view_timetable")
 @login_required
 def view_timetable():
-    return render_template("selectFloor.html", active_page="view_timetable")
+    return render_template("pages/selectFloor.html", active_page="view_timetable")
 
 @app.route("/view_timetable/<int:floor_number>")
 @login_required
 def view_timetable_floor(floor_number):
-    return render_template("viewTimetable.html", floor_number=floor_number, active_page="view_timetable")
+    return render_template(
+        "timetables/timetable_base.html",
+        floor_number=floor_number,
+        active_page="view_timetable",
+        page_title="View Timetable",
+        hide_top_bar=True,
+        show_back_button=True,
+        show_teacher_header=False,
+        show_page_title=True,
+        page_title_text=f"Weekly Timetable - Floor {floor_number}"
+    )
 
 data_stores = {
     "user": users,

@@ -706,3 +706,22 @@ h2 {
 .btn-secondary:hover {
     background-color: #3a3a5a;
 }
+
+/* --- Utility Classes --- */
+.no-decoration {
+    text-decoration: none;
+    color: inherit;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.inline-block-center {
+    display: inline-block;
+    text-align: center;
+}

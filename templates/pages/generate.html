@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 
 {% block page_title %}Generate Timetable{% endblock %}
 
@@ -18,8 +18,8 @@
     <input type="file" hidden>
 </div>
 
-<div style="margin-top: 20px;">
-    <a href="{{ url_for('view_generated_timetable') }}" class="btn-submit" style="text-decoration: none; display: inline-block; text-align: center;">View Created Timetable</a>
+<div class="mt-20">
+    <a href="{{ url_for('view_generated_timetable') }}" class="btn-submit no-decoration inline-block-center">View Created Timetable</a>
 </div>
 
 {% endblock %}
