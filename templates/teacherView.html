@@ -4,30 +4,46 @@
 
 {% block content %}
     
-<div class="teacher-profile-header">
-    <img src="https://via.placeholder.com/80" alt="Professor" class="teacher-avatar">
-    <div class="teacher-info">
-        <h1 class="teacher-name">Sarah Yousuf</h1>
-        <p class="teacher-title">Professor</p>
+<div class="header-container">
+    <div class="teacher-profile-header">
+        <div class="teacher-info">
+            <h1 class="teacher-name">Timetable</h1>
+        </div>
+    </div>
+    <div class="username-display">
+        Welcome, {{ username }}!
     </div>
 </div>
 
-<div class="teacher-timetable-container">
-    <div class="teacher-timetable-header">
-        <span>Monday</span>
-        <span>Tuesday</span>
-        <span>Wednesday</span>
-        <span>Thursday</span>
-        <span>Friday</span>
-        <span>Saturday</span>
-        <span>Sunday</span>
-    </div>
-    <div class="teacher-timetable-body">
-        <div class="class-block" style="grid-column: 2; margin-top: 30px;">ENG160</div>
-        <div class="class-block" style="grid-column: 3; margin-top: 80px;">MATH110</div>
-        <div class="class-block" style="grid-column: 4; margin-top: 30px;">CS150</div>
-        <div class="class-block" style="grid-column: 5; margin-top: 120px;">DLD143</div>
-    </div>
+<div class="timetable-container">
+    <table class="timetable">
+        <thead>
+            <tr>
+                <th class="time-col">Time</th>
+                <th>Monday</th>
+                <th>Tuesday</th>
+                <th>Wednesday</th>
+                <th>Thursday</th>
+                <th>Friday</th>
+                <th>Saturday</th>
+                <th>Sunday</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for hour in range(8, 23) %}
+            <tr>
+                <td class="time-col">{{ '%02d:00' % hour }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 {% endblock %}

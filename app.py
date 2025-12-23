@@ -34,7 +34,8 @@ def login():
         for user in users:
             if user['username'] == username and user['password'] == password:
                 session['role'] = 'teacher'
-                return redirect(url_for("dashboard"))
+                session['username'] = user['username']
+                return redirect(url_for("teacher_view"))
 
         return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
@@ -62,7 +63,7 @@ def generate():
 @app.route("/teacher")
 @login_required
 def teacher_view():
-    return render_template("teacherView.html", active_page="teacher")
+    return render_template("teacherView.html", active_page="teacher", username=session.get('username'))
 
 # Route for Admin Panel
 @app.route("/admin")

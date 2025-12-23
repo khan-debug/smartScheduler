@@ -358,15 +358,22 @@ h2 {
 }
 
 /* --- Teacher View Page --- */
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.username-display {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+}
+
 .teacher-profile-header {
     display: flex;
     align-items: center;
     gap: 20px;
-    background-color: var(--primary-dark);
-    border: 1px solid var(--border-color);
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 30px;
 }
 
 .teacher-avatar {
@@ -379,7 +386,8 @@ h2 {
 
 .teacher-name {
     margin: 0;
-    font-size: 1.75rem;
+    font-size: 2.2rem;
+    margin-bottom: 10px;
 }
 
 .teacher-title {
