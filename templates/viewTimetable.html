@@ -17,12 +17,16 @@
                 <th>Wednesday</th>
                 <th>Thursday</th>
                 <th>Friday</th>
+                <th>Saturday</th>
+                <th>Sunday</th>
             </tr>
         </thead>
         <tbody>
             {% for hour in range(8, 22) %}
             <tr>
                 <td class="time-col">{{ '%02d:00' % hour }}</td>
+                <td></td>
+                <td></td>
                 <td></td>
                 <td></td>
                 <td></td>
