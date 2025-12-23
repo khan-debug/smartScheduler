@@ -7,7 +7,6 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 users = []
-faculty = []
 rooms = []
 courses = []
 
@@ -51,7 +50,10 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html", active_page="dashboard")
+    teacher_count = len(users)
+    course_count = len(courses)
+    room_count = len(rooms)
+    return render_template("dashboard.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
 
 # Route for Generate Timetable
 @app.route("/generate")
@@ -134,121 +136,8 @@ def manage_users():
         ],
     )
 
-@app.route("/manage_faculty")
-@login_required
-def manage_faculty():
-    return render_template(
-        "management.html",
-        header_title="Manage Faculty",
-        item_name="Faculty",
-        add_url="/add_faculty",
-        get_url="/get_faculty",
-        form_fields=[
-            {"name": "username", "label": "Username", "type": "text", "table_display": True, "form_display": True},
-            {"name": "subject", "label": "Subject", "type": "text", "table_display": True, "form_display": True},
-        ],
-    )
-
-@app.route("/get_faculty", methods=["GET"])
-@login_required
-def get_faculty():
-    return {"items": faculty}
-
-@app.route("/add_faculty", methods=["POST"])
-@login_required
-def add_faculty():
-    data = request.get_json()
-    faculty.append(data)
-    return {"success": True}
-
-@app.route("/manage_rooms")
-@login_required
-def manage_rooms():
-    return render_template(
-        "management.html",
-        header_title="Manage Rooms",
-        item_name="Room",
-        add_url="/add_room",
-        get_url="/get_rooms",
-        form_fields=[
-            {"name": "room_number", "label": "Room Number", "type": "text", "table_display": True, "form_display": True},
-            {"name": "type", "label": "Type", "type": "select", "options": ["Lab", "Lecture Hall"], "table_display": True, "form_display": True},
-            {"name": "floor_number", "label": "Floor Number", "table_display": True, "form_display": False},
-        ],
-    )
-
-
-def _extract_floor_from_room_number(room_number_str):
-    try:
-        # Ensure room_number_str is treated as a string
-        room_number_str = str(room_number_str)
-        if len(room_number_str) > 2:
-            return room_number_str[:-2]
-        else:
-            return "" # Or handle as error/unknown
-    except (ValueError, TypeError):
-        return "" # Handle cases where conversion to string fails
-
-
-@app.route("/get_rooms", methods=["GET"])
-@login_required
-def get_rooms():
-    rooms_with_floor = []
-    for room in rooms:
-        room_data = room.copy()
-        room_number_str = room_data.get("room_number", "")
-        room_data["floor_number"] = _extract_floor_from_room_number(room_number_str)
-        rooms_with_floor.append(room_data)
-    return {"items": rooms_with_floor}
-
-@app.route("/add_room", methods=["POST"])
-@login_required
-def add_room():
-    data = request.get_json()
-    rooms.append(data)
-    return {"success": True}
-
-@app.route("/manage_courses")
-@login_required
-def manage_courses():
-    return render_template(
-        "management.html",
-        header_title="Manage Courses",
-        item_name="Course",
-        add_url="/add_course",
-        get_url="/get_courses",
-        form_fields=[
-            {"name": "course_name", "label": "Course Name", "type": "text", "table_display": True, "form_display": True},
-            {"name": "credit_hour", "label": "Credit Hour", "type": "select", "options": ["1", "3"], "table_display": True, "form_display": True},
-            {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": True},
-        ],
-    )
-
-@app.route("/get_courses", methods=["GET"])
-@login_required
-def get_courses():
-    return {"items": courses}
-
-@app.route("/add_course", methods=["POST"])
-@login_required
-def add_course():
-    data = request.get_json()
-    courses.append(data)
-    return {"success": True}
-
-@app.route("/view_timetable")
-@login_required
-def view_timetable():
-    return render_template("selectFloor.html", active_page="view_timetable")
-
-@app.route("/view_timetable/<int:floor_number>")
-@login_required
-def view_timetable_floor(floor_number):
-    return render_template("viewTimetable.html", floor_number=floor_number, active_page="view_timetable")
-
 data_stores = {
     "user": users,
-    "faculty": faculty,
     "room": rooms,
     "course": courses,
 }

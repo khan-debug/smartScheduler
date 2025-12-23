@@ -4,31 +4,19 @@
 
 {% block content %}
 <div class="stats-grid">
-    
     <div class="stat-card">
-        <span class="stat-card-number">320</span>
-        <span class="stat-card-label">Total Classes Scheduled</span>
+        <span class="stat-card-number">{{ teacher_count }}</span>
+        <span class="stat-card-label">Total Teachers</span>
     </div>
 
     <div class="stat-card">
-        <span class="stat-card-number">12</span>
-        <span class="stat-card-label">Conflicts</span>
-        <span class="stat-card-badge resolved">Resolved</span>
+        <span class="stat-card-number">{{ course_count }}</span>
+        <span class="stat-card-label">Total Courses</span>
     </div>
 
     <div class="stat-card">
-        <span class="stat-card-number">85%</span>
-        <span class="stat-card-label">Room Utilization</span>
-        <div class="progress-bar-container">
-            <div class="progress-bar" style="width: 85%;"></div>
-        </div>
+        <span class="stat-card-number">{{ room_count }}</span>
+        <span class="stat-card-label">Total Rooms</span>
     </div>
-
-    <div class="stat-card">
-        <span class="stat-card-number">Pending</span>
-        <span class="stat-card-label">Faculty Load Balanced</span>
-        <span class="stat-card-badge pending">Pending</span>
-    </div>
-
 </div>
 {% endblock %}
