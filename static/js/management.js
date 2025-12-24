@@ -190,7 +190,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     fetchItems();
                     addModal.style.display = "none";
                     document.getElementById("addForm").reset();
+                } else {
+                    // Show error message
+                    alert("Error: " + (data.error || "Failed to create user"));
                 }
+            })
+            .catch(error => {
+                alert("Error: Failed to communicate with server");
+                console.error('Error:', error);
             });
         }
     }
@@ -233,7 +240,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if (data.success) {
                 fetchItems();
                 editModal.style.display = "none";
+            } else {
+                // Show error message
+                alert("Error: " + (data.error || "Failed to update user"));
             }
+        })
+        .catch(error => {
+            alert("Error: Failed to communicate with server");
+            console.error('Error:', error);
         });
     }
 

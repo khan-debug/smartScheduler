@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import os
 from functools import wraps
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -9,6 +12,76 @@ app.secret_key = os.urandom(24)
 users = []
 rooms = []
 courses = []
+
+# Load email settings
+def load_email_settings():
+    try:
+        with open('EmailSettings Enabled.txt', 'r') as f:
+            content = f.read()
+            # Wrap content in braces to make it valid JSON
+            json_content = '{' + content.strip().rstrip(',') + '}'
+            settings = json.loads(json_content)
+            email_config = settings.get('EmailSettings', {})
+            print(f"Email settings loaded successfully: Enabled={email_config.get('Enabled')}")
+            return email_config
+    except Exception as e:
+        print(f"Error loading email settings: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+email_settings = load_email_settings()
+
+# Function to send email
+def send_user_email(to_email, username, password):
+    """Send email to new/updated user with their credentials"""
+    if not email_settings or not email_settings.get('Enabled'):
+        raise Exception("Email settings not configured or disabled")
+
+    smtp_config = email_settings.get('Smtp', {})
+    from_email = email_settings.get('FromEmail')
+    email_name = email_settings.get('EmailName', 'SmartScheduler')
+    subject = email_settings.get('Subject', 'Account Created')
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = f"{email_name} <{from_email}>"
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    # Email body
+    body = f"""Dear {username},
+
+Congratulations! Your registration to the portal has been successful.
+
+    Login Username: {username}
+    Temporary Password: {password}
+
+We strongly recommend that you change your password immediately after your first login for security purposes.
+
+We wish you a smooth and successful experience using the portal.
+
+This is an automated message. Please do not reply to this email.
+
+Best regards,
+
+The Portal Team
+"""
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Connect to Gmail SMTP server
+        server = smtplib.SMTP(smtp_config.get('Server'), smtp_config.get('Port'))
+        server.starttls()
+        server.login(smtp_config.get('Username'), smtp_config.get('Password'))
+
+        # Send email
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        raise Exception(f"Failed to send email: {str(e)}")
 
 # Decorator for requiring login
 def login_required(f):
@@ -105,6 +178,23 @@ def get_users():
 @login_required
 def add_user():
     data = request.get_json()
+
+    # Extract user details
+    username = data.get('username')
+    password = data.get('password')
+    email = data.get('email')
+
+    # Validate required fields
+    if not email:
+        return {"success": False, "error": "Email address is required"}, 400
+
+    # Try to send email first
+    try:
+        send_user_email(email, username, password)
+    except Exception as e:
+        return {"success": False, "error": f"Failed to send email: {str(e)}"}, 500
+
+    # If email sent successfully, add user
     users.append(data)
     return {"success": True}
 
@@ -120,6 +210,7 @@ def manage_users():
         get_url="/get_users",
         form_fields=[
             {"name": "username", "label": "Username", "type": "text", "table_display": True, "form_display": True},
+            {"name": "email", "label": "Email Address", "type": "email", "table_display": True, "form_display": True},
             {"name": "password", "label": "Password", "type": "password", "table_display": False, "form_display": True},
             {"name": "confirm_password", "label": "Confirm Password", "type": "password", "table_display": False, "form_display": True},
         ],
@@ -247,6 +338,24 @@ def update_item(item_type, item_id):
         data_list = data_stores[item_type]
         if 0 <= item_id < len(data_list):
             data = request.get_json()
+
+            # If updating a user, send email notification
+            if item_type == "user":
+                username = data.get('username')
+                password = data.get('password')
+                email = data.get('email')
+
+                # Validate email exists
+                if not email:
+                    return {"success": False, "error": "Email address is required"}, 400
+
+                # Try to send email first
+                try:
+                    send_user_email(email, username, password)
+                except Exception as e:
+                    return {"success": False, "error": f"Failed to send email: {str(e)}"}, 500
+
+            # Update the item
             for key, value in data.items():
                 if key in data_list[item_id]:
                     data_list[item_id][key] = value
