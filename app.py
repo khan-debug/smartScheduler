@@ -754,9 +754,37 @@ def manage_courses():
             {"name": "shift", "label": "Shift Time", "type": "select", "options": ["Morning", "Evening"], "table_display": False, "form_display": True},
             {"name": "section_digits", "label": "Section Code (3 digits)", "type": "text", "table_display": False, "form_display": True, "maxlength": "3", "pattern": "[0-9]{3}", "placeholder": "e.g., 123"},
             {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": True, "readonly": True},
+            {"name": "teacher_registration", "label": "Teacher Registration Number", "type": "text", "table_display": False, "form_display": True, "placeholder": "Enter registration number"},
+            {"name": "teacher_name", "label": "Teacher Name", "type": "text", "table_display": True, "form_display": True, "readonly": True, "placeholder": "Auto-filled from registration"},
         ],
         from_dashboard=from_dashboard,
     )
+
+@app.route("/lookup_teacher/<registration_number>", methods=["GET"])
+@login_required
+def lookup_teacher(registration_number):
+    """Lookup teacher by registration number and return their details"""
+    try:
+        teacher = users_collection.find_one({'registration_number': registration_number})
+        if teacher:
+            return jsonify({
+                'success': True,
+                'teacher': {
+                    'registration_number': teacher.get('registration_number'),
+                    'username': teacher.get('username'),
+                    'email': teacher.get('email')
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Teacher not found with this registration number'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route("/get_courses", methods=["GET"])
 @login_required

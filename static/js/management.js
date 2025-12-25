@@ -254,8 +254,75 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // Fetch items when the page loads
     fetchItems();
 
-    // Special handling for course section code (shift + 3 digits)
+    // Special handling for course teacher lookup and section code
     if (itemName === 'course') {
+        // Function to lookup teacher by registration number
+        function setupTeacherLookup(prefix) {
+            const regField = document.getElementById(`${prefix}teacher_registration`);
+            const nameField = document.getElementById(`${prefix}teacher_name`);
+
+            if (regField && nameField) {
+                // Create error message div if it doesn't exist
+                let errorDiv = regField.parentElement.querySelector('.teacher-error');
+                if (!errorDiv) {
+                    errorDiv = document.createElement('div');
+                    errorDiv.className = 'teacher-error';
+                    errorDiv.style.cssText = 'color: #ff6b6b; font-size: 0.85rem; margin-top: 5px; display: none;';
+                    regField.parentElement.appendChild(errorDiv);
+                }
+
+                // Create success message div if it doesn't exist
+                let successDiv = regField.parentElement.querySelector('.teacher-success');
+                if (!successDiv) {
+                    successDiv = document.createElement('div');
+                    successDiv.className = 'teacher-success';
+                    successDiv.style.cssText = 'color: #4caf50; font-size: 0.85rem; margin-top: 5px; display: none;';
+                    regField.parentElement.appendChild(successDiv);
+                }
+
+                let debounceTimer;
+                regField.addEventListener('input', function() {
+                    clearTimeout(debounceTimer);
+                    const regNumber = this.value.trim();
+
+                    // Clear messages
+                    errorDiv.style.display = 'none';
+                    successDiv.style.display = 'none';
+                    nameField.value = '';
+
+                    if (!regNumber) return;
+
+                    // Show loading state
+                    nameField.value = 'Looking up...';
+
+                    debounceTimer = setTimeout(() => {
+                        fetch(`/lookup_teacher/${regNumber}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    nameField.value = data.teacher.username;
+                                    successDiv.textContent = `✓ Found: ${data.teacher.email}`;
+                                    successDiv.style.display = 'block';
+                                } else {
+                                    nameField.value = '';
+                                    errorDiv.textContent = '✗ ' + data.error;
+                                    errorDiv.style.display = 'block';
+                                }
+                            })
+                            .catch(error => {
+                                nameField.value = '';
+                                errorDiv.textContent = '✗ Error looking up teacher';
+                                errorDiv.style.display = 'block';
+                            });
+                    }, 500); // Debounce for 500ms
+                });
+            }
+        }
+
+        // Setup teacher lookup for add form
+        setupTeacherLookup('');
+
+
         // Function to update section code based on shift and digits
         function updateSectionCode(prefix) {
             const shift = document.getElementById(`${prefix}shift`);
@@ -324,6 +391,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
                     // Setup listeners for edit form
                     updateSectionCode('edit_');
+                    setupTeacherLookup('edit_');
 
                     editModal.style.display = "block";
                 });
