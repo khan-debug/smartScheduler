@@ -16,8 +16,8 @@
             
             <form class="login-form" method="post" action="{{ url_for('login') }}">
                 <div class="input-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="e.g. jdoe_univ" required>
+                    <label for="username">Username / Registration Number</label>
+                    <input type="text" id="username" name="username" placeholder="Admin: 'admin' | Teachers: Registration Number" required>
                 </div>
                 
                 <div class="input-group">
@@ -25,8 +25,14 @@
                     <input type="password" id="password" name="password" placeholder="••••••••">
                 </div>
 
+                {% if error %}
+                <div style="background-color: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #ff6b6b; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
+                    {{ error }}
+                </div>
+                {% endif %}
+
                 <button type="submit" class="btn-primary">Sign In</button>
-                <a href="mailto:aarijrk@gmail.com?subject=Password%20Reset%20Request&body=Hi,%20my%20username%20is%20[Please%20enter%20your%20username],%20I%20am%20requesting%20to%20change%20my%20password." class="forgot-password">Forgot Password?</a>
+                <a href="mailto:aarijrk@gmail.com?subject=Password%20Reset%20Request&body=Hi,%20my%20registration%20number%20is%20[Please%20enter%20your%20registration%20number],%20I%20am%20requesting%20to%20change%20my%20password." class="forgot-password">Forgot Password?</a>
             </form>
 
 

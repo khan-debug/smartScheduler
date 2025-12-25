@@ -130,11 +130,12 @@ def login():
             session['role'] = 'admin'
             return redirect(url_for("admin_panel"))
 
-        # Check for teacher credentials in MongoDB
-        user = users_collection.find_one({'username': username, 'password': password})
+        # Check for teacher credentials in MongoDB using registration_number
+        user = users_collection.find_one({'registration_number': username, 'password': password})
         if user:
             session['role'] = 'teacher'
-            session['username'] = user['username']
+            session['username'] = user['username']  # Store actual username in session
+            session['registration_number'] = user['registration_number']  # Store reg number too
             return redirect(url_for("teacher_view"))
 
         return render_template("auth/login.html", error="Invalid credentials")
