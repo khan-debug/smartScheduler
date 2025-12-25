@@ -313,6 +313,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     addClose.onclick = function() {
         addModal.style.display = "none";
+        document.getElementById("addForm").reset();
     }
 
     editClose.onclick = function() {
@@ -322,6 +323,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     window.onclick = function(event) {
         if (event.target == addModal) {
             addModal.style.display = "none";
+            document.getElementById("addForm").reset();
         }
         if (event.target == editModal) {
             editModal.style.display = "none";
@@ -359,6 +361,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 }
             });
 
+            // Disable submit button to prevent double-clicking
+            const submitBtn = document.querySelector('#addForm button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Creating...';
+            submitBtn.disabled = true;
+
             fetch(addUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -366,6 +374,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
             })
             .then(response => response.json())
             .then(data => {
+                // Re-enable button
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+
                 if (data.success) {
                     fetchItems();
                     addModal.style.display = "none";
@@ -376,6 +388,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 }
             })
             .catch(error => {
+                // Re-enable button on error
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+
                 alert("Error: Failed to communicate with server");
                 console.error('Error:', error);
             });

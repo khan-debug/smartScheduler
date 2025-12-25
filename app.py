@@ -164,6 +164,58 @@ The SmartScheduler System
     except Exception as e:
         raise Exception(f"Failed to send email: {str(e)}")
 
+# Function to send course assignment email
+def send_course_assignment_email(to_email, teacher_name, course_details):
+    """Send email to teacher about course assignment"""
+    if not email_settings or not email_settings.get('Enabled'):
+        raise Exception("Email settings not configured or disabled")
+
+    smtp_config = email_settings.get('Smtp', {})
+    from_email = email_settings.get('FromEmail')
+    email_name = email_settings.get('EmailName', 'SmartScheduler')
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = f"{email_name} <{from_email}>"
+    msg['To'] = to_email
+    msg['Subject'] = 'Course Assignment Notification'
+
+    # Email body
+    body = f"""Dear {teacher_name},
+
+You have been assigned to teach a new course.
+
+Course Details:
+- Course Name: {course_details['course_name']}
+- Section Code: {course_details['section_code']}
+- Course Type: {course_details['course_type']}
+- Credit Hours: {course_details['credit_hour']}
+- Shift: {course_details['shift']}
+
+You can view the full course details and timetable in your SmartScheduler dashboard.
+
+This is an automated message. Please do not reply to this email.
+
+Best regards,
+
+The SmartScheduler System
+"""
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Connect to SMTP server
+        server = smtplib.SMTP(smtp_config.get('Server'), smtp_config.get('Port'))
+        server.starttls()
+        server.login(smtp_config.get('Username'), smtp_config.get('Password'))
+
+        # Send email
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        raise Exception(f"Failed to send email: {str(e)}")
+
 # Decorator for requiring login
 def login_required(f):
     @wraps(f)
@@ -874,9 +926,9 @@ def manage_courses():
         form_fields=[
             {"name": "course_name", "label": "Course Name", "type": "text", "table_display": True, "form_display": True},
             {"name": "credit_hour", "label": "Credit Hour", "type": "select", "options": ["1", "3"], "table_display": True, "form_display": True},
-            {"name": "shift", "label": "Shift Time", "type": "select", "options": ["Morning", "Evening"], "table_display": False, "form_display": True},
-            {"name": "section_digits", "label": "Section Code (3 digits)", "type": "text", "table_display": False, "form_display": True, "maxlength": "3", "pattern": "[0-9]{3}", "placeholder": "e.g., 123"},
-            {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": True, "readonly": True},
+            {"name": "course_type", "label": "Course Type", "type": "select", "options": ["Lab", "Lecture"], "table_display": True, "form_display": True},
+            {"name": "shift", "label": "Shift Time", "type": "select", "options": ["Morning", "Evening"], "table_display": True, "form_display": True},
+            {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": False},
             {"name": "teacher_registration", "label": "Teacher Registration Number", "type": "text", "table_display": False, "form_display": True, "placeholder": "Enter registration number"},
             {"name": "teacher_name", "label": "Teacher Name", "type": "text", "table_display": True, "form_display": True, "readonly": True, "placeholder": "Auto-filled from registration"},
         ],
@@ -922,8 +974,65 @@ def get_courses():
 @login_required
 def add_course():
     data = request.get_json()
+
+    # Auto-generate section code from shift
+    shift = data.get('shift', 'Morning')
+    prefix = 'MOR' if shift == 'Morning' else 'EVE'
+
+    # Find existing courses with this prefix to determine next number
+    existing_courses = list(courses_collection.find({"section_code": {"$regex": f"^{prefix}"}}))
+
+    # Find the highest number used
+    max_num = 0
+    for course in existing_courses:
+        code = course.get('section_code', '')
+        if len(code) == 6:  # MOR/EVE + 3 digits
+            try:
+                num = int(code[3:])
+                if num > max_num:
+                    max_num = num
+            except ValueError:
+                pass
+
+    # Generate new section code
+    new_num = max_num + 1
+    section_code = f"{prefix}{new_num:03d}"
+    data['section_code'] = section_code
+
+    # Double-check for duplicate (safety check)
+    if courses_collection.find_one({"section_code": section_code}):
+        return {"success": False, "error": "Section code already exists. Please try again."}, 400
+
+    # Look up teacher by registration number to get email
+    teacher_registration = data.get('teacher_registration')
+    teacher = users_collection.find_one({'registration_number': teacher_registration})
+
+    if not teacher:
+        return {"success": False, "error": "Teacher not found with this registration number"}, 404
+
+    teacher_email = teacher.get('email')
+    teacher_name = teacher.get('username')
+
+    # Insert course into database
     courses_collection.insert_one(data)
-    return {"success": True}
+
+    # Send email notification to teacher (non-blocking - don't fail if email fails)
+    try:
+        if teacher_email:
+            course_details = {
+                'course_name': data.get('course_name'),
+                'section_code': section_code,
+                'course_type': data.get('course_type'),
+                'credit_hour': data.get('credit_hour'),
+                'shift': shift
+            }
+            send_course_assignment_email(teacher_email, teacher_name, course_details)
+            print(f"Course assignment email sent to {teacher_email}")
+    except Exception as e:
+        # Log the error but don't fail the course creation
+        print(f"Warning: Failed to send course assignment email: {str(e)}")
+
+    return {"success": True, "section_code": section_code}
 
 @app.route("/view_timetable")
 @login_required
