@@ -1,0 +1,621 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Edit by Room{% endblock %}
+
+{% block top_bar %}{% endblock %}
+
+{% block content %}
+<style>
+    .container {
+        max-width: 900px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    h1 {
+        color: var(--text-primary);
+        margin-bottom: 10px;
+    }
+
+    .description {
+        color: var(--text-secondary);
+        margin-bottom: 30px;
+    }
+
+    .room-card {
+        background-color: var(--primary-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 15px;
+        cursor: pointer;
+    }
+
+    .room-card:hover {
+        border-color: var(--accent-blue);
+    }
+
+    .room-number {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .room-info {
+        color: var(--text-secondary);
+    }
+
+    .room-info span {
+        margin-right: 15px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: var(--primary-dark);
+        margin: 3% auto;
+        padding: 30px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .close {
+        color: var(--text-secondary);
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: var(--text-primary);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    .day-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .day-btn {
+        padding: 8px 12px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .day-btn.selected {
+        background-color: var(--accent-blue);
+        border-color: var(--accent-blue);
+        color: white;
+    }
+
+    .calculated-time {
+        padding: 10px;
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        border-radius: 4px;
+        color: #4caf50;
+        font-weight: 600;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--accent-blue);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+    }
+
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        display: none;
+    }
+
+    .success-message {
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        display: none;
+    }
+</style>
+
+<button class="back-button" onclick="history.back()">&#8592;</button>
+
+<div class="container">
+    <h1>Schedule Classes by Room</h1>
+    <p class="description">Select a room to schedule a class in that room</p>
+
+    <input
+        type="text"
+        id="searchInput"
+        class="search-input"
+        placeholder="Search rooms by number, type, or floor..."
+        onkeyup="filterRooms()"
+    >
+
+    <div id="roomsList">
+        <p style="text-align: center; color: var(--text-secondary);">Loading rooms...</p>
+    </div>
+</div>
+
+<!-- Scheduling Modal -->
+<div id="scheduleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Schedule Class</h2>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <div id="roomDetails" style="margin-bottom: 20px; padding: 15px; background-color: var(--card-bg); border-radius: 4px;">
+            <!-- Room details will be inserted here -->
+        </div>
+
+        <form id="scheduleForm">
+            <div class="form-group">
+                <label>Select Course *</label>
+                <select id="courseSelect" onchange="loadSections()" required>
+                    <option value="">-- Select a Course --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Select Section *</label>
+                <select id="sectionSelect" required>
+                    <option value="">-- Select Course First --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Select Day *</label>
+                <div class="day-buttons">
+                    <div class="day-btn" onclick="selectDay('Monday')">Mon</div>
+                    <div class="day-btn" onclick="selectDay('Tuesday')">Tue</div>
+                    <div class="day-btn" onclick="selectDay('Wednesday')">Wed</div>
+                    <div class="day-btn" onclick="selectDay('Thursday')">Thu</div>
+                    <div class="day-btn" onclick="selectDay('Friday')">Fri</div>
+                    <div class="day-btn" onclick="selectDay('Saturday')">Sat</div>
+                    <div class="day-btn" onclick="selectDay('Sunday')">Sun</div>
+                </div>
+                <input type="hidden" id="selectedDay" required>
+            </div>
+
+            <div class="form-group">
+                <label>Start Time *</label>
+                <input type="time" id="startTime" required onchange="calculateEndTime()">
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px;">
+                    <span id="timeConstraint">Select a course to see time restrictions</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>End Time (Auto-calculated)</label>
+                <div class="calculated-time" id="endTime">Select start time first</div>
+            </div>
+
+            <button type="button" class="btn-submit" onclick="scheduleClass()">Schedule Class</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let allRooms = [];
+    let allCourses = [];
+    let selectedRoom = null;
+    let selectedCourse = null;
+    let selectedDayValue = null;
+
+    window.onload = function() {
+        loadRooms();
+        loadCourses();
+    };
+
+    function loadRooms() {
+        fetch('/get_all_rooms')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Rooms loaded:', data);
+
+                if (data.success && data.rooms && data.rooms.length > 0) {
+                    allRooms = data.rooms;
+                    displayRooms(allRooms);
+                } else {
+                    document.getElementById('roomsList').innerHTML =
+                        '<p style="text-align: center; color: var(--text-secondary);">No rooms found</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+                document.getElementById('roomsList').innerHTML =
+                    '<p style="text-align: center; color: #ff6b6b;">Error loading rooms: ' + error.message + '</p>';
+            });
+    }
+
+    function loadCourses() {
+        fetch('/get_all_courses_with_sections')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Courses loaded:', data);
+
+                if (data.success && data.courses) {
+                    allCourses = data.courses;
+                    populateCourseDropdown();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading courses:', error);
+            });
+    }
+
+    function populateCourseDropdown() {
+        const courseSelect = document.getElementById('courseSelect');
+        courseSelect.innerHTML = '<option value="">-- Select a Course --</option>';
+
+        allCourses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course._id;
+            option.textContent = `${course.course_name} (${course.teacher_name}, ${course.credit_hour}h)`;
+            courseSelect.appendChild(option);
+        });
+    }
+
+    function displayRooms(rooms) {
+        const roomsList = document.getElementById('roomsList');
+        let html = '';
+
+        rooms.forEach(room => {
+            html += `
+                <div class="room-card" onclick="selectRoom('${room.room_number}', '${room.type}', '${room.floor}')">
+                    <div class="room-number">Room ${room.room_number}</div>
+                    <div class="room-info">
+                        <span>Type: ${room.type}</span>
+                        <span>Floor: ${room.floor}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        roomsList.innerHTML = html;
+    }
+
+    function filterRooms() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+        const filtered = allRooms.filter(room => {
+            return room.room_number.toString().includes(searchTerm) ||
+                   room.type.toLowerCase().includes(searchTerm) ||
+                   room.floor.toString().includes(searchTerm);
+        });
+
+        displayRooms(filtered);
+    }
+
+    function selectRoom(roomNumber, roomType, floor) {
+        console.log('Room selected:', roomNumber, roomType, floor);
+
+        selectedRoom = {
+            number: roomNumber,
+            type: roomType,
+            floor: floor
+        };
+
+        // Update modal
+        document.getElementById('modalTitle').textContent = `Schedule Class in Room ${roomNumber}`;
+        document.getElementById('roomDetails').innerHTML = `
+            <strong style="color: var(--text-primary);">Room ${roomNumber}</strong><br>
+            <span style="color: var(--text-secondary);">
+                Type: ${roomType} | Floor: ${floor}
+            </span>
+        `;
+
+        // Reset form
+        document.getElementById('scheduleForm').reset();
+        document.getElementById('sectionSelect').innerHTML = '<option value="">-- Select Course First --</option>';
+        document.getElementById('endTime').textContent = 'Select start time first';
+        selectedDayValue = null;
+        selectedCourse = null;
+        document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('selected'));
+        document.getElementById('errorMessage').style.display = 'none';
+        document.getElementById('successMessage').style.display = 'none';
+
+        // Show modal
+        document.getElementById('scheduleModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('scheduleModal').style.display = 'none';
+    }
+
+    function loadSections() {
+        const courseId = document.getElementById('courseSelect').value;
+
+        if (!courseId) {
+            document.getElementById('sectionSelect').innerHTML = '<option value="">-- Select Course First --</option>';
+            document.getElementById('timeConstraint').textContent = 'Select a course to see time restrictions';
+            selectedCourse = null;
+            return;
+        }
+
+        // Find selected course
+        selectedCourse = allCourses.find(c => c._id === courseId);
+
+        if (!selectedCourse) {
+            console.error('Course not found');
+            return;
+        }
+
+        console.log('Selected course:', selectedCourse);
+        console.log('Sections:', selectedCourse.sections);
+
+        // Update time constraint message
+        if (selectedCourse.shift === 'Morning') {
+            document.getElementById('timeConstraint').textContent = 'Morning classes: 8:30 AM - 5:00 PM only';
+        } else if (selectedCourse.shift === 'Evening') {
+            document.getElementById('timeConstraint').textContent = 'Evening classes: 5:00 PM - 10:00 PM only';
+        }
+
+        // Populate sections dropdown
+        const sectionSelect = document.getElementById('sectionSelect');
+        sectionSelect.innerHTML = '';
+
+        // Check if sections exist
+        if (!selectedCourse.sections || selectedCourse.sections.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No sections available';
+            sectionSelect.appendChild(option);
+            console.error('No sections found for this course');
+            return;
+        }
+
+        // If only one section, auto-select it
+        if (selectedCourse.sections.length === 1) {
+            const option = document.createElement('option');
+            option.value = selectedCourse.sections[0];
+            option.textContent = selectedCourse.sections[0];
+            option.selected = true;
+            sectionSelect.appendChild(option);
+            console.log('Auto-selected single section:', selectedCourse.sections[0]);
+        } else {
+            // Multiple sections - show dropdown
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '-- Select a Section --';
+            sectionSelect.appendChild(defaultOption);
+
+            selectedCourse.sections.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section;
+                option.textContent = section;
+                sectionSelect.appendChild(option);
+            });
+            console.log('Sections loaded for course:', selectedCourse.course_name);
+        }
+    }
+
+    function selectDay(day) {
+        document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('selected'));
+        event.target.classList.add('selected');
+        selectedDayValue = day;
+        document.getElementById('selectedDay').value = day;
+    }
+
+    function calculateEndTime() {
+        const startTime = document.getElementById('startTime').value;
+
+        if (!startTime || !selectedCourse) {
+            document.getElementById('endTime').textContent = 'Select course and start time first';
+            return;
+        }
+
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const creditHours = parseInt(selectedCourse.credit_hour);
+        const endHour = (hours + creditHours) % 24;
+        const endTimeStr = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        document.getElementById('endTime').textContent = endTimeStr;
+    }
+
+    function scheduleClass() {
+        const courseId = document.getElementById('courseSelect').value;
+        let sectionCode = document.getElementById('sectionSelect').value;
+        const day = selectedDayValue;
+        const startTime = document.getElementById('startTime').value;
+
+        // Validation
+        if (!courseId) {
+            showError('Please select a course');
+            return;
+        }
+
+        // Check if course has sections
+        if (!selectedCourse.sections || selectedCourse.sections.length === 0) {
+            showError('This course has no sections. Please add sections to this course first in Manage Courses.');
+            return;
+        }
+
+        if (!sectionCode) {
+            showError('Please select a section');
+            return;
+        }
+        if (!day) {
+            showError('Please select a day');
+            return;
+        }
+        if (!startTime) {
+            showError('Please select a start time');
+            return;
+        }
+
+        // Validate time based on shift
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const timeInMinutes = hours * 60 + minutes;
+
+        if (selectedCourse.shift === 'Morning') {
+            // Morning: 8:30 AM (510 min) to 5:00 PM (1020 min)
+            const morningStart = 8 * 60 + 30; // 8:30 AM
+            const morningEnd = 17 * 60; // 5:00 PM
+
+            if (timeInMinutes < morningStart || timeInMinutes >= morningEnd) {
+                showError('Morning classes must start between 8:30 AM and 5:00 PM');
+                return;
+            }
+        } else if (selectedCourse.shift === 'Evening') {
+            // Evening: 5:00 PM (1020 min) to 10:00 PM (1320 min)
+            const eveningStart = 17 * 60; // 5:00 PM
+            const eveningEnd = 22 * 60; // 10:00 PM
+
+            if (timeInMinutes < eveningStart || timeInMinutes >= eveningEnd) {
+                showError('Evening classes must start between 5:00 PM and 10:00 PM');
+                return;
+            }
+        }
+
+        // Calculate end time
+        const creditHours = parseInt(selectedCourse.credit_hour);
+        const endHour = (hours + creditHours) % 24;
+        const endTime = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        console.log('Scheduling:', {
+            courseId,
+            sectionCode,
+            day,
+            startTime,
+            endTime,
+            roomNumber: selectedRoom.number
+        });
+
+        // Send to backend
+        fetch('/save_scheduled_class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_id: courseId,
+                section_code: sectionCode,
+                day: day,
+                start_time: startTime,
+                end_time: endTime,
+                room_number: selectedRoom.number
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Response:', data);
+
+            if (data.success) {
+                showSuccess('Class scheduled successfully!');
+                setTimeout(() => {
+                    closeModal();
+                }, 1500);
+            } else {
+                showError(data.error || 'Failed to schedule class');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('Error: ' + error.message);
+        });
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        document.getElementById('successMessage').style.display = 'none';
+    }
+
+    function showSuccess(message) {
+        const successDiv = document.getElementById('successMessage');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('scheduleModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}

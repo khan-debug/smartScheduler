@@ -1,0 +1,508 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Edit by Course{% endblock %}
+
+{% block top_bar %}{% endblock %}
+
+{% block content %}
+<style>
+    .course-list-container {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    .page-header h1 {
+        color: var(--text-primary);
+        margin-bottom: 10px;
+    }
+
+    .page-header p {
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        color: var(--text-primary);
+    }
+
+    .course-card {
+        background-color: var(--primary-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .course-card:hover {
+        border-color: var(--accent-blue);
+    }
+
+    .course-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 10px;
+    }
+
+    .course-info {
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+    }
+
+    .course-info span {
+        margin-right: 20px;
+    }
+
+    .section-button {
+        padding: 8px 16px;
+        margin-right: 8px;
+        margin-bottom: 8px;
+        background-color: var(--accent-blue);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .section-button:hover {
+        opacity: 0.8;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: var(--primary-dark);
+        margin: 5% auto;
+        padding: 30px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .close {
+        color: var(--text-secondary);
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: var(--text-primary);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    .day-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .day-btn {
+        padding: 8px 12px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .day-btn.selected {
+        background-color: var(--accent-blue);
+        border-color: var(--accent-blue);
+        color: white;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--accent-blue);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+    }
+
+    .calculated-time {
+        padding: 10px;
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        border-radius: 4px;
+        color: #4caf50;
+        font-weight: 600;
+    }
+
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        display: none;
+    }
+
+    .success-message {
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        display: none;
+    }
+</style>
+
+<button class="back-button" onclick="history.back()">&#8592;</button>
+
+<div class="course-list-container">
+    <div class="page-header">
+        <h1>Schedule Classes</h1>
+        <p>Click on a section code below to schedule that class</p>
+    </div>
+
+    <input
+        type="text"
+        id="searchInput"
+        class="search-input"
+        placeholder="Search courses..."
+        onkeyup="filterCourses()"
+    >
+
+    <div id="coursesList">
+        <p style="text-align: center; color: var(--text-secondary);">Loading courses...</p>
+    </div>
+</div>
+
+<!-- Scheduling Modal -->
+<div id="scheduleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Schedule Class</h2>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <div id="courseDetails" style="margin-bottom: 20px; padding: 15px; background-color: var(--card-bg); border-radius: 4px;">
+            <!-- Course details will be inserted here -->
+        </div>
+
+        <form id="scheduleForm">
+            <div class="form-group">
+                <label>Select Day *</label>
+                <div class="day-buttons">
+                    <div class="day-btn" onclick="selectDay('Monday')">Mon</div>
+                    <div class="day-btn" onclick="selectDay('Tuesday')">Tue</div>
+                    <div class="day-btn" onclick="selectDay('Wednesday')">Wed</div>
+                    <div class="day-btn" onclick="selectDay('Thursday')">Thu</div>
+                    <div class="day-btn" onclick="selectDay('Friday')">Fri</div>
+                    <div class="day-btn" onclick="selectDay('Saturday')">Sat</div>
+                    <div class="day-btn" onclick="selectDay('Sunday')">Sun</div>
+                </div>
+                <input type="hidden" id="selectedDay" required>
+            </div>
+
+            <div class="form-group">
+                <label>Start Time *</label>
+                <input type="time" id="startTime" required onchange="calculateEndTime()">
+            </div>
+
+            <div class="form-group">
+                <label>End Time (Auto-calculated)</label>
+                <div class="calculated-time" id="endTime">Select start time first</div>
+            </div>
+
+            <div class="form-group">
+                <label>Select Room *</label>
+                <select id="roomSelect" required>
+                    <option value="">-- Select a Room --</option>
+                </select>
+            </div>
+
+            <button type="button" class="btn-submit" onclick="scheduleClass()">Schedule Class</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let coursesData = [];
+    let currentCourse = null;
+    let currentSection = null;
+    let selectedDayValue = null;
+
+    window.onload = function() {
+        loadCourses();
+        loadRooms();
+    };
+
+    function loadCourses() {
+        fetch('/get_all_courses_with_sections')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.courses) {
+                    coursesData = data.courses;
+                    displayCourses(coursesData);
+                } else {
+                    document.getElementById('coursesList').innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No courses found</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('coursesList').innerHTML = '<p style="text-align: center; color: #ff6b6b;">Error loading courses</p>';
+            });
+    }
+
+    function displayCourses(courses) {
+        const coursesList = document.getElementById('coursesList');
+
+        if (courses.length === 0) {
+            coursesList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No courses found</p>';
+            return;
+        }
+
+        let html = '';
+        courses.forEach(course => {
+            html += `
+                <div class="course-card">
+                    <div class="course-name">${course.course_name}</div>
+                    <div class="course-info">
+                        <span>Teacher: ${course.teacher_name}</span>
+                        <span>Type: ${course.course_type}</span>
+                        <span>Credit: ${course.credit_hour}h</span>
+                        <span>Shift: ${course.shift}</span>
+                    </div>
+                    <div>
+                        <strong style="color: var(--text-primary);">Sections:</strong>
+                        ${course.sections.map(section => `
+                            <button class="section-button" onclick="openScheduleModal('${course._id}', '${section}')">
+                                ${section}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        coursesList.innerHTML = html;
+    }
+
+    function filterCourses() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = coursesData.filter(course =>
+            course.course_name.toLowerCase().includes(searchTerm) ||
+            course.teacher_name.toLowerCase().includes(searchTerm)
+        );
+        displayCourses(filtered);
+    }
+
+    function openScheduleModal(courseId, sectionCode) {
+        console.log('Opening modal for:', courseId, sectionCode);
+
+        // Find the course
+        currentCourse = coursesData.find(c => c._id === courseId);
+        currentSection = sectionCode;
+
+        if (!currentCourse) {
+            alert('Course not found');
+            return;
+        }
+
+        // Update modal title and details
+        document.getElementById('modalTitle').textContent = `Schedule ${currentCourse.course_name} - ${sectionCode}`;
+        document.getElementById('courseDetails').innerHTML = `
+            <strong style="color: var(--text-primary);">${currentCourse.course_name}</strong><br>
+            <span style="color: var(--text-secondary);">
+                Section: ${sectionCode} | Teacher: ${currentCourse.teacher_name} |
+                Credit: ${currentCourse.credit_hour}h | Type: ${currentCourse.course_type}
+            </span>
+        `;
+
+        // Reset form
+        document.getElementById('scheduleForm').reset();
+        document.getElementById('endTime').textContent = 'Select start time first';
+        selectedDayValue = null;
+        document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('selected'));
+        document.getElementById('errorMessage').style.display = 'none';
+        document.getElementById('successMessage').style.display = 'none';
+
+        // Show modal
+        document.getElementById('scheduleModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('scheduleModal').style.display = 'none';
+    }
+
+    function loadRooms() {
+        fetch('/get_all_rooms')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.rooms) {
+                    const roomSelect = document.getElementById('roomSelect');
+                    data.rooms.forEach(room => {
+                        const option = document.createElement('option');
+                        option.value = room.room_number;
+                        option.textContent = `Room ${room.room_number} (${room.type}, Floor ${room.floor})`;
+                        roomSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error('Error loading rooms:', error));
+    }
+
+    function selectDay(day) {
+        document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('selected'));
+        event.target.classList.add('selected');
+        selectedDayValue = day;
+        document.getElementById('selectedDay').value = day;
+    }
+
+    function calculateEndTime() {
+        const startTime = document.getElementById('startTime').value;
+        if (!startTime || !currentCourse) return;
+
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const creditHours = parseInt(currentCourse.credit_hour);
+        const endHour = (hours + creditHours) % 24;
+        const endTimeStr = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        document.getElementById('endTime').textContent = endTimeStr;
+    }
+
+    function scheduleClass() {
+        const day = selectedDayValue;
+        const startTime = document.getElementById('startTime').value;
+        const roomNumber = document.getElementById('roomSelect').value;
+
+        // Validation
+        if (!day) {
+            showError('Please select a day');
+            return;
+        }
+        if (!startTime) {
+            showError('Please select a start time');
+            return;
+        }
+        if (!roomNumber) {
+            showError('Please select a room');
+            return;
+        }
+
+        // Calculate end time
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const creditHours = parseInt(currentCourse.credit_hour);
+        const endHour = (hours + creditHours) % 24;
+        const endTime = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        // Send to backend
+        fetch('/save_scheduled_class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                course_id: currentCourse._id,
+                section_code: currentSection,
+                day: day,
+                start_time: startTime,
+                end_time: endTime,
+                room_number: roomNumber
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess('Class scheduled successfully!');
+                setTimeout(() => {
+                    closeModal();
+                }, 1500);
+            } else {
+                showError(data.error || 'Failed to schedule class');
+            }
+        })
+        .catch(error => {
+            showError('Error: ' + error.message);
+        });
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        document.getElementById('successMessage').style.display = 'none';
+    }
+
+    function showSuccess(message) {
+        const successDiv = document.getElementById('successMessage');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('scheduleModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}

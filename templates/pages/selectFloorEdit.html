@@ -1,170 +1,113 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Select Floor to Edit{% endblock %}
+{% block title %}Manual Timetable Edit{% endblock %}
 
 {% block top_bar %}{% endblock %}
 
 {% block content %}
 <style>
-    .admin-menu {
+    .edit-options-container {
         max-width: 800px;
-        margin: 0 auto;
-    }
-
-    .floor-button {
-        display: block;
-        padding: 20px 30px;
-        margin-bottom: 15px;
-        background-color: var(--primary-dark);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        color: var(--text-primary);
-        text-decoration: none;
-        font-size: 1rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-
-    .floor-button:hover {
-        background-color: var(--card-bg);
-        border-color: var(--accent-blue);
-        transform: translateX(5px);
-    }
-
-    .floor-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .floor-name {
-        font-size: 1.1rem;
-    }
-
-    .room-count-badge {
-        background-color: var(--accent-blue);
-        color: var(--text-primary);
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 0.85rem;
-    }
-
-    .loading-message {
-        text-align: center;
+        margin: 50px auto;
         padding: 40px;
-        color: var(--text-secondary);
     }
 
-    .empty-state {
+    .edit-title {
         text-align: center;
-        padding: 60px 20px;
-        background-color: var(--primary-dark);
-        border: 2px dashed var(--border-color);
-        border-radius: 12px;
-        margin-top: 20px;
-    }
-
-    .empty-icon {
-        font-size: 4rem;
-        margin-bottom: 15px;
-        opacity: 0.3;
-    }
-
-    .empty-text {
-        color: var(--text-secondary);
-        font-size: 1.1rem;
-        margin-bottom: 10px;
-    }
-
-    .empty-hint {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        opacity: 0.7;
-        margin-bottom: 20px;
-    }
-
-    .btn-create {
-        padding: 12px 24px;
-        border: none;
-        border-radius: 8px;
-        background-color: var(--accent-blue);
+        margin-bottom: 40px;
         color: var(--text-primary);
-        font-size: 0.95rem;
-        font-weight: 600;
+        font-size: 2rem;
+    }
+
+    .edit-description {
+        text-align: center;
+        color: var(--text-secondary);
+        margin-bottom: 50px;
+        font-size: 1rem;
+    }
+
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .option-card {
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--card-bg) 100%);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 40px 30px;
+        text-align: center;
         cursor: pointer;
         transition: all 0.3s ease;
         text-decoration: none;
-        display: inline-block;
+        display: block;
     }
 
-    .btn-create:hover {
-        background-color: #0056b3;
-        transform: translateY(-2px);
+    .option-card:hover {
+        border-color: var(--accent-blue);
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .option-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.9;
+    }
+
+    .option-title {
+        color: var(--text-primary);
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .option-description {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .option-badge {
+        display: inline-block;
+        background-color: var(--accent-blue);
+        color: var(--text-primary);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 15px;
     }
 </style>
 
 <button class="back-button" onclick="history.back()">&#8592;</button>
-<div class="admin-menu">
-    <h1 class="mb-20">Select a Floor to Edit Timetable</h1>
 
-    <div id="floorList">
-        <div class="loading-message">Loading available floors...</div>
+<div class="edit-options-container">
+    <h1 class="edit-title">Manual Timetable Edit</h1>
+    <p class="edit-description">Choose how you want to schedule classes</p>
+
+    <div class="options-grid">
+        <!-- Edit by Course -->
+        <a href="/manual_edit_by_course" class="option-card">
+            <div class="option-icon">📚</div>
+            <h2 class="option-title">Edit by Course</h2>
+            <p class="option-description">
+                Select a course and section, then assign a time slot and room to schedule the class.
+            </p>
+            <span class="option-badge">Recommended</span>
+        </a>
+
+        <!-- Edit by Room -->
+        <a href="/manual_edit_by_room" class="option-card">
+            <div class="option-icon">🚪</div>
+            <h2 class="option-title">Edit by Room</h2>
+            <p class="option-description">
+                Select a room first, then choose courses to schedule in that specific room.
+            </p>
+            <span class="option-badge">Room-based</span>
+        </a>
     </div>
 </div>
-
-<script>
-    window.onload = function() {
-        loadFloors();
-    };
-
-    function loadFloors() {
-        fetch('/get_floors')
-            .then(response => response.json())
-            .then(data => {
-                const floorList = document.getElementById('floorList');
-
-                if (data.floors && data.floors.length > 0) {
-                    floorList.innerHTML = '';
-
-                    data.floors.forEach(floor => {
-                        const floorButton = document.createElement('a');
-                        floorButton.href = `/edit_timetable/${floor.floor}`;
-                        floorButton.className = 'floor-button';
-
-                        floorButton.innerHTML = `
-                            <div class="floor-info">
-                                <span class="floor-name">Edit Timetable - Floor ${floor.floor}</span>
-                                <span class="room-count-badge">${floor.count} room${floor.count !== 1 ? 's' : ''}</span>
-                            </div>
-                        `;
-
-                        floorList.appendChild(floorButton);
-                    });
-                } else {
-                    // No floors created yet
-                    floorList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">🏢</div>
-                            <div class="empty-text">No floors available</div>
-                            <div class="empty-hint">You need to create floors and rooms before editing timetables</div>
-                            <a href="/manage_rooms" class="btn-create">
-                                Go to Manage Rooms
-                            </a>
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error loading floors:', error);
-                document.getElementById('floorList').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">⚠️</div>
-                        <div class="empty-text">Error loading floors</div>
-                        <div class="empty-hint">Please refresh the page or try again later</div>
-                    </div>
-                `;
-            });
-    }
-</script>
 {% endblock %}

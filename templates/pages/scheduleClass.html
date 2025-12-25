@@ -1,0 +1,543 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Schedule Class{% endblock %}
+
+{% block top_bar %}{% endblock %}
+
+{% block content %}
+<style>
+    .schedule-container {
+        max-width: 900px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+
+    .course-summary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        color: white;
+    }
+
+    .course-summary h1 {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+    }
+
+    .course-summary-details {
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+        opacity: 0.95;
+    }
+
+    .summary-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+    }
+
+    .section-badge {
+        display: inline-block;
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .schedule-form-container {
+        background-color: var(--primary-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 40px;
+    }
+
+    .form-section {
+        margin-bottom: 35px;
+    }
+
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .section-title {
+        color: var(--text-primary);
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-icon {
+        color: var(--accent-blue);
+        font-size: 1.3rem;
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    .form-label {
+        display: block;
+        color: var(--text-primary);
+        font-weight: 600;
+        margin-bottom: 10px;
+        font-size: 0.95rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 14px 18px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 14px 18px;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+
+    .form-select option {
+        background-color: var(--card-bg);
+        color: var(--text-primary);
+    }
+
+    .help-text {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        font-style: italic;
+    }
+
+    .time-picker-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .calculated-time {
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        border-radius: 8px;
+        padding: 14px 18px;
+        color: #4caf50;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .day-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 10px;
+    }
+
+    .day-button {
+        padding: 12px 20px;
+        background-color: var(--card-bg);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .day-button:hover {
+        border-color: var(--accent-blue);
+    }
+
+    .day-button.selected {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 35px;
+        padding-top: 25px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-schedule {
+        flex: 1;
+        padding: 16px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-schedule:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-schedule:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-cancel {
+        padding: 16px 30px;
+        background-color: transparent;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        border-color: var(--accent-blue);
+        background-color: var(--card-bg);
+    }
+
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 14px 18px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    .success-message {
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+        padding: 14px 18px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        margin-bottom: 20px;
+        display: none;
+    }
+</style>
+
+<button class="back-button" onclick="history.back()">&#8592;</button>
+
+<div class="schedule-container">
+    <!-- Course Summary -->
+    <div class="course-summary" id="courseSummary">
+        <h1 id="courseName">Loading...</h1>
+        <div class="course-summary-details">
+            <div class="summary-item">
+                <i class="fas fa-tag"></i>
+                <span>Section: <span class="section-badge" id="sectionCode">-</span></span>
+            </div>
+            <div class="summary-item">
+                <i class="fas fa-user-tie"></i>
+                <span id="teacherName">-</span>
+            </div>
+            <div class="summary-item">
+                <i class="fas fa-clock"></i>
+                <span id="creditHour">-</span> Credit Hour(s)
+            </div>
+            <div class="summary-item">
+                <i class="fas fa-book"></i>
+                <span id="courseType">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Form -->
+    <div class="schedule-form-container">
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <form id="scheduleForm" onsubmit="return false;">
+            <!-- Day Selection -->
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-calendar-day section-icon"></i>
+                    Select Day
+                </div>
+                <div class="day-selector">
+                    <div class="day-button" data-day="Monday" onclick="selectDay('Monday')">Mon</div>
+                    <div class="day-button" data-day="Tuesday" onclick="selectDay('Tuesday')">Tue</div>
+                    <div class="day-button" data-day="Wednesday" onclick="selectDay('Wednesday')">Wed</div>
+                    <div class="day-button" data-day="Thursday" onclick="selectDay('Thursday')">Thu</div>
+                    <div class="day-button" data-day="Friday" onclick="selectDay('Friday')">Fri</div>
+                    <div class="day-button" data-day="Saturday" onclick="selectDay('Saturday')">Sat</div>
+                    <div class="day-button" data-day="Sunday" onclick="selectDay('Sunday')">Sun</div>
+                </div>
+                <input type="hidden" id="selectedDay" required>
+            </div>
+
+            <!-- Time Selection -->
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-clock section-icon"></i>
+                    Class Time
+                </div>
+                <div class="time-picker-grid">
+                    <div class="form-group">
+                        <label class="form-label">Start Time *</label>
+                        <input
+                            type="time"
+                            id="startTime"
+                            class="form-input"
+                            required
+                            onchange="calculateEndTime()"
+                        >
+                        <div class="help-text">Select when the class starts</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time</label>
+                        <div class="calculated-time" id="endTime">
+                            <i class="fas fa-calculator"></i> Auto-calculated
+                        </div>
+                        <div class="help-text">Based on credit hours</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Selection -->
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-door-open section-icon"></i>
+                    Select Room
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Room Number *</label>
+                    <select id="roomSelect" class="form-select" required>
+                        <option value="">-- Select a Room --</option>
+                    </select>
+                    <div class="help-text">Choose an available room for this class</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button type="button" class="btn-cancel" onclick="history.back()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-schedule" onclick="scheduleClass()">
+                    <i class="fas fa-calendar-check"></i> Schedule Class
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let courseData = null;
+    let selectedDayValue = null;
+
+    window.onload = function() {
+        loadCourseDetails();
+        loadRooms();
+    };
+
+    function loadCourseDetails() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('course_id');
+        const sectionCode = urlParams.get('section_code');
+
+        if (!courseId || !sectionCode) {
+            showError('Invalid course or section');
+            return;
+        }
+
+        fetch(`/get_course_details?course_id=${courseId}&section_code=${encodeURIComponent(sectionCode)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    courseData = data.course;
+                    displayCourseDetails(data.course, sectionCode);
+                } else {
+                    showError(data.error || 'Failed to load course details');
+                }
+            })
+            .catch(error => {
+                showError('Error loading course details: ' + error.message);
+            });
+    }
+
+    function displayCourseDetails(course, section) {
+        document.getElementById('courseName').textContent = course.course_name;
+        document.getElementById('sectionCode').textContent = section;
+        document.getElementById('teacherName').textContent = course.teacher_name;
+        document.getElementById('creditHour').textContent = course.credit_hour;
+        document.getElementById('courseType').textContent = course.course_type;
+    }
+
+    function loadRooms() {
+        fetch('/get_all_rooms')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.rooms) {
+                    const roomSelect = document.getElementById('roomSelect');
+                    data.rooms.forEach(room => {
+                        const option = document.createElement('option');
+                        option.value = room.room_number;
+                        option.textContent = `Room ${room.room_number} (${room.type}, Floor ${room.floor})`;
+                        roomSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+            });
+    }
+
+    function selectDay(day) {
+        // Remove selected class from all days
+        document.querySelectorAll('.day-button').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        // Add selected class to clicked day
+        document.querySelector(`[data-day="${day}"]`).classList.add('selected');
+        selectedDayValue = day;
+        document.getElementById('selectedDay').value = day;
+    }
+
+    function calculateEndTime() {
+        const startTime = document.getElementById('startTime').value;
+        if (!startTime || !courseData) return;
+
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const creditHours = parseInt(courseData.credit_hour);
+
+        const endHour = (hours + creditHours) % 24;
+        const endTimeStr = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        document.getElementById('endTime').innerHTML = `
+            <i class="fas fa-check-circle"></i> ${endTimeStr}
+        `;
+    }
+
+    function scheduleClass() {
+        const day = selectedDayValue;
+        const startTime = document.getElementById('startTime').value;
+        const roomNumber = document.getElementById('roomSelect').value;
+
+        // Validation
+        if (!day) {
+            showError('Please select a day');
+            return;
+        }
+
+        if (!startTime) {
+            showError('Please select a start time');
+            return;
+        }
+
+        if (!roomNumber) {
+            showError('Please select a room');
+            return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseId = urlParams.get('course_id');
+        const sectionCode = urlParams.get('section_code');
+
+        // Calculate end time
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const creditHours = parseInt(courseData.credit_hour);
+        const endHour = (hours + creditHours) % 24;
+        const endTime = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        // Disable button
+        const submitBtn = document.querySelector('.btn-schedule');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+
+        // Send to backend
+        fetch('/save_scheduled_class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                course_id: courseId,
+                section_code: sectionCode,
+                day: day,
+                start_time: startTime,
+                end_time: endTime,
+                room_number: roomNumber
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Class';
+
+            if (data.success) {
+                showSuccess('Class scheduled successfully!');
+                setTimeout(() => {
+                    window.location.href = '/manual_edit_by_course';
+                }, 2000);
+            } else {
+                showError(data.error || 'Failed to schedule class');
+            }
+        })
+        .catch(error => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Class';
+            showError('Error scheduling class: ' + error.message);
+        });
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        document.getElementById('successMessage').style.display = 'none';
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showSuccess(message) {
+        const successDiv = document.getElementById('successMessage');
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        document.getElementById('errorMessage').style.display = 'none';
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+{% endblock %}

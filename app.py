@@ -36,6 +36,7 @@ try:
     rooms_collection = db['rooms']
     courses_collection = db['courses']
     floors_collection = db['floors']
+    scheduled_classes_collection = db['scheduled_classes']
 
     print("✓ MongoDB connection successful!")
 except Exception as e:
@@ -347,10 +348,255 @@ def edit_timetable_floor(floor_number):
         edit_mode=True
     )
 
+@app.route("/manual_edit_by_course")
+@login_required
+def manual_edit_by_course():
+    """Show course list for manual scheduling"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+    return render_template("pages/editByCourse.html", active_page="generate")
+
+@app.route("/manual_edit_by_room")
+@login_required
+def manual_edit_by_room():
+    """Show room list for manual scheduling"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+    # TODO: Implement room-based editing
+    return render_template("pages/editByRoom.html", active_page="generate")
+
+@app.route("/get_all_courses_with_sections", methods=["GET"])
+@login_required
+def get_all_courses_with_sections():
+    """Get all courses with their section codes"""
+    try:
+        courses_list = list(courses_collection.find({}))
+        courses_data = []
+
+        for course in courses_list:
+            # Get teacher name
+            teacher = users_collection.find_one({'registration_number': course.get('teacher_registration')})
+            teacher_name = teacher.get('username', 'Unknown') if teacher else 'Unknown'
+
+            # Handle both old (section_code) and new (section_codes) format
+            sections = course.get('section_codes', [])
+            if not sections and course.get('section_code'):
+                # Old format - convert to array
+                sections = [course.get('section_code')]
+
+            courses_data.append({
+                '_id': str(course.get('_id')),
+                'course_name': course.get('course_name', ''),
+                'credit_hour': course.get('credit_hour', 0),
+                'course_type': course.get('course_type', ''),
+                'shift': course.get('shift', ''),
+                'teacher_name': teacher_name,
+                'teacher_registration': course.get('teacher_registration', ''),
+                'sections': sections
+            })
+
+        # Sort by course name
+        courses_data.sort(key=lambda x: x['course_name'])
+
+        return jsonify({
+            'success': True,
+            'courses': courses_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/get_course_details", methods=["GET"])
+@login_required
+def get_course_details():
+    """Get details of a specific course"""
+    try:
+        from bson.objectid import ObjectId
+
+        course_id = request.args.get('course_id')
+        section_code = request.args.get('section_code')
+
+        if not course_id or not section_code:
+            return jsonify({'success': False, 'error': 'Missing course_id or section_code'}), 400
+
+        # Get course from database
+        course = courses_collection.find_one({'_id': ObjectId(course_id)})
+
+        if not course:
+            return jsonify({'success': False, 'error': 'Course not found'}), 404
+
+        # Verify section exists - handle both old (section_code) and new (section_codes) format
+        section_codes = course.get('section_codes', [])
+        if not section_codes and course.get('section_code'):
+            # Old format - convert to array
+            section_codes = [course.get('section_code')]
+
+        if section_code not in section_codes:
+            return jsonify({'success': False, 'error': 'Section not found'}), 404
+
+        # Get teacher name
+        teacher = users_collection.find_one({'registration_number': course.get('teacher_registration')})
+        teacher_name = teacher.get('username', 'Unknown') if teacher else 'Unknown'
+
+        course_data = {
+            '_id': str(course.get('_id')),
+            'course_name': course.get('course_name', ''),
+            'credit_hour': course.get('credit_hour', 0),
+            'course_type': course.get('course_type', ''),
+            'shift': course.get('shift', ''),
+            'teacher_name': teacher_name,
+            'teacher_registration': course.get('teacher_registration', '')
+        }
+
+        return jsonify({
+            'success': True,
+            'course': course_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/schedule_class")
+@login_required
+def schedule_class_page():
+    """Show scheduling form for a course section"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+    return render_template("pages/scheduleClass.html", active_page="generate")
+
+@app.route("/save_scheduled_class", methods=["POST"])
+@login_required
+def save_scheduled_class():
+    """Save a scheduled class to the database"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        from bson.objectid import ObjectId
+
+        data = request.get_json()
+        course_id = data.get('course_id')
+        section_code = data.get('section_code')
+        day = data.get('day')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        room_number = data.get('room_number')
+
+        # Validation
+        if not all([course_id, section_code, day, start_time, end_time, room_number]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        # Get course details
+        course = courses_collection.find_one({'_id': ObjectId(course_id)})
+        if not course:
+            return jsonify({'success': False, 'error': 'Course not found'}), 404
+
+        # Verify section exists - handle both old (section_code) and new (section_codes) format
+        section_codes = course.get('section_codes', [])
+        if not section_codes and course.get('section_code'):
+            # Old format - convert to array
+            section_codes = [course.get('section_code')]
+
+        if section_code not in section_codes:
+            return jsonify({'success': False, 'error': 'Section not found'}), 404
+
+        # Get room details
+        room = rooms_collection.find_one({'room_number': room_number})
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        # Check for conflicts
+        # 1. Check if room is already occupied at this time
+        existing_schedule = scheduled_classes_collection.find_one({
+            'room_number': room_number,
+            'day': day,
+            '$or': [
+                {
+                    'start_time': {'$lte': start_time},
+                    'end_time': {'$gt': start_time}
+                },
+                {
+                    'start_time': {'$lt': end_time},
+                    'end_time': {'$gte': end_time}
+                },
+                {
+                    'start_time': {'$gte': start_time},
+                    'end_time': {'$lte': end_time}
+                }
+            ]
+        })
+
+        if existing_schedule:
+            return jsonify({
+                'success': False,
+                'error': f'Room {room_number} is already occupied on {day} at this time'
+            }), 400
+
+        # 2. Check if teacher is already teaching at this time
+        teacher_schedule = scheduled_classes_collection.find_one({
+            'teacher_registration': course.get('teacher_registration'),
+            'day': day,
+            '$or': [
+                {
+                    'start_time': {'$lte': start_time},
+                    'end_time': {'$gt': start_time}
+                },
+                {
+                    'start_time': {'$lt': end_time},
+                    'end_time': {'$gte': end_time}
+                },
+                {
+                    'start_time': {'$gte': start_time},
+                    'end_time': {'$lte': end_time}
+                }
+            ]
+        })
+
+        if teacher_schedule:
+            return jsonify({
+                'success': False,
+                'error': f'Teacher is already scheduled for another class on {day} at this time'
+            }), 400
+
+        # Get teacher name safely
+        teacher = users_collection.find_one({'registration_number': course.get('teacher_registration')})
+        teacher_name = teacher.get('username', 'Unknown') if teacher else 'Unknown'
+
+        # Create scheduled class document
+        scheduled_class = {
+            'course_id': str(course_id),
+            'course_name': course.get('course_name'),
+            'section_code': section_code,
+            'teacher_registration': course.get('teacher_registration'),
+            'teacher_name': teacher_name,
+            'course_type': course.get('course_type'),
+            'credit_hour': course.get('credit_hour'),
+            'shift': course.get('shift'),
+            'day': day,
+            'start_time': start_time,
+            'end_time': end_time,
+            'room_number': room_number,
+            'floor': room.get('floor'),
+            'created_at': datetime.now(),
+            'created_by': session.get('username')
+        }
+
+        # Insert into database
+        scheduled_classes_collection.insert_one(scheduled_class)
+
+        return jsonify({
+            'success': True,
+            'message': 'Class scheduled successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Route for Teacher View
 @app.route("/teacher")
 @login_required
 def teacher_view():
+    # Get teacher's registration number from session
+    teacher_reg = session.get('registration_number')
+
     return render_template(
         "timetables/timetable_base.html",
         active_page="teacher",
@@ -359,7 +605,10 @@ def teacher_view():
         show_back_button=False,
         show_teacher_header=True,
         show_page_title=False,
-        username=session.get('username')
+        username=session.get('username'),
+        teacher_filter=teacher_reg,
+        room_filter=None,
+        floor_filter=None
     )
 
 # Route for Teacher About (Profile)
@@ -1387,6 +1636,10 @@ def add_course():
     # Generate new section code
     new_num = max_num + 1
     section_code = f"{prefix}{new_num:03d}"
+
+    # Store as array for consistency with multiple sections feature
+    data['section_codes'] = [section_code]
+    # Keep section_code for backward compatibility
     data['section_code'] = section_code
 
     # Double-check for duplicate (safety check)
@@ -1513,6 +1766,53 @@ def get_all_teachers():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route("/get_scheduled_classes", methods=["GET"])
+@login_required
+def get_scheduled_classes():
+    """Get scheduled classes filtered by room, teacher, or floor"""
+    try:
+        room_number = request.args.get('room')
+        teacher_reg = request.args.get('teacher')
+        floor_number = request.args.get('floor')
+
+        # Build query based on filters
+        query = {}
+        if room_number:
+            query['room_number'] = room_number
+        if teacher_reg:
+            query['teacher_registration'] = teacher_reg
+        if floor_number:
+            query['floor'] = int(floor_number)
+
+        # Get scheduled classes
+        scheduled_classes = list(scheduled_classes_collection.find(query))
+
+        # Format the data
+        classes_data = []
+        for cls in scheduled_classes:
+            classes_data.append({
+                '_id': str(cls.get('_id')),
+                'course_name': cls.get('course_name'),
+                'section_code': cls.get('section_code'),
+                'teacher_name': cls.get('teacher_name'),
+                'teacher_registration': cls.get('teacher_registration'),
+                'course_type': cls.get('course_type'),
+                'credit_hour': cls.get('credit_hour'),
+                'shift': cls.get('shift'),
+                'day': cls.get('day'),
+                'start_time': cls.get('start_time'),
+                'end_time': cls.get('end_time'),
+                'room_number': cls.get('room_number'),
+                'floor': cls.get('floor')
+            })
+
+        return jsonify({
+            'success': True,
+            'classes': classes_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 data_stores = {
     "user": users_collection,
     "room": rooms_collection,
@@ -1605,6 +1905,36 @@ def update_item(item_type, item_id):
                     'availability': data.get('availability', 'Available')
                 }
                 print(f"Updating room with data: {update_data}")  # Debug logging
+            elif item_type == "course":
+                # Ensure section_codes array exists for courses
+                update_data = data
+
+                # If section_code exists but not section_codes, create section_codes array
+                if 'section_code' in update_data and 'section_codes' not in update_data:
+                    update_data['section_codes'] = [update_data['section_code']]
+
+                # If neither exists, generate section code
+                if 'section_code' not in update_data:
+                    shift = update_data.get('shift', 'Morning')
+                    prefix = 'MOR' if shift == 'Morning' else 'EVE'
+
+                    # Find existing courses with this prefix
+                    existing_courses = list(courses_collection.find({"section_code": {"$regex": f"^{prefix}"}}))
+                    max_num = 0
+                    for course in existing_courses:
+                        code = course.get('section_code', '')
+                        if len(code) == 6:
+                            try:
+                                num = int(code[3:])
+                                if num > max_num:
+                                    max_num = num
+                            except ValueError:
+                                pass
+
+                    new_num = max_num + 1
+                    section_code = f"{prefix}{new_num:03d}"
+                    update_data['section_code'] = section_code
+                    update_data['section_codes'] = [section_code]
             else:
                 update_data = data
 

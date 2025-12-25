@@ -174,22 +174,137 @@
     };
 
     function loadFloorTimetable(floor) {
-        // This will be called when implementing the actual timetable feature
-        // For now, it's a placeholder that will show the structure
-
-        // Example: Fetch classes scheduled on this floor
-        // The backend would return data grouped by day and time
-        console.log(`Loading timetable for floor ${floor}`);
-
-        // Placeholder: This will be replaced with actual data from backend
-        // When autogenerate timetable is implemented, this endpoint will be ready
+        // Load aggregate view for floor - shows count of classes
+        fetch(`/get_scheduled_classes?floor=${floor}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayFloorAggregate(data.classes);
+                } else {
+                    console.error('Error loading floor timetable:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading floor timetable:', error);
+            });
     }
 
     function loadFilteredTimetable(room, teacher) {
         // Load timetable filtered by room and/or teacher
-        console.log(`Loading timetable for room: ${room}, teacher: ${teacher}`);
+        let url = '/get_scheduled_classes?';
+        const params = [];
+        if (room) params.push(`room=${encodeURIComponent(room)}`);
+        if (teacher) params.push(`teacher=${encodeURIComponent(teacher)}`);
+        url += params.join('&');
 
-        // Placeholder for future implementation
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayTimetable(data.classes);
+                } else {
+                    console.error('Error loading timetable:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading timetable:', error);
+            });
+    }
+
+    function displayTimetable(classes) {
+        // Display classes in timetable cells (for room/teacher view)
+        classes.forEach(cls => {
+            const startHour = parseInt(cls.start_time.split(':')[0]);
+            const cell = document.querySelector(`tr[data-hour="${startHour}"] td[data-day="${cls.day}"]`);
+
+            if (cell) {
+                cell.innerHTML = `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white;
+                                padding: 8px;
+                                border-radius: 6px;
+                                font-size: 0.85rem;
+                                cursor: pointer;"
+                         onclick='showClassInfo(${JSON.stringify(cls)})'>
+                        <div style="font-weight: 600; margin-bottom: 4px;">${cls.course_name}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.9;">${cls.section_code}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.9;">${cls.room_number}</div>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    function displayFloorAggregate(classes) {
+        // Group classes by day and hour
+        const grouped = {};
+
+        classes.forEach(cls => {
+            const startHour = parseInt(cls.start_time.split(':')[0]);
+            const key = `${cls.day}-${startHour}`;
+
+            if (!grouped[key]) {
+                grouped[key] = [];
+            }
+            grouped[key].push(cls);
+        });
+
+        // Display count badges
+        Object.keys(grouped).forEach(key => {
+            const [day, hour] = key.split('-');
+            const cell = document.querySelector(`tr[data-hour="${hour}"] td[data-day="${day}"]`);
+            const classList = grouped[key];
+
+            if (cell) {
+                cell.innerHTML = `
+                    <span class="class-count-badge" onclick='showClassDetails("${day}", ${hour}, ${classList.length}, ${JSON.stringify(classList)})'>
+                        ${classList.length}
+                    </span>
+                `;
+            }
+        });
+    }
+
+    function showClassInfo(cls) {
+        // Show individual class info modal
+        const modal = document.getElementById('classDetailsModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('classDetailsBody');
+
+        modalTitle.textContent = `${cls.course_name} - ${cls.section_code}`;
+
+        modalBody.innerHTML = `
+            <div class="class-item">
+                <div class="class-detail-row">
+                    <div class="class-detail-item">
+                        <i class="fas fa-door-open"></i>
+                        <span>Room: <strong>${cls.room_number}</strong></span>
+                    </div>
+                    <div class="class-detail-item">
+                        <i class="fas fa-user-tie"></i>
+                        <span>Teacher: <strong>${cls.teacher_name}</strong></span>
+                    </div>
+                    <div class="class-detail-item">
+                        <i class="fas fa-book"></i>
+                        <span>Type: <strong>${cls.course_type}</strong></span>
+                    </div>
+                    <div class="class-detail-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Time: <strong>${cls.start_time} - ${cls.end_time}</strong></span>
+                    </div>
+                    <div class="class-detail-item">
+                        <i class="fas fa-calendar-day"></i>
+                        <span>Day: <strong>${cls.day}</strong></span>
+                    </div>
+                    <div class="class-detail-item">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>Credit: <strong>${cls.credit_hour}h</strong></span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'block';
     }
 
     function showClassDetails(day, hour, classCount, classes) {
