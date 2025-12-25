@@ -11,12 +11,13 @@ A web-based timetable management system for educational institutions. Manage use
 ## Features
 
 - **User Management**: Add, edit, and delete teachers with automatic email notifications
-- **Room Management**: Manage classrooms and labs with floor tracking
+- **Room Management**: Bulk create rooms across multiple floors with auto-fill gap prevention
 - **Course Management**: Handle course information and credit hours
+- **Admin Security**: Change admin password with OTP verification via email
 - **Dashboard**: Real-time statistics and overview
 - **Email Integration**: Automatic credential emails to new users
 - **MongoDB Cloud Database**: Scalable cloud-based data storage
-- **Responsive Design**: Clean and modern UI
+- **Responsive Design**: Clean and modern dark theme UI
 
 ---
 
@@ -31,7 +32,9 @@ smartScheduler/
 │
 ├── config/                    # Configuration files
 │   ├── email_settings.txt     # Email SMTP configuration (git-ignored)
-│   └── email_settings.example.txt  # Email config template
+│   ├── email_settings.txt.example  # Email config template
+│   ├── admin_credentials.txt  # Custom admin password (optional, git-ignored)
+│   └── admin_credentials.txt.example  # Admin credentials template
 │
 ├── docs/                      # Documentation
 │   ├── RUN_APP.md            # How to run the application
@@ -105,14 +108,16 @@ cp .env.example .env
 nano .env
 ```
 
-### 5. Configure Email (Optional)
+### 5. Configure Email Settings
 ```bash
 # Copy example email config
-cp config/email_settings.example.txt config/email_settings.txt
+cp config/email_settings.txt.example config/email_settings.txt
 
-# Edit with your SMTP credentials
+# Edit with your SMTP credentials (Gmail App Password recommended)
 nano config/email_settings.txt
 ```
+
+**Note**: Email is required for user management features (sending credentials to teachers) and admin password change via OTP.
 
 ### 6. Run the Application
 ```bash
@@ -127,12 +132,14 @@ Access the application at: **http://127.0.0.1:5000**
 
 ### Admin Access
 - **Username**: `admin`
-- **Password**: `0880`
+- **Password**: `0880` (default)
 
-⚠️ **Change the default password in production!**
+⚠️ **Important**: Change the default password using the "Change Admin Password" button in the Admin Panel. This feature sends a 6-digit OTP to your email for verification.
 
 ### Teacher Access
-Teachers are created through the Admin Panel and receive credentials via email.
+- Teachers login using their **Registration Number** (not username)
+- Created through the Admin Panel
+- Receive credentials via email automatically
 
 ---
 
@@ -160,8 +167,14 @@ Email notifications are sent when users are created or updated.
 
 ### Setup
 1. Use Gmail with App Password (recommended)
-2. Copy `config/email_settings.example.txt` to `config/email_settings.txt`
+2. Copy `config/email_settings.txt.example` to `config/email_settings.txt`
 3. Fill in your SMTP credentials
+
+### How to Get Gmail App Password
+1. Enable 2-Factor Authentication on your Gmail account
+2. Go to Google Account → Security → 2-Step Verification → App passwords
+3. Create a new app password for "Mail"
+4. Use this 16-character password in `email_settings.txt`
 
 ### Email Settings Structure
 ```json
@@ -178,6 +191,8 @@ Email notifications are sent when users are created or updated.
     }
 }
 ```
+
+**Note**: The `FromEmail` is also used as the admin email for receiving OTP when changing admin password.
 
 ---
 
@@ -235,12 +250,22 @@ python -c "from pymongo import MongoClient; client = MongoClient('your-connectio
 ## Security Notes
 
 ⚠️ **Before Production Deployment**:
-1. Change default admin password
+1. Change default admin password using "Change Admin Password" in Admin Panel
 2. Use environment variables for sensitive data
 3. Enable HTTPS
 4. Restrict MongoDB Network Access (remove 0.0.0.0/0)
 5. Use production WSGI server (not Flask dev server)
-6. Never commit `config/email_settings.txt` or `.env` to git
+6. Never commit sensitive files to git:
+   - `config/email_settings.txt`
+   - `config/admin_credentials.txt`
+   - `.env`
+
+⚠️ **Files Included in Repository** (for open source):
+- `config/email_settings.txt.example` - Template for email configuration
+- `config/admin_credentials.txt.example` - Template for custom admin password (optional)
+- `.env.example` - Template for environment variables
+
+**Setup Instructions**: Copy the `.example` files and remove the `.example` extension, then fill in your actual credentials.
 
 ---
 

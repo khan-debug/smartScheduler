@@ -36,6 +36,9 @@ config.py
 # Email configuration (contains sensitive SMTP credentials)
 config/email_settings.txt
 
+# Admin credentials (contains admin password)
+config/admin_credentials.txt
+
 # ==========================================
 # IDEs
 # ==========================================

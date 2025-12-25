@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import os
 from functools import wraps
 import json
@@ -8,6 +8,8 @@ from email.mime.multipart import MIMEMultipart
 from pymongo import MongoClient
 from bson import ObjectId
 import certifi
+import random
+import time
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -111,6 +113,55 @@ The Portal Team
     except Exception as e:
         raise Exception(f"Failed to send email: {str(e)}")
 
+# Function to send OTP email
+def send_otp_email(to_email, otp):
+    """Send OTP email to admin for password change verification"""
+    if not email_settings or not email_settings.get('Enabled'):
+        raise Exception("Email settings not configured or disabled")
+
+    smtp_config = email_settings.get('Smtp', {})
+    from_email = email_settings.get('FromEmail')
+    email_name = email_settings.get('EmailName', 'SmartScheduler')
+
+    # Create email message
+    msg = MIMEMultipart()
+    msg['From'] = f"{email_name} <{from_email}>"
+    msg['To'] = to_email
+    msg['Subject'] = 'Admin Password Change - OTP Verification'
+
+    # Email body
+    body = f"""Dear Admin,
+
+You have requested to change your admin password.
+
+Your One-Time Password (OTP) is: {otp}
+
+This OTP is valid for 10 minutes only.
+
+If you did not request this password change, please ignore this email and your password will remain unchanged.
+
+This is an automated message. Please do not reply to this email.
+
+Best regards,
+
+The SmartScheduler System
+"""
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        # Connect to SMTP server
+        server = smtplib.SMTP(smtp_config.get('Server'), smtp_config.get('Port'))
+        server.starttls()
+        server.login(smtp_config.get('Username'), smtp_config.get('Password'))
+
+        # Send email
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        raise Exception(f"Failed to send email: {str(e)}")
+
 # Decorator for requiring login
 def login_required(f):
     @wraps(f)
@@ -126,9 +177,24 @@ def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        if username == "admin" and password == "0880":
-            session['role'] = 'admin'
-            return redirect(url_for("admin_panel"))
+
+        # Check admin credentials
+        if username == "admin":
+            # Try to load custom admin password from file
+            admin_password = "0880"  # Default password
+            admin_creds_path = 'config/admin_credentials.txt'
+
+            if os.path.exists(admin_creds_path):
+                try:
+                    with open(admin_creds_path, 'r') as f:
+                        creds = json.load(f)
+                        admin_password = creds.get('password', "0880")
+                except:
+                    admin_password = "0880"  # Fallback to default on error
+
+            if password == admin_password:
+                session['role'] = 'admin'
+                return redirect(url_for("admin_panel"))
 
         # Check for teacher credentials in MongoDB using registration_number
         user = users_collection.find_one({'registration_number': username, 'password': password})
@@ -197,6 +263,99 @@ def teacher_view():
 @login_required
 def admin_panel():
     return render_template("pages/adminPanel.html", active_page="admin")
+
+# Route to initiate admin password change (send OTP)
+@app.route("/request_admin_password_change", methods=["POST"])
+@login_required
+def request_admin_password_change():
+    """Generate OTP and send to admin email"""
+    try:
+        # Check if user is admin
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
+
+        # Generate 6-digit OTP
+        otp = str(random.randint(100000, 999999))
+
+        # Store OTP in session with timestamp (valid for 10 minutes)
+        session['admin_password_otp'] = otp
+        session['otp_timestamp'] = time.time()
+
+        # Get admin email from settings (using FromEmail as admin email)
+        admin_email = email_settings.get('FromEmail')
+        if not admin_email:
+            return jsonify({'success': False, 'error': 'Admin email not configured'}), 500
+
+        # Send OTP email
+        send_otp_email(admin_email, otp)
+
+        return jsonify({
+            'success': True,
+            'message': f'OTP has been sent to {admin_email}',
+            'email': admin_email
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Route to verify OTP and change admin password
+@app.route("/change_admin_password", methods=["POST"])
+@login_required
+def change_admin_password():
+    """Verify OTP and change admin password"""
+    try:
+        # Check if user is admin
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
+
+        data = request.get_json()
+        entered_otp = data.get('otp')
+        new_password = data.get('new_password')
+
+        # Validate inputs
+        if not entered_otp or not new_password:
+            return jsonify({'success': False, 'error': 'OTP and new password are required'}), 400
+
+        # Check if OTP exists in session
+        if 'admin_password_otp' not in session or 'otp_timestamp' not in session:
+            return jsonify({'success': False, 'error': 'No OTP request found. Please request OTP first.'}), 400
+
+        # Check if OTP is expired (10 minutes = 600 seconds)
+        otp_age = time.time() - session['otp_timestamp']
+        if otp_age > 600:
+            # Clear expired OTP
+            session.pop('admin_password_otp', None)
+            session.pop('otp_timestamp', None)
+            return jsonify({'success': False, 'error': 'OTP has expired. Please request a new one.'}), 400
+
+        # Verify OTP
+        if entered_otp != session['admin_password_otp']:
+            return jsonify({'success': False, 'error': 'Invalid OTP. Please try again.'}), 400
+
+        # OTP is valid, update password in login route
+        # Note: Since admin password is hardcoded in the login route, we'll need to store it somewhere
+        # For now, we'll store it in session and check it in the login route
+        # A better approach would be to store admin credentials in database
+
+        # Store new password in a simple file or environment variable
+        # For this implementation, we'll create a simple admin credentials file
+        admin_creds_path = 'config/admin_credentials.txt'
+        os.makedirs('config', exist_ok=True)
+
+        with open(admin_creds_path, 'w') as f:
+            json.dump({'password': new_password}, f)
+
+        # Clear OTP from session
+        session.pop('admin_password_otp', None)
+        session.pop('otp_timestamp', None)
+
+        return jsonify({
+            'success': True,
+            'message': 'Admin password changed successfully! Please login again with your new password.'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/get_users", methods=["GET"])
 @login_required

@@ -1,0 +1,12 @@
+"EmailSettings": {
+   "Enabled": true,
+   "EmailName": "SmartScheduler",
+   "FromEmail": "your-email@gmail.com",
+   "Subject": "[No-Reply] SC: Account registration successful",
+   "Smtp": {
+     "Server": "smtp.gmail.com",
+     "Port": 587,
+     "Username": "your-email@gmail.com",
+     "Password": "your-app-password-here"
+   }
+ },

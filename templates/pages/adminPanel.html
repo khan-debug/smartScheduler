@@ -8,5 +8,246 @@
     <button class="admin-menu-button" onclick="window.location.href='{{ url_for('manage_rooms') }}'">Manage Rooms</button>
     <button class="admin-menu-button" onclick="window.location.href='{{ url_for('view_timetable') }}'">View Timetables</button>
     <button class="admin-menu-button" onclick="window.location.href='{{ url_for('manage_users') }}'">Manage Users</button>
+    <button class="admin-menu-button admin-password-btn" onclick="openPasswordChangeModal()">Change Admin Password</button>
 </div>
+
+<!-- Password Change Modal -->
+<div id="passwordChangeModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Change Admin Password</h2>
+            <span class="close" id="passwordModalClose">&times;</span>
+        </div>
+
+        <!-- Step 1: Request OTP -->
+        <div id="otpRequestStep" style="display: block;">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                An OTP will be sent to your registered email address. The OTP is valid for 10 minutes.
+            </p>
+            <button type="button" class="btn-submit" onclick="requestOTP()" id="requestOtpBtn">
+                Send OTP to Email
+            </button>
+            <div id="otpRequestMessage" style="display: none; margin-top: 15px;"></div>
+        </div>
+
+        <!-- Step 2: Enter OTP and New Password -->
+        <div id="passwordChangeStep" style="display: none;">
+            <form id="passwordChangeForm">
+                <div class="form-group">
+                    <label for="otp">Enter OTP *</label>
+                    <input type="text" id="otp" name="otp" required
+                           placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}">
+                    <div class="help-text">
+                        Check your email for the 6-digit OTP
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">New Password *</label>
+                    <input type="password" id="new_password" name="new_password" required
+                           placeholder="Enter new password" minlength="4">
+                    <div class="help-text">
+                        Minimum 4 characters
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password *</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required
+                           placeholder="Re-enter new password" minlength="4">
+                </div>
+
+                <div class="error-message" id="passwordErrorMessage" style="display: none;"></div>
+                <div class="success-message" id="passwordSuccessMessage" style="display: none;"></div>
+
+                <button type="submit" class="btn-submit">Change Password</button>
+                <button type="button" class="btn" onclick="resetPasswordModal()" style="margin-left: 10px;">Cancel</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-password-btn {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+
+    .admin-password-btn:hover {
+        background-color: #c82333;
+        border-color: #c82333;
+    }
+
+    .help-text {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-top: 6px;
+        font-style: italic;
+    }
+
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    .success-message {
+        background-color: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+</style>
+
+<script>
+    function openPasswordChangeModal() {
+        document.getElementById('passwordChangeModal').style.display = 'block';
+        resetPasswordModal();
+    }
+
+    function resetPasswordModal() {
+        // Reset to step 1
+        document.getElementById('otpRequestStep').style.display = 'block';
+        document.getElementById('passwordChangeStep').style.display = 'none';
+
+        // Clear all inputs and messages
+        document.getElementById('passwordChangeForm').reset();
+        document.getElementById('otpRequestMessage').style.display = 'none';
+        document.getElementById('passwordErrorMessage').style.display = 'none';
+        document.getElementById('passwordSuccessMessage').style.display = 'none';
+    }
+
+    // Close modal
+    document.getElementById('passwordModalClose').onclick = function() {
+        document.getElementById('passwordChangeModal').style.display = 'none';
+        resetPasswordModal();
+    };
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('passwordChangeModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+            resetPasswordModal();
+        }
+    };
+
+    // Request OTP
+    function requestOTP() {
+        const btn = document.getElementById('requestOtpBtn');
+        const messageDiv = document.getElementById('otpRequestMessage');
+
+        btn.disabled = true;
+        btn.textContent = 'Sending OTP...';
+
+        fetch('/request_admin_password_change', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = 'Send OTP to Email';
+
+            if (data.success) {
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'success-message';
+                messageDiv.textContent = data.message;
+
+                // Show step 2 after 2 seconds
+                setTimeout(() => {
+                    document.getElementById('otpRequestStep').style.display = 'none';
+                    document.getElementById('passwordChangeStep').style.display = 'block';
+                }, 2000);
+            } else {
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'error-message';
+                messageDiv.textContent = 'Error: ' + data.error;
+            }
+        })
+        .catch(error => {
+            btn.disabled = false;
+            btn.textContent = 'Send OTP to Email';
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'error-message';
+            messageDiv.textContent = 'Error: ' + error.message;
+        });
+    }
+
+    // Handle password change form submission
+    document.getElementById('passwordChangeForm').onsubmit = function(e) {
+        e.preventDefault();
+
+        const otp = document.getElementById('otp').value;
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        const errorMsg = document.getElementById('passwordErrorMessage');
+        const successMsg = document.getElementById('passwordSuccessMessage');
+
+        // Clear previous messages
+        errorMsg.style.display = 'none';
+        successMsg.style.display = 'none';
+
+        // Validate passwords match
+        if (newPassword !== confirmPassword) {
+            errorMsg.textContent = 'Passwords do not match!';
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        // Validate OTP format
+        if (!/^\d{6}$/.test(otp)) {
+            errorMsg.textContent = 'OTP must be 6 digits!';
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Changing Password...';
+
+        fetch('/change_admin_password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                otp: otp,
+                new_password: newPassword
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Change Password';
+
+            if (data.success) {
+                successMsg.textContent = data.message;
+                successMsg.style.display = 'block';
+
+                // Redirect to login after 3 seconds
+                setTimeout(() => {
+                    window.location.href = '/logout';
+                }, 3000);
+            } else {
+                errorMsg.textContent = 'Error: ' + data.error;
+                errorMsg.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Change Password';
+            errorMsg.textContent = 'Error: ' + error.message;
+            errorMsg.style.display = 'block';
+        });
+    };
+</script>
 {% endblock %}
