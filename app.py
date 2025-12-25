@@ -11,6 +11,8 @@ import certifi
 import random
 import string
 import time
+import csv
+import io
 from datetime import datetime
 
 app = Flask(__name__)
@@ -513,6 +515,238 @@ def teacher_reset_password():
 @login_required
 def admin_panel():
     return render_template("pages/adminPanel.html", active_page="admin")
+
+@app.route("/import_data")
+@login_required
+def import_data():
+    """Import data page for importing courses and faculty via CSV"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+    return render_template("pages/import_data.html", active_page="admin")
+
+@app.route("/import_csv", methods=["POST"])
+@login_required
+def import_csv_data():
+    """Import courses or faculty from CSV file"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized. Admin access required.'}), 403
+
+    try:
+        # Get file and type from request
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+        file = request.files['file']
+        import_type = request.form.get('type')
+
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+        if not import_type or import_type not in ['courses', 'faculty']:
+            return jsonify({'success': False, 'error': 'Invalid import type'}), 400
+
+        # Read CSV file
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+
+        if import_type == 'courses':
+            return import_courses_from_csv(csv_reader)
+        elif import_type == 'faculty':
+            return import_faculty_from_csv(csv_reader)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error processing file: {str(e)}'}), 500
+
+def import_courses_from_csv(csv_reader):
+    """Import courses from CSV data"""
+    required_columns = ['course_name', 'credit_hour', 'course_type', 'shift', 'teacher_registration']
+
+    try:
+        rows = list(csv_reader)
+
+        # Validate columns
+        if not rows:
+            return jsonify({'success': False, 'error': 'CSV file is empty'}), 400
+
+        # Check required columns
+        first_row_keys = list(rows[0].keys())
+        missing_columns = [col for col in required_columns if col not in first_row_keys]
+        if missing_columns:
+            return jsonify({'success': False, 'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+
+        imported_count = 0
+        errors = []
+
+        for idx, row in enumerate(rows, start=2):  # Start at 2 because row 1 is header
+            try:
+                # Validate data
+                course_name = row.get('course_name', '').strip()
+                credit_hour = row.get('credit_hour', '').strip()
+                course_type = row.get('course_type', '').strip()
+                shift = row.get('shift', '').strip()
+                teacher_registration = row.get('teacher_registration', '').strip()
+
+                # Validations
+                if not all([course_name, credit_hour, course_type, shift, teacher_registration]):
+                    errors.append(f"Row {idx}: Missing required data")
+                    continue
+
+                if credit_hour not in ['1', '3']:
+                    errors.append(f"Row {idx}: credit_hour must be '1' or '3'")
+                    continue
+
+                if course_type not in ['Lab', 'Lecture']:
+                    errors.append(f"Row {idx}: course_type must be 'Lab' or 'Lecture'")
+                    continue
+
+                if shift not in ['Morning', 'Evening']:
+                    errors.append(f"Row {idx}: shift must be 'Morning' or 'Evening'")
+                    continue
+
+                # Check if teacher exists
+                teacher = users_collection.find_one({'registration_number': teacher_registration})
+                if not teacher:
+                    errors.append(f"Row {idx}: Teacher with registration {teacher_registration} not found")
+                    continue
+
+                # Auto-generate section code
+                prefix = 'MOR' if shift == 'Morning' else 'EVE'
+                existing_courses = list(courses_collection.find({"section_code": {"$regex": f"^{prefix}"}}))
+                max_num = 0
+                for course in existing_courses:
+                    code = course.get('section_code', '')
+                    if len(code) == 6:
+                        try:
+                            num = int(code[3:])
+                            if num > max_num:
+                                max_num = num
+                        except ValueError:
+                            pass
+                new_num = max_num + 1
+                section_code = f"{prefix}{new_num:03d}"
+
+                # Create course data
+                course_data = {
+                    'course_name': course_name,
+                    'credit_hour': credit_hour,
+                    'course_type': course_type,
+                    'shift': shift,
+                    'section_code': section_code,
+                    'teacher_registration': teacher_registration,
+                    'teacher_name': teacher.get('username')
+                }
+
+                # Insert course
+                courses_collection.insert_one(course_data)
+                imported_count += 1
+
+                # Send email to teacher (non-blocking)
+                try:
+                    teacher_email = teacher.get('email')
+                    if teacher_email:
+                        course_details = {
+                            'course_name': course_name,
+                            'section_code': section_code,
+                            'course_type': course_type,
+                            'credit_hour': credit_hour,
+                            'shift': shift
+                        }
+                        send_course_assignment_email(teacher_email, teacher.get('username'), course_details)
+                except Exception as e:
+                    print(f"Warning: Failed to send email for course {course_name}: {str(e)}")
+
+            except Exception as e:
+                errors.append(f"Row {idx}: {str(e)}")
+
+        # Return result
+        if imported_count > 0:
+            message = f'Successfully imported {imported_count} course(s)'
+            if errors:
+                message += f'. {len(errors)} row(s) had errors: {"; ".join(errors[:5])}'
+            return jsonify({'success': True, 'message': message, 'count': imported_count})
+        else:
+            return jsonify({'success': False, 'error': f'No courses imported. Errors: {"; ".join(errors[:5])}'}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error importing courses: {str(e)}'}), 500
+
+def import_faculty_from_csv(csv_reader):
+    """Import faculty from CSV data"""
+    required_columns = ['username', 'registration_number', 'email']
+
+    try:
+        rows = list(csv_reader)
+
+        # Validate columns
+        if not rows:
+            return jsonify({'success': False, 'error': 'CSV file is empty'}), 400
+
+        # Check required columns
+        first_row_keys = list(rows[0].keys())
+        missing_columns = [col for col in required_columns if col not in first_row_keys]
+        if missing_columns:
+            return jsonify({'success': False, 'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+
+        imported_count = 0
+        errors = []
+
+        for idx, row in enumerate(rows, start=2):  # Start at 2 because row 1 is header
+            try:
+                # Validate data
+                username = row.get('username', '').strip()
+                registration_number = row.get('registration_number', '').strip()
+                email = row.get('email', '').strip()
+
+                # Validations
+                if not all([username, registration_number, email]):
+                    errors.append(f"Row {idx}: Missing required data")
+                    continue
+
+                # Check for duplicates in database
+                if users_collection.find_one({'registration_number': registration_number}):
+                    errors.append(f"Row {idx}: Registration number {registration_number} already exists")
+                    continue
+
+                if users_collection.find_one({'email': email}):
+                    errors.append(f"Row {idx}: Email {email} already exists")
+                    continue
+
+                # Auto-generate password
+                password = generate_password(10)
+
+                # Try to send email first
+                try:
+                    send_user_email(email, username, password)
+                except Exception as e:
+                    errors.append(f"Row {idx}: Failed to send email to {email}: {str(e)}")
+                    continue
+
+                # Create user data
+                user_data = {
+                    'username': username,
+                    'registration_number': registration_number,
+                    'email': email,
+                    'password': password
+                }
+
+                # Insert user
+                users_collection.insert_one(user_data)
+                imported_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {idx}: {str(e)}")
+
+        # Return result
+        if imported_count > 0:
+            message = f'Successfully imported {imported_count} faculty member(s)'
+            if errors:
+                message += f'. {len(errors)} row(s) had errors: {"; ".join(errors[:5])}'
+            return jsonify({'success': True, 'message': message, 'count': imported_count})
+        else:
+            return jsonify({'success': False, 'error': f'No faculty imported. Errors: {"; ".join(errors[:5])}'}), 400
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error importing faculty: {str(e)}'}), 500
 
 # Route to initiate admin password change (send OTP)
 @app.route("/request_admin_password_change", methods=["POST"])

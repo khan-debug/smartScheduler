@@ -1,0 +1,342 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Import Data{% endblock %}
+
+{% block content %}
+<button class="back-button" onclick="window.location.href='{{ url_for('admin_panel') }}'">&#8592;</button>
+
+<h1 style="margin-bottom: 30px;">Import Data</h1>
+
+<div style="display: flex; gap: 20px; justify-content: center; margin-bottom: 40px;">
+    <button class="btn-submit" id="importCoursesBtn" onclick="showImportSection('courses')" style="padding: 15px 40px;">
+        Import Courses
+    </button>
+    <button class="btn-submit" id="importFacultyBtn" onclick="showImportSection('faculty')" style="padding: 15px 40px;">
+        Import Faculty
+    </button>
+</div>
+
+<!-- Import Courses Section -->
+<div id="coursesSection" class="import-section" style="display: none;">
+    <div class="format-box">
+        <h2 style="color: var(--accent-blue); margin-bottom: 20px;">
+            <i class="fas fa-info-circle"></i> CSV Format for Courses
+        </h2>
+
+        <div class="format-description">
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">
+                Your CSV file must contain the following columns in this exact order:
+            </p>
+
+            <div class="csv-format">
+                <div class="csv-header">
+                    <span class="csv-column">course_name</span>
+                    <span class="csv-column">credit_hour</span>
+                    <span class="csv-column">course_type</span>
+                    <span class="csv-column">shift</span>
+                    <span class="csv-column">teacher_registration</span>
+                </div>
+            </div>
+
+            <div class="format-notes">
+                <h3 style="margin-top: 25px; margin-bottom: 15px; color: var(--text-primary);">Column Details:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                        <strong>course_name:</strong> Name of the course (e.g., "Data Structures")
+                    </li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                        <strong>credit_hour:</strong> Must be either "1" or "3"
+                    </li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                        <strong>course_type:</strong> Must be either "Lab" or "Lecture"
+                    </li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                        <strong>shift:</strong> Must be either "Morning" or "Evening"
+                    </li>
+                    <li style="padding: 8px 0;">
+                        <strong>teacher_registration:</strong> Teacher's registration number (must exist in system)
+                    </li>
+                </ul>
+
+                <div style="background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <strong style="color: #ffc107;">Example CSV Content:</strong>
+                    <pre style="margin-top: 10px; color: var(--text-primary); overflow-x: auto;">course_name,credit_hour,course_type,shift,teacher_registration
+Data Structures,3,Lecture,Morning,12345
+Database Lab,1,Lab,Evening,12346
+Web Development,3,Lecture,Morning,12345</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="upload-section">
+        <h3 style="margin-bottom: 15px;">Upload CSV File</h3>
+        <input type="file" id="coursesFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect('courses', this)">
+        <button class="btn-submit" onclick="document.getElementById('coursesFileInput').click()">
+            <i class="fas fa-folder-open"></i> Browse Files
+        </button>
+        <div id="coursesFileName" class="file-name-display"></div>
+        <div id="coursesError" class="error-message" style="display: none;"></div>
+        <button id="coursesUploadBtn" class="btn-success" onclick="uploadFile('courses')" style="display: none; margin-top: 15px;">
+            <i class="fas fa-upload"></i> Upload Courses
+        </button>
+    </div>
+</div>
+
+<!-- Import Faculty Section -->
+<div id="facultySection" class="import-section" style="display: none;">
+    <div class="format-box">
+        <h2 style="color: var(--accent-blue); margin-bottom: 20px;">
+            <i class="fas fa-info-circle"></i> CSV Format for Faculty
+        </h2>
+
+        <div class="format-description">
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">
+                Your CSV file must contain the following columns in this exact order:
+            </p>
+
+            <div class="csv-format">
+                <div class="csv-header">
+                    <span class="csv-column">username</span>
+                    <span class="csv-column">registration_number</span>
+                    <span class="csv-column">email</span>
+                </div>
+            </div>
+
+            <div class="format-notes">
+                <h3 style="margin-top: 25px; margin-bottom: 15px; color: var(--text-primary);">Column Details:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                        <strong>username:</strong> Teacher's full name (e.g., "John Doe")
+                    </li>
+                    <li style="padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                        <strong>registration_number:</strong> Unique registration number (must be unique)
+                    </li>
+                    <li style="padding: 8px 0;">
+                        <strong>email:</strong> Valid email address (must be unique)
+                    </li>
+                </ul>
+
+                <div style="background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <strong style="color: #ffc107;">Example CSV Content:</strong>
+                    <pre style="margin-top: 10px; color: var(--text-primary); overflow-x: auto;">username,registration_number,email
+John Doe,12345,john.doe@example.com
+Jane Smith,12346,jane.smith@example.com
+Robert Johnson,12347,robert.j@example.com</pre>
+                </div>
+
+                <div style="background-color: rgba(33, 150, 243, 0.1); border: 1px solid rgba(33, 150, 243, 0.3); padding: 15px; border-radius: 8px; margin-top: 15px; color: #2196f3;">
+                    <strong>Note:</strong> Passwords will be auto-generated and sent to each faculty member's email address.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="upload-section">
+        <h3 style="margin-bottom: 15px;">Upload CSV File</h3>
+        <input type="file" id="facultyFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect('faculty', this)">
+        <button class="btn-submit" onclick="document.getElementById('facultyFileInput').click()">
+            <i class="fas fa-folder-open"></i> Browse Files
+        </button>
+        <div id="facultyFileName" class="file-name-display"></div>
+        <div id="facultyError" class="error-message" style="display: none;"></div>
+        <button id="facultyUploadBtn" class="btn-success" onclick="uploadFile('faculty')" style="display: none; margin-top: 15px;">
+            <i class="fas fa-upload"></i> Upload Faculty
+        </button>
+    </div>
+</div>
+
+<style>
+    .import-section {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .format-box {
+        background-color: var(--primary-dark);
+        padding: 30px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 30px;
+    }
+
+    .csv-format {
+        background-color: var(--card-bg);
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        overflow-x: auto;
+    }
+
+    .csv-header {
+        display: flex;
+        gap: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+
+    .csv-column {
+        background-color: var(--accent-blue);
+        color: var(--text-primary);
+        padding: 10px 15px;
+        border-radius: 6px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .format-notes {
+        margin-top: 25px;
+    }
+
+    .format-notes ul li {
+        color: var(--text-secondary);
+    }
+
+    .format-notes ul li strong {
+        color: var(--accent-blue);
+        margin-right: 5px;
+    }
+
+    .upload-section {
+        background-color: var(--primary-dark);
+        padding: 30px;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        text-align: center;
+    }
+
+    .file-name-display {
+        margin-top: 15px;
+        padding: 12px;
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-weight: 600;
+        display: none;
+    }
+
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        margin-top: 15px;
+    }
+</style>
+
+<script>
+    let selectedFile = null;
+    let importType = null;
+
+    function showImportSection(type) {
+        // Hide both sections
+        document.getElementById('coursesSection').style.display = 'none';
+        document.getElementById('facultySection').style.display = 'none';
+
+        // Show selected section
+        if (type === 'courses') {
+            document.getElementById('coursesSection').style.display = 'block';
+            importType = 'courses';
+        } else if (type === 'faculty') {
+            document.getElementById('facultySection').style.display = 'block';
+            importType = 'faculty';
+        }
+
+        // Reset file selection
+        selectedFile = null;
+        document.getElementById(type + 'FileInput').value = '';
+        document.getElementById(type + 'FileName').style.display = 'none';
+        document.getElementById(type + 'Error').style.display = 'none';
+        document.getElementById(type + 'UploadBtn').style.display = 'none';
+    }
+
+    function handleFileSelect(type, input) {
+        const file = input.files[0];
+        const errorDiv = document.getElementById(type + 'Error');
+        const fileNameDiv = document.getElementById(type + 'FileName');
+        const uploadBtn = document.getElementById(type + 'UploadBtn');
+
+        // Reset error
+        errorDiv.style.display = 'none';
+
+        if (!file) {
+            fileNameDiv.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            return;
+        }
+
+        // Validate file type
+        if (!file.name.endsWith('.csv')) {
+            errorDiv.textContent = 'Please select a CSV file (.csv extension required)';
+            errorDiv.style.display = 'block';
+            fileNameDiv.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            input.value = '';
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            errorDiv.textContent = 'File size must be less than 5MB';
+            errorDiv.style.display = 'block';
+            fileNameDiv.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            input.value = '';
+            return;
+        }
+
+        // Show selected file name
+        selectedFile = file;
+        fileNameDiv.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+        fileNameDiv.style.display = 'block';
+        uploadBtn.style.display = 'inline-block';
+    }
+
+    function uploadFile(type) {
+        if (!selectedFile) {
+            alert('Please select a file first');
+            return;
+        }
+
+        const uploadBtn = document.getElementById(type + 'UploadBtn');
+        const errorDiv = document.getElementById(type + 'Error');
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('type', type);
+
+        fetch('/import_csv', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = `<i class="fas fa-upload"></i> Upload ${type === 'courses' ? 'Courses' : 'Faculty'}`;
+
+            if (data.success) {
+                alert(`✅ ${data.message}\n\nSuccessfully imported: ${data.count} ${type}`);
+                // Reset form
+                selectedFile = null;
+                document.getElementById(type + 'FileInput').value = '';
+                document.getElementById(type + 'FileName').style.display = 'none';
+                uploadBtn.style.display = 'none';
+            } else {
+                errorDiv.textContent = data.error;
+                errorDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = `<i class="fas fa-upload"></i> Upload ${type === 'courses' ? 'Courses' : 'Faculty'}`;
+            errorDiv.textContent = 'Error uploading file: ' + error.message;
+            errorDiv.style.display = 'block';
+        });
+    }
+</script>
+{% endblock %}
