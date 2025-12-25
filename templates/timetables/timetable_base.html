@@ -30,7 +30,7 @@
 {% endif %}
 
 <div class="timetable-container">
-    <table class="timetable">
+    <table class="timetable" id="timetableTable">
         <thead>
             <tr>
                 <th class="time-col">Time</th>
@@ -43,21 +43,212 @@
                 <th>Sunday</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="timetableBody">
             {% for hour in range(8, 23) %}
-            <tr>
+            <tr data-hour="{{ hour }}">
                 <td class="time-col">{{ '%02d:00' % hour }}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
+                <td data-day="Monday"></td>
+                <td data-day="Tuesday"></td>
+                <td data-day="Wednesday"></td>
+                <td data-day="Thursday"></td>
+                <td data-day="Friday"></td>
+                <td data-day="Saturday"></td>
+                <td data-day="Sunday"></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Class Details Modal (for floor view) -->
+<div id="classDetailsModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2 id="modalTitle">Scheduled Classes</h2>
+            <span class="close" id="closeClassModal">&times;</span>
+        </div>
+        <div class="modal-body" id="classDetailsBody">
+            <!-- Class details will be inserted here -->
+        </div>
+    </div>
+</div>
+
+<style>
+    .class-count-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 50%;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 40px;
+        min-height: 40px;
+        line-height: 24px;
+        text-align: center;
+    }
+
+    .class-count-badge:hover {
+        transform: scale(1.15);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .class-details-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .class-item {
+        padding: 20px;
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+
+    .class-item:hover {
+        border-color: var(--accent-blue);
+        transform: translateX(5px);
+    }
+
+    .class-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .class-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .class-detail-row {
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .class-detail-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .class-detail-item i {
+        color: var(--accent-blue);
+    }
+
+    .class-detail-item strong {
+        color: var(--text-primary);
+    }
+
+    .modal-body {
+        padding: 25px;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+</style>
+
+<script>
+    const roomFilter = {{ room_filter|tojson }};
+    const teacherFilter = {{ teacher_filter|tojson }};
+    const floorFilter = {{ floor_filter|tojson }};
+
+    window.onload = function() {
+        if (floorFilter) {
+            // Load floor timetable (aggregate view)
+            loadFloorTimetable(floorFilter);
+        } else if (roomFilter || teacherFilter) {
+            // Load specific room/teacher timetable
+            loadFilteredTimetable(roomFilter, teacherFilter);
+        }
+    };
+
+    function loadFloorTimetable(floor) {
+        // This will be called when implementing the actual timetable feature
+        // For now, it's a placeholder that will show the structure
+
+        // Example: Fetch classes scheduled on this floor
+        // The backend would return data grouped by day and time
+        console.log(`Loading timetable for floor ${floor}`);
+
+        // Placeholder: This will be replaced with actual data from backend
+        // When autogenerate timetable is implemented, this endpoint will be ready
+    }
+
+    function loadFilteredTimetable(room, teacher) {
+        // Load timetable filtered by room and/or teacher
+        console.log(`Loading timetable for room: ${room}, teacher: ${teacher}`);
+
+        // Placeholder for future implementation
+    }
+
+    function showClassDetails(day, hour, classCount, classes) {
+        const modal = document.getElementById('classDetailsModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('classDetailsBody');
+
+        modalTitle.textContent = `${classCount} Class${classCount !== 1 ? 'es' : ''} Scheduled - ${day} at ${hour}:00`;
+
+        let html = '<ul class="class-details-list">';
+
+        classes.forEach(cls => {
+            html += `
+                <li class="class-item">
+                    <div class="class-item-header">
+                        <span class="class-name">${cls.course_name}</span>
+                        <span class="badge" style="background-color: var(--accent-blue); padding: 5px 12px; border-radius: 12px; font-size: 0.85rem;">
+                            ${cls.section_code}
+                        </span>
+                    </div>
+                    <div class="class-detail-row">
+                        <div class="class-detail-item">
+                            <i class="fas fa-door-open"></i>
+                            <span>Room: <strong>${cls.room}</strong></span>
+                        </div>
+                        <div class="class-detail-item">
+                            <i class="fas fa-user-tie"></i>
+                            <span>Teacher: <strong>${cls.teacher}</strong></span>
+                        </div>
+                        <div class="class-detail-item">
+                            <i class="fas fa-book"></i>
+                            <span>Type: <strong>${cls.course_type}</strong></span>
+                        </div>
+                        <div class="class-detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span>Credit: <strong>${cls.credit_hour}h</strong></span>
+                        </div>
+                    </div>
+                </li>
+            `;
+        });
+
+        html += '</ul>';
+        modalBody.innerHTML = html;
+
+        modal.style.display = 'block';
+    }
+
+    // Modal close handlers
+    document.getElementById('closeClassModal').onclick = function() {
+        document.getElementById('classDetailsModal').style.display = 'none';
+    };
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('classDetailsModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    };
+</script>
 
 {% endblock %}

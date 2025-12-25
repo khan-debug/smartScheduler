@@ -1,170 +1,287 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Select Floor{% endblock %}
+{% block title %}View Timetable{% endblock %}
 
 {% block top_bar %}{% endblock %}
 
 {% block content %}
 <style>
-    .admin-menu {
-        max-width: 800px;
-        margin: 0 auto;
+    .filter-container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 40px;
+        background-color: var(--primary-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
     }
 
-    .floor-button {
+    .filter-title {
+        text-align: center;
+        margin-bottom: 30px;
+        color: var(--text-primary);
+        font-size: 1.8rem;
+    }
+
+    .filter-description {
+        text-align: center;
+        color: var(--text-secondary);
+        margin-bottom: 30px;
+        font-size: 0.95rem;
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    .form-group label {
         display: block;
-        padding: 20px 30px;
-        margin-bottom: 15px;
-        background-color: var(--primary-dark);
+        margin-bottom: 10px;
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        background-color: var(--card-bg);
         border: 1px solid var(--border-color);
         border-radius: 8px;
         color: var(--text-primary);
-        text-decoration: none;
-        font-size: 1rem;
-        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: text;
         transition: all 0.3s ease;
+    }
+
+    .form-group select {
         cursor: pointer;
     }
 
-    .floor-button:hover {
-        background-color: var(--card-bg);
+    .form-group input[type="text"]:focus,
+    .form-group select:focus {
+        outline: none;
         border-color: var(--accent-blue);
-        transform: translateX(5px);
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }
 
-    .floor-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .floor-name {
-        font-size: 1.1rem;
-    }
-
-    .room-count-badge {
-        background-color: var(--accent-blue);
+    .form-group select option {
+        background-color: var(--card-bg);
         color: var(--text-primary);
-        padding: 4px 12px;
-        border-radius: 12px;
+    }
+
+    .help-text {
         font-size: 0.85rem;
-    }
-
-    .loading-message {
-        text-align: center;
-        padding: 40px;
         color: var(--text-secondary);
+        margin-top: 6px;
+        font-style: italic;
     }
 
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        background-color: var(--primary-dark);
-        border: 2px dashed var(--border-color);
-        border-radius: 12px;
-        margin-top: 20px;
-    }
-
-    .empty-icon {
-        font-size: 4rem;
-        margin-bottom: 15px;
-        opacity: 0.3;
-    }
-
-    .empty-text {
-        color: var(--text-secondary);
-        font-size: 1.1rem;
-        margin-bottom: 10px;
-    }
-
-    .empty-hint {
-        color: var(--text-secondary);
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 12px 15px;
+        border-radius: 8px;
         font-size: 0.9rem;
-        opacity: 0.7;
         margin-bottom: 20px;
+        display: none;
     }
 
-    .btn-create {
-        padding: 12px 24px;
+    .btn-view {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
         border-radius: 8px;
-        background-color: var(--accent-blue);
-        color: var(--text-primary);
-        font-size: 0.95rem;
+        color: white;
+        font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-block;
     }
 
-    .btn-create:hover {
-        background-color: #0056b3;
+    .btn-view:hover {
         transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-view:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .info-box {
+        background-color: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.3);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        color: #2196f3;
+        font-size: 0.9rem;
     }
 </style>
 
 <button class="back-button" onclick="history.back()">&#8592;</button>
-<div class="admin-menu">
-    <h1 class="mb-20">Select a Floor to View Timetable</h1>
 
-    <div id="floorList">
-        <div class="loading-message">Loading available floors...</div>
+<div class="filter-container">
+    <h1 class="filter-title">View Timetable</h1>
+    <p class="filter-description">Select a room or teacher to view their timetable</p>
+
+    <div class="info-box">
+        <strong>Note:</strong> You must select at least one filter (Room or Teacher) to view the timetable.
     </div>
+
+    <div id="errorMessage" class="error-message"></div>
+
+    <div class="form-group">
+        <label for="roomInput">
+            <i class="fas fa-door-open"></i> Enter Room Number (Optional)
+        </label>
+        <input
+            type="text"
+            id="roomInput"
+            list="roomList"
+            placeholder="Type room number or select from list"
+            autocomplete="off"
+        >
+        <datalist id="roomList">
+        </datalist>
+        <div class="help-text" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); font-style: italic;">
+            You can type the room number directly or select from the dropdown
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="teacherSelect">
+            <i class="fas fa-user-tie"></i> Select Teacher (Optional)
+        </label>
+        <select id="teacherSelect">
+            <option value="">-- Select a Teacher --</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="floorSelect">
+            <i class="fas fa-building"></i> Select Floor (Optional)
+        </label>
+        <select id="floorSelect">
+            <option value="">-- Select a Floor --</option>
+        </select>
+        <div class="help-text" style="margin-top: 8px;">
+            View all classes scheduled on a specific floor
+        </div>
+    </div>
+
+    <button class="btn-view" onclick="viewTimetable()">
+        <i class="fas fa-calendar-alt"></i> View Timetable
+    </button>
 </div>
 
 <script>
     window.onload = function() {
+        loadRooms();
+        loadTeachers();
         loadFloors();
     };
+
+    function loadRooms() {
+        fetch('/get_all_rooms')
+            .then(response => response.json())
+            .then(data => {
+                const roomList = document.getElementById('roomList');
+
+                if (data.success && data.rooms && data.rooms.length > 0) {
+                    data.rooms.forEach(room => {
+                        const option = document.createElement('option');
+                        option.value = room.room_number;
+                        option.textContent = `Room ${room.room_number} (${room.type})`;
+                        roomList.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+            });
+    }
+
+    function loadTeachers() {
+        fetch('/get_all_teachers')
+            .then(response => response.json())
+            .then(data => {
+                const teacherSelect = document.getElementById('teacherSelect');
+
+                if (data.success && data.teachers && data.teachers.length > 0) {
+                    data.teachers.forEach(teacher => {
+                        const option = document.createElement('option');
+                        option.value = teacher.registration_number;
+                        option.textContent = `${teacher.username} (${teacher.registration_number})`;
+                        teacherSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading teachers:', error);
+            });
+    }
 
     function loadFloors() {
         fetch('/get_floors')
             .then(response => response.json())
             .then(data => {
-                const floorList = document.getElementById('floorList');
+                const floorSelect = document.getElementById('floorSelect');
 
                 if (data.floors && data.floors.length > 0) {
-                    floorList.innerHTML = '';
-
                     data.floors.forEach(floor => {
-                        const floorButton = document.createElement('a');
-                        floorButton.href = `/view_timetable/${floor.floor}`;
-                        floorButton.className = 'floor-button';
-
-                        floorButton.innerHTML = `
-                            <div class="floor-info">
-                                <span class="floor-name">Timetable of Floor ${floor.floor}</span>
-                                <span class="room-count-badge">${floor.count} room${floor.count !== 1 ? 's' : ''}</span>
-                            </div>
-                        `;
-
-                        floorList.appendChild(floorButton);
+                        const option = document.createElement('option');
+                        option.value = floor.floor;
+                        option.textContent = `Floor ${floor.floor} (${floor.count} room${floor.count !== 1 ? 's' : ''})`;
+                        floorSelect.appendChild(option);
                     });
-                } else {
-                    // No floors created yet
-                    floorList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-icon">🏢</div>
-                            <div class="empty-text">No floors available</div>
-                            <div class="empty-hint">You need to create floors and rooms before viewing timetables</div>
-                            <a href="/manage_rooms" class="btn-create">
-                                Go to Manage Rooms
-                            </a>
-                        </div>
-                    `;
                 }
             })
             .catch(error => {
                 console.error('Error loading floors:', error);
-                document.getElementById('floorList').innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">⚠️</div>
-                        <div class="empty-text">Error loading floors</div>
-                        <div class="empty-hint">Please refresh the page or try again later</div>
-                    </div>
-                `;
             });
+    }
+
+    function viewTimetable() {
+        const roomNumber = document.getElementById('roomInput').value.trim();
+        const teacherReg = document.getElementById('teacherSelect').value;
+        const floorNumber = document.getElementById('floorSelect').value;
+        const errorDiv = document.getElementById('errorMessage');
+
+        // Hide previous error
+        errorDiv.style.display = 'none';
+
+        // Validate at least one is selected
+        if (!roomNumber && !teacherReg && !floorNumber) {
+            errorDiv.textContent = 'Please enter/select at least one filter (Room, Teacher, or Floor)';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        // Construct URL based on selection
+        let url = '/view_timetable?';
+        const params = [];
+
+        if (roomNumber) {
+            params.push(`room=${encodeURIComponent(roomNumber)}`);
+        }
+
+        if (teacherReg) {
+            params.push(`teacher=${encodeURIComponent(teacherReg)}`);
+        }
+
+        if (floorNumber) {
+            params.push(`floor=${encodeURIComponent(floorNumber)}`);
+        }
+
+        url += params.join('&');
+
+        // Navigate to timetable view
+        window.location.href = url;
     }
 </script>
 {% endblock %}

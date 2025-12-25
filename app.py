@@ -1427,22 +1427,91 @@ def add_course():
 @app.route("/view_timetable")
 @login_required
 def view_timetable():
-    return render_template("pages/selectFloor.html", active_page="view_timetable")
+    """View timetable with optional room/teacher/floor filters"""
+    room_number = request.args.get('room')
+    teacher_reg = request.args.get('teacher')
+    floor_number = request.args.get('floor')
 
-@app.route("/view_timetable/<int:floor_number>")
-@login_required
-def view_timetable_floor(floor_number):
+    # If no filters provided, show filter selection page
+    if not room_number and not teacher_reg and not floor_number:
+        return render_template("pages/selectFloor.html", active_page="view_timetable")
+
+    # Build title based on filters
+    title_parts = []
+    if room_number:
+        title_parts.append(f"Room {room_number}")
+    if teacher_reg:
+        teacher = users_collection.find_one({'registration_number': teacher_reg})
+        if teacher:
+            title_parts.append(f"Teacher: {teacher.get('username')}")
+    if floor_number:
+        title_parts.append(f"Floor {floor_number}")
+
+    page_title = f"Timetable - {' & '.join(title_parts)}" if title_parts else "Timetable"
+
     return render_template(
         "timetables/timetable_base.html",
-        floor_number=floor_number,
         active_page="view_timetable",
         page_title="View Timetable",
         hide_top_bar=True,
         show_back_button=True,
         show_teacher_header=False,
         show_page_title=True,
-        page_title_text=f"Weekly Timetable - Floor {floor_number}"
+        page_title_text=page_title,
+        room_filter=room_number,
+        teacher_filter=teacher_reg,
+        floor_filter=floor_number
     )
+
+@app.route("/get_all_rooms", methods=["GET"])
+@login_required
+def get_all_rooms():
+    """Get all rooms for filter dropdown"""
+    try:
+        rooms_list = list(rooms_collection.find({}))
+        rooms_data = []
+
+        for room in rooms_list:
+            rooms_data.append({
+                'room_number': str(room.get('room_number', '')),
+                'type': room.get('type', ''),
+                'floor': room.get('floor', '')
+            })
+
+        # Sort by room number
+        rooms_data.sort(key=lambda x: x['room_number'])
+
+        return jsonify({
+            'success': True,
+            'rooms': rooms_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/get_all_teachers", methods=["GET"])
+@login_required
+def get_all_teachers():
+    """Get all teachers for filter dropdown"""
+    try:
+        teachers_list = list(users_collection.find({}))
+        teachers_data = []
+
+        for teacher in teachers_list:
+            teachers_data.append({
+                'username': teacher.get('username', ''),
+                'registration_number': teacher.get('registration_number', ''),
+                'email': teacher.get('email', '')
+            })
+
+        # Sort by username
+        teachers_data.sort(key=lambda x: x['username'])
+
+        return jsonify({
+            'success': True,
+            'teachers': teachers_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 data_stores = {
     "user": users_collection,
