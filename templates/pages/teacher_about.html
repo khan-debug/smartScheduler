@@ -1,0 +1,148 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}About - {{ teacher.username }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="margin-bottom: 30px;">Teacher Profile</h1>
+
+    <!-- Teacher Information Card -->
+    <div style="background-color: var(--primary-dark); padding: 30px; border-radius: 12px; margin-bottom: 30px; border: 1px solid var(--border-color);">
+        <h2 style="color: var(--accent-blue); margin-bottom: 20px; display: flex; align-items: center;">
+            <i class="fas fa-user-circle" style="margin-right: 10px;"></i>
+            Personal Information
+        </h2>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            <div class="info-item">
+                <div class="info-label">
+                    <i class="fas fa-user"></i> Username
+                </div>
+                <div class="info-value">{{ teacher.username }}</div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">
+                    <i class="fas fa-id-card"></i> Registration Number
+                </div>
+                <div class="info-value">{{ teacher.registration_number }}</div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">
+                    <i class="fas fa-envelope"></i> Email
+                </div>
+                <div class="info-value">{{ teacher.email }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Courses Card -->
+    <div style="background-color: var(--primary-dark); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color);">
+        <h2 style="color: var(--accent-blue); margin-bottom: 20px; display: flex; align-items: center;">
+            <i class="fas fa-book"></i>
+            <span style="margin-left: 10px;">Assigned Courses</span>
+            <span style="margin-left: auto; background-color: var(--accent-blue); color: var(--text-primary); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;">
+                {{ assigned_courses|length }} course{{ 's' if assigned_courses|length != 1 else '' }}
+            </span>
+        </h2>
+
+        {% if assigned_courses %}
+        <div style="display: grid; gap: 15px;">
+            {% for course in assigned_courses %}
+            <div class="course-card">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h3 style="color: var(--text-primary); margin-bottom: 8px; font-size: 1.1rem;">
+                            {{ course.course_name }}
+                        </h3>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <span class="course-detail">
+                                <i class="fas fa-code"></i>
+                                Section: <strong>{{ course.section_code }}</strong>
+                            </span>
+                            <span class="course-detail">
+                                <i class="fas fa-clock"></i>
+                                Credit Hours: <strong>{{ course.credit_hour }}</strong>
+                            </span>
+                            {% if course.shift %}
+                            <span class="course-detail">
+                                <i class="fas fa-sun"></i>
+                                Shift: <strong>{{ course.shift }}</strong>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px 20px; background-color: var(--card-bg); border: 2px dashed var(--border-color); border-radius: 12px;">
+            <div style="font-size: 4rem; margin-bottom: 15px; opacity: 0.3;">📚</div>
+            <div style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 10px;">
+                No Courses Assigned Yet
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.9rem; opacity: 0.7;">
+                You haven't been assigned to any courses yet. Please contact the administrator.
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .info-item {
+        padding: 15px;
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .info-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-label i {
+        margin-right: 6px;
+        color: var(--accent-blue);
+    }
+
+    .info-value {
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .course-card {
+        padding: 20px;
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+
+    .course-card:hover {
+        border-color: var(--accent-blue);
+        transform: translateX(5px);
+    }
+
+    .course-detail {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .course-detail i {
+        color: var(--accent-blue);
+        margin-right: 5px;
+    }
+
+    .course-detail strong {
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}

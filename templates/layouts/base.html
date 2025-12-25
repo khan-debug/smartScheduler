@@ -30,9 +30,15 @@
                 {% endif %}
                 {% if session['role'] == 'teacher' %}
                 <li>
-                    <a href="{{ url_for('teacher_view') }}" 
+                    <a href="{{ url_for('teacher_view') }}"
                        class="nav-link {{ 'active' if active_page == 'teacher' else '' }}">
-                        <i class="fas fa-user-tie"></i> Timetable
+                        <i class="fas fa-calendar-alt"></i> Timetable
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('teacher_about') }}"
+                       class="nav-link {{ 'active' if active_page == 'teacher_about' else '' }}">
+                        <i class="fas fa-user-circle"></i> About
                     </a>
                 </li>
                 {% endif %}

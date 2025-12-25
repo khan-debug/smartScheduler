@@ -279,6 +279,33 @@ def teacher_view():
         username=session.get('username')
     )
 
+# Route for Teacher About (Profile)
+@app.route("/teacher/about")
+@login_required
+def teacher_about():
+    """Show teacher profile with their information and assigned courses"""
+    if session.get('role') != 'teacher':
+        return redirect(url_for('login'))
+
+    # Get teacher information from session
+    teacher_username = session.get('username')
+    teacher_reg_number = session.get('registration_number')
+
+    # Fetch complete teacher info from database
+    teacher = users_collection.find_one({'registration_number': teacher_reg_number})
+
+    # Get courses assigned to this teacher
+    assigned_courses = list(courses_collection.find({
+        'teacher_registration': teacher_reg_number
+    }))
+
+    return render_template(
+        "pages/teacher_about.html",
+        active_page="teacher_about",
+        teacher=teacher,
+        assigned_courses=assigned_courses
+    )
+
 # Route for Admin Panel
 @app.route("/admin")
 @login_required
