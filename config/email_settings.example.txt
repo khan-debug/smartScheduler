@@ -1,0 +1,12 @@
+"EmailSettings": {
+    "Enabled": true,
+    "FromEmail": "your-email@gmail.com",
+    "EmailName": "SmartScheduler",
+    "Subject": "Account Created - SmartScheduler",
+    "Smtp": {
+        "Server": "smtp.gmail.com",
+        "Port": 587,
+        "Username": "your-email@gmail.com",
+        "Password": "your-app-password-here"
+    }
+}

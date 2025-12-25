@@ -33,6 +33,9 @@ instance/
 .env.local
 config.py
 
+# Email configuration (contains sensitive SMTP credentials)
+config/email_settings.txt
+
 # ==========================================
 # IDEs
 # ==========================================

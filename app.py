@@ -5,18 +5,46 @@ import json
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from pymongo import MongoClient
+from bson import ObjectId
+import certifi
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-users = []
-rooms = []
-courses = []
+# MongoDB Connection
+MONGO_URI = "mongodb+srv://aarij:aarij0990@smartscheduler.tqtyuhp.mongodb.net/?retryWrites=true&w=majority&appName=smartscheduler"
+
+# Try to connect to MongoDB
+try:
+    client = MongoClient(
+        MONGO_URI,
+        serverSelectionTimeoutMS=10000
+    )
+    # Test connection
+    client.admin.command('ping')
+    db = client['smartscheduler_db']
+
+    # Collections
+    users_collection = db['users']
+    rooms_collection = db['rooms']
+    courses_collection = db['courses']
+
+    print("✓ MongoDB connection successful!")
+except Exception as e:
+    print(f"✗ MongoDB connection failed: {str(e)[:200]}")
+    print("\nERROR: Cannot connect to MongoDB. Please check:")
+    print("1. MongoDB Atlas Network Access - Add your IP address")
+    print("2. MongoDB cluster status - Ensure it's running")
+    print("3. OpenSSL compatibility - Python 3.14.2 + OpenSSL 3.6.0 may be too new")
+    print("\nApplication will not function without database connection.")
+    import sys
+    sys.exit(1)
 
 # Load email settings
 def load_email_settings():
     try:
-        with open('EmailSettings Enabled.txt', 'r') as f:
+        with open('config/email_settings.txt', 'r') as f:
             content = f.read()
             # Wrap content in braces to make it valid JSON
             json_content = '{' + content.strip().rstrip(',') + '}'
@@ -101,13 +129,13 @@ def login():
         if username == "admin" and password == "0880":
             session['role'] = 'admin'
             return redirect(url_for("admin_panel"))
-        
-        # Check for teacher credentials
-        for user in users:
-            if user['username'] == username and user['password'] == password:
-                session['role'] = 'teacher'
-                session['username'] = user['username']
-                return redirect(url_for("teacher_view"))
+
+        # Check for teacher credentials in MongoDB
+        user = users_collection.find_one({'username': username, 'password': password})
+        if user:
+            session['role'] = 'teacher'
+            session['username'] = user['username']
+            return redirect(url_for("teacher_view"))
 
         return render_template("auth/login.html", error="Invalid credentials")
     return render_template("auth/login.html")
@@ -123,9 +151,9 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    teacher_count = len(users)
-    course_count = len(courses)
-    room_count = len(rooms)
+    teacher_count = users_collection.count_documents({})
+    course_count = courses_collection.count_documents({})
+    room_count = rooms_collection.count_documents({})
     return render_template("pages/dashboard.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
 
 # Route for Generate Timetable
@@ -172,7 +200,11 @@ def admin_panel():
 @app.route("/get_users", methods=["GET"])
 @login_required
 def get_users():
-    return {"items": users}
+    users_list = list(users_collection.find({}))
+    # Convert ObjectId to string for JSON serialization
+    for user in users_list:
+        user['_id'] = str(user['_id'])
+    return {"items": users_list}
 
 @app.route("/add_user", methods=["POST"])
 @login_required
@@ -183,10 +215,21 @@ def add_user():
     username = data.get('username')
     password = data.get('password')
     email = data.get('email')
+    registration_number = data.get('registration_number')
 
     # Validate required fields
+    if not username:
+        return {"success": False, "error": "Username is required"}, 400
+    if not registration_number:
+        return {"success": False, "error": "Registration number is required"}, 400
     if not email:
         return {"success": False, "error": "Email address is required"}, 400
+    if not password:
+        return {"success": False, "error": "Password is required"}, 400
+
+    # Check if username already exists
+    if users_collection.find_one({'username': username}):
+        return {"success": False, "error": "Username already exists"}, 400
 
     # Try to send email first
     try:
@@ -194,8 +237,16 @@ def add_user():
     except Exception as e:
         return {"success": False, "error": f"Failed to send email: {str(e)}"}, 500
 
-    # If email sent successfully, add user
-    users.append(data)
+    # Remove confirm_password from data before saving to database
+    user_data = {
+        'username': username,
+        'registration_number': registration_number,
+        'email': email,
+        'password': password
+    }
+
+    # If email sent successfully, add user to MongoDB
+    users_collection.insert_one(user_data)
     return {"success": True}
 
 @app.route("/manage_users")
@@ -210,6 +261,7 @@ def manage_users():
         get_url="/get_users",
         form_fields=[
             {"name": "username", "label": "Username", "type": "text", "table_display": True, "form_display": True},
+            {"name": "registration_number", "label": "Registration Number", "type": "text", "table_display": True, "form_display": True},
             {"name": "email", "label": "Email Address", "type": "email", "table_display": True, "form_display": True},
             {"name": "password", "label": "Password", "type": "password", "table_display": False, "form_display": True},
             {"name": "confirm_password", "label": "Confirm Password", "type": "password", "table_display": False, "form_display": True},
@@ -251,9 +303,11 @@ def _extract_floor_from_room_number(room_number_str):
 @app.route("/get_rooms", methods=["GET"])
 @login_required
 def get_rooms():
+    rooms_list = list(rooms_collection.find({}))
     rooms_with_floor = []
-    for room in rooms:
+    for room in rooms_list:
         room_data = room.copy()
+        room_data['_id'] = str(room_data['_id'])
         room_number_str = room_data.get("room_number", "")
         room_data["floor_number"] = _extract_floor_from_room_number(room_number_str)
         rooms_with_floor.append(room_data)
@@ -263,7 +317,7 @@ def get_rooms():
 @login_required
 def add_room():
     data = request.get_json()
-    rooms.append(data)
+    rooms_collection.insert_one(data)
     return {"success": True}
 
 @app.route("/manage_courses")
@@ -287,13 +341,17 @@ def manage_courses():
 @app.route("/get_courses", methods=["GET"])
 @login_required
 def get_courses():
-    return {"items": courses}
+    courses_list = list(courses_collection.find({}))
+    # Convert ObjectId to string for JSON serialization
+    for course in courses_list:
+        course['_id'] = str(course['_id'])
+    return {"items": courses_list}
 
 @app.route("/add_course", methods=["POST"])
 @login_required
 def add_course():
     data = request.get_json()
-    courses.append(data)
+    courses_collection.insert_one(data)
     return {"success": True}
 
 @app.route("/view_timetable")
@@ -317,37 +375,51 @@ def view_timetable_floor(floor_number):
     )
 
 data_stores = {
-    "user": users,
-    "room": rooms,
-    "course": courses,
+    "user": users_collection,
+    "room": rooms_collection,
+    "course": courses_collection,
 }
 
 @app.route("/get_item/<item_type>/<int:item_id>", methods=["GET"])
 @login_required
 def get_item(item_type, item_id):
     if item_type in data_stores:
-        data_list = data_stores[item_type]
-        if 0 <= item_id < len(data_list):
-            return data_list[item_id]
+        collection = data_stores[item_type]
+        # Get all items and find by index
+        items_list = list(collection.find({}))
+        if 0 <= item_id < len(items_list):
+            item = items_list[item_id]
+            item['_id'] = str(item['_id'])
+            return item
     return {"error": "Item not found"}, 404
 
 @app.route("/update_item/<item_type>/<int:item_id>", methods=["PUT"])
 @login_required
 def update_item(item_type, item_id):
     if item_type in data_stores:
-        data_list = data_stores[item_type]
-        if 0 <= item_id < len(data_list):
+        collection = data_stores[item_type]
+        # Get all items and find by index
+        items_list = list(collection.find({}))
+        if 0 <= item_id < len(items_list):
             data = request.get_json()
+            item_to_update = items_list[item_id]
 
-            # If updating a user, send email notification
+            # If updating a user, send email notification and validate
             if item_type == "user":
                 username = data.get('username')
                 password = data.get('password')
                 email = data.get('email')
+                registration_number = data.get('registration_number')
 
-                # Validate email exists
+                # Validate required fields
+                if not username:
+                    return {"success": False, "error": "Username is required"}, 400
+                if not registration_number:
+                    return {"success": False, "error": "Registration number is required"}, 400
                 if not email:
                     return {"success": False, "error": "Email address is required"}, 400
+                if not password:
+                    return {"success": False, "error": "Password is required"}, 400
 
                 # Try to send email first
                 try:
@@ -355,10 +427,21 @@ def update_item(item_type, item_id):
                 except Exception as e:
                     return {"success": False, "error": f"Failed to send email: {str(e)}"}, 500
 
-            # Update the item
-            for key, value in data.items():
-                if key in data_list[item_id]:
-                    data_list[item_id][key] = value
+                # Remove confirm_password from data before updating database
+                update_data = {
+                    'username': username,
+                    'registration_number': registration_number,
+                    'email': email,
+                    'password': password
+                }
+            else:
+                update_data = data
+
+            # Update the item in MongoDB
+            collection.update_one(
+                {"_id": item_to_update["_id"]},
+                {"$set": update_data}
+            )
             return {"success": True}
     return {"error": "Item not found"}, 404
 
@@ -366,11 +449,24 @@ def update_item(item_type, item_id):
 @login_required
 def delete_item(item_type, item_id):
     if item_type in data_stores:
-        data_list = data_stores[item_type]
-        if 0 <= item_id < len(data_list):
-            data_list.pop(item_id)
+        collection = data_stores[item_type]
+        # Get all items and find by index
+        items_list = list(collection.find({}))
+        if 0 <= item_id < len(items_list):
+            item_to_delete = items_list[item_id]
+            collection.delete_one({"_id": item_to_delete["_id"]})
             return {"success": True}
     return {"error": "Item not found"}, 404
 
 if __name__ == "__main__":
+    # Test MongoDB connection
+    try:
+        client.admin.command('ping')
+        print("✓ Successfully connected to MongoDB!")
+        print(f"✓ Database: {db.name}")
+        print(f"✓ Collections: users, rooms, courses")
+    except Exception as e:
+        print(f"✗ Failed to connect to MongoDB: {e}")
+        print("Please check your connection string and network access.")
+
     app.run(debug=True, port=5000)

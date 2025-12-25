@@ -1,0 +1,15 @@
+# SmartScheduler Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Web Framework
+Flask==3.1.2
+Werkzeug==3.1.3
+
+# Database
+pymongo==4.15.5
+dnspython==2.7.0
+
+# Security & SSL
+certifi==2025.11.12
+
+# Email (using built-in smtplib, no extra dependencies needed)
