@@ -9,6 +9,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 import certifi
 import random
+import string
 import time
 from datetime import datetime
 
@@ -63,6 +64,32 @@ def load_email_settings():
         return None
 
 email_settings = load_email_settings()
+
+# Function to generate random password
+def generate_password(length=10):
+    """Generate a random password with letters, digits, and special characters"""
+    # Define character sets
+    lowercase = string.ascii_lowercase
+    uppercase = string.ascii_uppercase
+    digits = string.digits
+    special_chars = '@#$%&*'
+
+    # Ensure at least one character from each set
+    password = [
+        random.choice(lowercase),
+        random.choice(uppercase),
+        random.choice(digits),
+        random.choice(special_chars)
+    ]
+
+    # Fill the rest with random characters from all sets
+    all_chars = lowercase + uppercase + digits + special_chars
+    password += [random.choice(all_chars) for _ in range(length - 4)]
+
+    # Shuffle to avoid predictable pattern
+    random.shuffle(password)
+
+    return ''.join(password)
 
 # Function to send email
 def send_user_email(to_email, username, password):
@@ -360,6 +387,127 @@ def teacher_about():
         assigned_courses=assigned_courses
     )
 
+@app.route("/teacher/send_password_reset_otp", methods=["POST"])
+def teacher_send_password_reset_otp():
+    """Send OTP to teacher's email for password reset"""
+    try:
+        data = request.get_json()
+        registration_number = data.get('registration_number', '').strip()
+
+        if not registration_number:
+            return jsonify({'success': False, 'error': 'Registration number is required'}), 400
+
+        # Find teacher by registration number
+        teacher = users_collection.find_one({'registration_number': registration_number})
+        if not teacher:
+            return jsonify({'success': False, 'error': 'No user found with this registration number'}), 404
+
+        teacher_email = teacher.get('email')
+        teacher_name = teacher.get('username')
+
+        if not teacher_email:
+            return jsonify({'success': False, 'error': 'No email address found for this user'}), 400
+
+        # Generate 6-digit OTP
+        otp = str(random.randint(100000, 999999))
+
+        # Store OTP in session with timestamp
+        session[f'password_reset_otp_{registration_number}'] = otp
+        session[f'password_reset_otp_timestamp_{registration_number}'] = time.time()
+
+        # Send OTP email
+        send_otp_email(teacher_email, otp)
+
+        return jsonify({
+            'success': True,
+            'message': f'OTP has been sent to {teacher_email}',
+            'email': teacher_email
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/teacher/verify_password_reset_otp", methods=["POST"])
+def teacher_verify_password_reset_otp():
+    """Verify OTP for password reset"""
+    try:
+        data = request.get_json()
+        registration_number = data.get('registration_number', '').strip()
+        entered_otp = data.get('otp', '').strip()
+
+        if not registration_number or not entered_otp:
+            return jsonify({'success': False, 'error': 'Registration number and OTP are required'}), 400
+
+        # Check if OTP exists in session
+        otp_key = f'password_reset_otp_{registration_number}'
+        timestamp_key = f'password_reset_otp_timestamp_{registration_number}'
+
+        if otp_key not in session or timestamp_key not in session:
+            return jsonify({'success': False, 'error': 'No OTP request found. Please request OTP first.'}), 400
+
+        # Check if OTP is expired (10 minutes = 600 seconds)
+        otp_age = time.time() - session[timestamp_key]
+        if otp_age > 600:
+            # Clear expired OTP
+            session.pop(otp_key, None)
+            session.pop(timestamp_key, None)
+            return jsonify({'success': False, 'error': 'OTP has expired. Please request a new one.'}), 400
+
+        # Verify OTP
+        if entered_otp != session[otp_key]:
+            return jsonify({'success': False, 'error': 'Invalid OTP. Please try again.'}), 400
+
+        # OTP is valid, mark as verified
+        session[f'password_reset_verified_{registration_number}'] = True
+
+        return jsonify({
+            'success': True,
+            'message': 'OTP verified successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/teacher/reset_password", methods=["POST"])
+def teacher_reset_password():
+    """Reset teacher password after OTP verification"""
+    try:
+        data = request.get_json()
+        registration_number = data.get('registration_number', '').strip()
+        new_password = data.get('new_password', '').strip()
+
+        if not registration_number or not new_password:
+            return jsonify({'success': False, 'error': 'Registration number and new password are required'}), 400
+
+        # Check if OTP was verified
+        verified_key = f'password_reset_verified_{registration_number}'
+        if not session.get(verified_key):
+            return jsonify({'success': False, 'error': 'OTP verification required. Please verify OTP first.'}), 400
+
+        # Find teacher
+        teacher = users_collection.find_one({'registration_number': registration_number})
+        if not teacher:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        # Update password in database
+        users_collection.update_one(
+            {'registration_number': registration_number},
+            {'$set': {'password': new_password}}
+        )
+
+        # Clear all session data related to password reset
+        session.pop(f'password_reset_otp_{registration_number}', None)
+        session.pop(f'password_reset_otp_timestamp_{registration_number}', None)
+        session.pop(verified_key, None)
+
+        return jsonify({
+            'success': True,
+            'message': 'Password has been reset successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Route for Admin Panel
 @app.route("/admin")
 @login_required
@@ -475,9 +623,11 @@ def add_user():
 
     # Extract user details
     username = data.get('username')
-    password = data.get('password')
     email = data.get('email')
     registration_number = data.get('registration_number')
+
+    # Auto-generate password
+    password = generate_password(10)
 
     # Validate required fields
     if not username:
@@ -486,12 +636,18 @@ def add_user():
         return {"success": False, "error": "Registration number is required"}, 400
     if not email:
         return {"success": False, "error": "Email address is required"}, 400
-    if not password:
-        return {"success": False, "error": "Password is required"}, 400
 
     # Check if username already exists
     if users_collection.find_one({'username': username}):
         return {"success": False, "error": "Username already exists"}, 400
+
+    # Check if registration number already exists
+    if users_collection.find_one({'registration_number': registration_number}):
+        return {"success": False, "error": "Registration number already exists. Each registration number can only be used once."}, 400
+
+    # Check if email already exists
+    if users_collection.find_one({'email': email}):
+        return {"success": False, "error": "Email address already exists. Each email can only be used once."}, 400
 
     # Try to send email first
     try:
@@ -499,7 +655,7 @@ def add_user():
     except Exception as e:
         return {"success": False, "error": f"Failed to send email: {str(e)}"}, 500
 
-    # Remove confirm_password from data before saving to database
+    # Save user to database
     user_data = {
         'username': username,
         'registration_number': registration_number,
@@ -509,7 +665,9 @@ def add_user():
 
     # If email sent successfully, add user to MongoDB
     users_collection.insert_one(user_data)
-    return {"success": True}
+
+    # Return success with generated password so admin can view it
+    return {"success": True, "password": password, "username": username}
 
 @app.route("/manage_users")
 @login_required
@@ -525,8 +683,6 @@ def manage_users():
             {"name": "username", "label": "Username", "type": "text", "table_display": True, "form_display": True},
             {"name": "registration_number", "label": "Registration Number", "type": "text", "table_display": True, "form_display": True},
             {"name": "email", "label": "Email Address", "type": "email", "table_display": True, "form_display": True},
-            {"name": "password", "label": "Password", "type": "password", "table_display": False, "form_display": True},
-            {"name": "confirm_password", "label": "Confirm Password", "type": "password", "table_display": False, "form_display": True},
         ],
         from_dashboard=from_dashboard,
     )
@@ -1073,6 +1229,26 @@ def get_item(item_type, item_id):
             return item
     return {"error": "Item not found"}, 404
 
+@app.route("/get_user_password/<int:user_id>", methods=["GET"])
+@login_required
+def get_user_password(user_id):
+    """Admin endpoint to view a user's password"""
+    # Only allow admin to view passwords
+    if session.get('role') != 'admin':
+        return jsonify({"error": "Unauthorized. Admin access required."}), 403
+
+    users_list = list(users_collection.find({}))
+    if 0 <= user_id < len(users_list):
+        user = users_list[user_id]
+        return jsonify({
+            "success": True,
+            "username": user.get('username'),
+            "password": user.get('password'),
+            "email": user.get('email'),
+            "registration_number": user.get('registration_number')
+        })
+    return jsonify({"error": "User not found"}), 404
+
 @app.route("/update_item/<item_type>/<int:item_id>", methods=["PUT"])
 @login_required
 def update_item(item_type, item_id):
@@ -1084,10 +1260,9 @@ def update_item(item_type, item_id):
             data = request.get_json()
             item_to_update = items_list[item_id]
 
-            # If updating a user, send email notification and validate
+            # If updating a user, validate but keep existing password
             if item_type == "user":
                 username = data.get('username')
-                password = data.get('password')
                 email = data.get('email')
                 registration_number = data.get('registration_number')
 
@@ -1098,21 +1273,26 @@ def update_item(item_type, item_id):
                     return {"success": False, "error": "Registration number is required"}, 400
                 if not email:
                     return {"success": False, "error": "Email address is required"}, 400
-                if not password:
-                    return {"success": False, "error": "Password is required"}, 400
 
-                # Try to send email first
-                try:
-                    send_user_email(email, username, password)
-                except Exception as e:
-                    return {"success": False, "error": f"Failed to send email: {str(e)}"}, 500
+                # Check if registration number is being changed to one that already exists
+                existing_user_with_reg = users_collection.find_one({'registration_number': registration_number})
+                if existing_user_with_reg and existing_user_with_reg['_id'] != item_to_update['_id']:
+                    return {"success": False, "error": "Registration number already exists. Each registration number can only be used once."}, 400
 
-                # Remove confirm_password from data before updating database
+                # Check if email is being changed to one that already exists
+                existing_user_with_email = users_collection.find_one({'email': email})
+                if existing_user_with_email and existing_user_with_email['_id'] != item_to_update['_id']:
+                    return {"success": False, "error": "Email address already exists. Each email can only be used once."}, 400
+
+                # Keep existing password (admin cannot manually change it)
+                existing_password = item_to_update.get('password', '')
+
+                # Update user data (password remains unchanged)
                 update_data = {
                     'username': username,
                     'registration_number': registration_number,
                     'email': email,
-                    'password': password
+                    'password': existing_password
                 }
             elif item_type == "room":
                 # Explicitly handle room updates to ensure all fields are updated

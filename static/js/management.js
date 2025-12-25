@@ -94,8 +94,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
                                     <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
                                 </td>
                             `;
+                        } else if (itemName === 'user') {
+                            // For users, show view password, edit, and delete
+                            rowHtml += `
+                                <td>
+                                    <button class="action-btn view-password" data-id="${index}" title="View Password"><i class="fas fa-eye"></i></button>
+                                    <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
+                                    <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
+                                </td>
+                            `;
                         } else {
-                            // For non-room items, keep both edit and delete
+                            // For other non-room items, keep both edit and delete
                             rowHtml += `
                                 <td>
                                     <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
@@ -115,6 +124,10 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     });
                     document.querySelectorAll('.delete').forEach(button => {
                         button.addEventListener('click', handleDelete);
+                    });
+                    // Add event listener for view password button (users only)
+                    document.querySelectorAll('.view-password').forEach(button => {
+                        button.addEventListener('click', handleViewPassword);
                     });
                 }
 
@@ -305,6 +318,38 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     }
 
+    function handleViewPassword(event) {
+        const userId = event.currentTarget.dataset.id;
+
+        // Show loading state
+        const btn = event.currentTarget;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch(`/get_user_password/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Restore button
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+
+                if (data.success) {
+                    alert(`User Credentials:\n\nUsername: ${data.username}\nRegistration Number: ${data.registration_number}\nEmail: ${data.email}\nPassword: ${data.password}\n\nNote: Password is displayed for admin reference only.`);
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to retrieve password'));
+                }
+            })
+            .catch(error => {
+                // Restore button
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+
+                alert('Error: Failed to communicate with server');
+                console.error('Error:', error);
+            });
+    }
+
     if (addBtn) {
         addBtn.onclick = function() {
             addModal.style.display = "block";
@@ -382,6 +427,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     fetchItems();
                     addModal.style.display = "none";
                     document.getElementById("addForm").reset();
+
+                    // If password was auto-generated (user creation), show it to admin
+                    if (data.password) {
+                        alert(`✅ User created successfully!\n\nUsername: ${data.username}\nPassword: ${data.password}\n\nThe password has been sent to the user's email.\nPlease save this password for your records.`);
+                    }
                 } else {
                     // Show error message
                     alert("Error: " + (data.error || "Failed to create user"));
