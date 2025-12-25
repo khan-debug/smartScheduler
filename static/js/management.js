@@ -54,16 +54,55 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     let rowHtml = `<td>${index + 1}</td>`;
                     formFields.forEach(field => {
                         if (field.table_display) {
-                            rowHtml += `<td>${item[field.name] || ''}</td>`;
+                            // Inline dropdown for Type field (Lab/Lecture Hall)
+                            if (field.name === 'type' && itemName === 'room') {
+                                const roomType = item[field.name] || 'Lab';
+                                const typeClass = roomType === 'Lab' ? 'type-lab' : 'type-lecture';
+
+                                rowHtml += `
+                                    <td>
+                                        <select class="type-dropdown ${typeClass}" data-room-id="${index}" data-current-value="${roomType}">
+                                            <option value="Lab" ${roomType === 'Lab' ? 'selected' : ''}>Lab</option>
+                                            <option value="Lecture Hall" ${roomType === 'Lecture Hall' ? 'selected' : ''}>Lecture Hall</option>
+                                        </select>
+                                    </td>
+                                `;
+                            }
+                            // Inline dropdown for availability field
+                            else if (field.name === 'availability') {
+                                const availability = item[field.name] || 'Available';
+                                const statusClass = availability === 'Not Available' ? 'status-not-available' : 'status-available';
+
+                                rowHtml += `
+                                    <td>
+                                        <select class="availability-dropdown ${statusClass}" data-room-id="${index}" data-current-value="${availability}">
+                                            <option value="Available" ${availability === 'Available' ? 'selected' : ''}>Available</option>
+                                            <option value="Not Available" ${availability === 'Not Available' ? 'selected' : ''}>Not Available</option>
+                                        </select>
+                                    </td>
+                                `;
+                            } else {
+                                rowHtml += `<td>${item[field.name] || ''}</td>`;
+                            }
                         }
                     });
                     if (!fromDashboard) {
-                        rowHtml += `
-                            <td>
-                                <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
-                            </td>
-                        `;
+                        // Only show delete button for rooms (edit is inline now)
+                        if (itemName === 'room') {
+                            rowHtml += `
+                                <td>
+                                    <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
+                                </td>
+                            `;
+                        } else {
+                            // For non-room items, keep both edit and delete
+                            rowHtml += `
+                                <td>
+                                    <button class="action-btn edit" data-id="${index}"><i class="fas fa-pencil-alt"></i></button>
+                                    <button class="action-btn delete" data-id="${index}"><i class="fas fa-trash-alt"></i></button>
+                                </td>
+                            `;
+                        }
                     }
                     tr.innerHTML = rowHtml;
                     itemList.appendChild(tr);
@@ -78,6 +117,140 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         button.addEventListener('click', handleDelete);
                     });
                 }
+
+                // Add event listeners for type dropdowns (rooms only)
+                document.querySelectorAll('.type-dropdown').forEach(dropdown => {
+                    dropdown.addEventListener('change', handleTypeChange);
+                });
+
+                // Add event listeners for availability dropdowns
+                document.querySelectorAll('.availability-dropdown').forEach(dropdown => {
+                    dropdown.addEventListener('change', handleAvailabilityChange);
+                });
+            });
+    }
+
+    function handleTypeChange(event) {
+        const dropdown = event.target;
+        const roomId = dropdown.dataset.roomId;
+        const newType = dropdown.value;
+        const oldValue = dropdown.dataset.currentValue;
+
+        console.log('Type changed:', {roomId, oldValue, newType});
+
+        // Update the dropdown styling immediately
+        dropdown.classList.remove('type-lab', 'type-lecture');
+        dropdown.classList.add(newType === 'Lab' ? 'type-lab' : 'type-lecture');
+
+        // Get the room data to update
+        fetch(getUrl)
+            .then(response => response.json())
+            .then(data => {
+                const room = data.items[roomId];
+
+                // Prepare update data
+                const updateData = {
+                    room_number: room.room_number,
+                    type: newType,
+                    availability: room.availability || 'Available'
+                };
+
+                console.log('Updating room type:', updateData);
+
+                // Send update to backend
+                fetch(`/update_item/${itemName}/${roomId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Type update response:', data);
+                    if (data.success) {
+                        console.log('Type updated successfully!');
+                        dropdown.dataset.currentValue = newType;
+                    } else {
+                        console.error('Failed to update type:', data.error);
+                        alert('Failed to update type: ' + (data.error || 'Unknown error'));
+                        // Revert dropdown to old value
+                        dropdown.value = oldValue;
+                        dropdown.classList.remove('type-lab', 'type-lecture');
+                        dropdown.classList.add(oldValue === 'Lab' ? 'type-lab' : 'type-lecture');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating type:', error);
+                    alert('Error updating type');
+                    // Revert dropdown to old value
+                    dropdown.value = oldValue;
+                    dropdown.classList.remove('type-lab', 'type-lecture');
+                    dropdown.classList.add(oldValue === 'Lab' ? 'type-lab' : 'type-lecture');
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching room data:', error);
+            });
+    }
+
+    function handleAvailabilityChange(event) {
+        const dropdown = event.target;
+        const roomId = dropdown.dataset.roomId;
+        const newAvailability = dropdown.value;
+        const oldValue = dropdown.dataset.currentValue;
+
+        console.log('Availability changed:', {roomId, oldValue, newAvailability});
+
+        // Update the dropdown styling immediately
+        dropdown.classList.remove('status-available', 'status-not-available');
+        dropdown.classList.add(newAvailability === 'Not Available' ? 'status-not-available' : 'status-available');
+
+        // Get the room data to update
+        fetch(getUrl)
+            .then(response => response.json())
+            .then(data => {
+                const room = data.items[roomId];
+
+                // Prepare update data
+                const updateData = {
+                    room_number: room.room_number,
+                    type: room.type,
+                    availability: newAvailability
+                };
+
+                console.log('Updating room availability:', updateData);
+
+                // Send update to backend
+                fetch(`/update_item/${itemName}/${roomId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Availability update response:', data);
+                    if (data.success) {
+                        console.log('Availability updated successfully!');
+                        dropdown.dataset.currentValue = newAvailability;
+                    } else {
+                        console.error('Failed to update availability:', data.error);
+                        alert('Failed to update availability: ' + (data.error || 'Unknown error'));
+                        // Revert dropdown to old value
+                        dropdown.value = oldValue;
+                        dropdown.classList.remove('status-available', 'status-not-available');
+                        dropdown.classList.add(oldValue === 'Not Available' ? 'status-not-available' : 'status-available');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating availability:', error);
+                    alert('Error updating availability');
+                    // Revert dropdown to old value
+                    dropdown.value = oldValue;
+                    dropdown.classList.remove('status-available', 'status-not-available');
+                    dropdown.classList.add(oldValue === 'Not Available' ? 'status-not-available' : 'status-available');
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching room data:', error);
             });
     }
 
@@ -88,17 +261,24 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .then(item => {
                 document.getElementById('editItemId').value = itemId;
                 formFields.forEach(field => {
-                    if (field.name === "floor_number") {
-                        document.getElementById(`edit_${field.name}`).value = item[field.name] || '';
-                        document.getElementById(`edit_${field.name}`).readOnly = true; // Make it read-only
-                    } else if (field.type === "select") {
-                        const selectElement = document.getElementById(`edit_${field.name}`);
-                        if (selectElement) {
-                            selectElement.value = item[field.name] || '';
+                    if (field.form_display) {
+                        // Default value for availability if not set
+                        let fieldValue = item[field.name] || '';
+                        if (field.name === 'availability' && !item[field.name]) {
+                            fieldValue = 'Available';
                         }
-                    }
-                    else {
-                        document.getElementById(`edit_${field.name}`).value = item[field.name] || '';
+
+                        if (field.type === "select") {
+                            const selectElement = document.getElementById(`edit_${field.name}`);
+                            if (selectElement) {
+                                selectElement.value = fieldValue;
+                            }
+                        } else {
+                            const inputElement = document.getElementById(`edit_${field.name}`);
+                            if (inputElement) {
+                                inputElement.value = fieldValue;
+                            }
+                        }
                     }
                 });
                 editModal.style.display = "block";
@@ -230,6 +410,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         });
 
+        // Debug logging
+        console.log('Updating room with data:', data);
+        console.log('Item type:', itemName);
+        console.log('Item ID:', itemId);
+
         fetch(`/update_item/${itemName}/${itemId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -237,12 +422,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Update response:', data);
             if (data.success) {
+                console.log('Update successful, refreshing table...');
                 fetchItems();
                 editModal.style.display = "none";
             } else {
                 // Show error message
-                alert("Error: " + (data.error || "Failed to update user"));
+                console.error('Update failed:', data.error);
+                alert("Error: " + (data.error || "Failed to update item"));
             }
         })
         .catch(error => {
@@ -253,6 +441,83 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Fetch items when the page loads
     fetchItems();
+
+    // Bulk create functionality for rooms
+    if (itemName === 'room' && MANAGEMENT_CONFIG.currentFloor) {
+        const bulkCreateBtn = document.getElementById('bulkCreateBtn');
+        const bulkModal = document.getElementById('bulkModal');
+        const bulkClose = document.getElementById('bulkClose');
+        const bulkCreateForm = document.getElementById('bulkCreateForm');
+        const currentFloor = MANAGEMENT_CONFIG.currentFloor;
+
+        if (bulkCreateBtn && bulkModal) {
+            bulkCreateBtn.onclick = function() {
+                bulkModal.style.display = 'block';
+            };
+
+            bulkClose.onclick = function() {
+                bulkModal.style.display = 'none';
+                bulkCreateForm.reset();
+                document.getElementById('bulkErrorMessage').style.display = 'none';
+            };
+
+            window.onclick = function(event) {
+                if (event.target == bulkModal) {
+                    bulkModal.style.display = 'none';
+                    bulkCreateForm.reset();
+                    document.getElementById('bulkErrorMessage').style.display = 'none';
+                }
+            };
+
+            bulkCreateForm.onsubmit = function(e) {
+                e.preventDefault();
+
+                // Use current floor number automatically
+                const formData = {
+                    floors: currentFloor.toString(),
+                    rooms_per_floor: document.getElementById('rooms_per_floor').value,
+                    type: document.getElementById('room_type').value
+                };
+
+                const errorMsg = document.getElementById('bulkErrorMessage');
+                errorMsg.style.display = 'none';
+
+                const submitBtn = bulkCreateForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Creating...';
+                submitBtn.disabled = true;
+
+                fetch('/bulk_create_rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        bulkModal.style.display = 'none';
+                        bulkCreateForm.reset();
+                        fetchItems();
+                    } else {
+                        errorMsg.textContent = data.error;
+                        errorMsg.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                    errorMsg.textContent = 'Error creating rooms: ' + error.message;
+                    errorMsg.style.display = 'block';
+                });
+            };
+        }
+    }
 
     // Special handling for course teacher lookup and section code
     if (itemName === 'course') {

@@ -10,8 +10,8 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
     <h1>Manage Rooms - Select Floor</h1>
     <div style="display: flex; gap: 12px;">
-        <button class="btn-submit" onclick="openBulkModal()" style="width: auto; padding: 12px 24px;">
-            Bulk Create Rooms
+        <button class="btn-success" onclick="openAddFloorModal()" style="width: auto; padding: 12px 24px;">
+            <i class="fas fa-plus"></i> Add New Floor
         </button>
         <button class="btn" onclick="window.location.href='/manage_rooms/all'" style="padding: 12px 24px;">
             View All Rooms
@@ -37,44 +37,26 @@
     </tbody>
 </table>
 
-<!-- Bulk Create Modal -->
-<div id="bulkModal" class="modal">
+<!-- Add Floor Modal -->
+<div id="addFloorModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>Bulk Create Rooms</h2>
-            <span class="close" id="bulkClose">&times;</span>
+            <h2>Add New Floor</h2>
+            <span class="close" id="addFloorClose">&times;</span>
         </div>
-        <form id="bulkCreateForm">
+        <form id="addFloorForm">
             <div class="form-group">
-                <label for="floors">Floor(s) *</label>
-                <input type="text" id="floors" name="floors" required
-                       placeholder="e.g., 1 or 1-6">
+                <label for="floor_number">Floor Number *</label>
+                <input type="number" id="floor_number" name="floor_number" min="1" required
+                       placeholder="e.g., 1">
                 <div class="help-text">
-                    Enter a single floor (1) or range (1-6)
+                    Enter the floor number. You can add rooms to this floor later.
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label for="rooms_per_floor">Rooms per Floor *</label>
-                <input type="number" id="rooms_per_floor" name="rooms_per_floor"
-                       min="1" required placeholder="e.g., 10">
-                <div class="help-text">
-                    Number of rooms to create on each floor
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="room_type">Room Type *</label>
-                <select id="room_type" name="type" required>
-                    <option value="">-- Select Type --</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Lecture Hall">Lecture Hall</option>
-                </select>
             </div>
 
             <div class="error-message" id="errorMessage" style="display: none;"></div>
 
-            <button type="submit" class="btn-submit">Create Rooms</button>
+            <button type="submit" class="btn-submit">Add Floor</button>
         </form>
     </div>
 </div>
@@ -162,9 +144,9 @@
     };
 
     function setupModal() {
-        const modal = document.getElementById('bulkModal');
-        const closeBtn = document.getElementById('bulkClose');
-        const form = document.getElementById('bulkCreateForm');
+        const modal = document.getElementById('addFloorModal');
+        const closeBtn = document.getElementById('addFloorClose');
+        const form = document.getElementById('addFloorForm');
 
         closeBtn.onclick = function() {
             modal.style.display = 'none';
@@ -182,12 +164,12 @@
 
         form.onsubmit = function(e) {
             e.preventDefault();
-            handleBulkCreate();
+            handleAddFloor();
         };
     }
 
-    function openBulkModal() {
-        document.getElementById('bulkModal').style.display = 'block';
+    function openAddFloorModal() {
+        document.getElementById('addFloorModal').style.display = 'block';
     }
 
     function loadFloors() {
@@ -224,7 +206,7 @@
                             <td colspan="4" class="empty-row">
                                 <div class="empty-icon">🏢</div>
                                 <div>No floors created yet</div>
-                                <div style="font-size: 0.9rem; margin-top: 8px;">Click "Bulk Create Rooms" to get started</div>
+                                <div style="font-size: 0.9rem; margin-top: 8px;">Click "Add New Floor" to get started</div>
                             </td>
                         </tr>
                     `;
@@ -280,22 +262,20 @@
         });
     }
 
-    function handleBulkCreate() {
+    function handleAddFloor() {
         const formData = {
-            floors: document.getElementById('floors').value,
-            rooms_per_floor: document.getElementById('rooms_per_floor').value,
-            type: document.getElementById('room_type').value
+            floor_number: document.getElementById('floor_number').value
         };
 
         const errorMsg = document.getElementById('errorMessage');
         errorMsg.style.display = 'none';
 
-        const submitBtn = document.querySelector('#bulkCreateForm button[type="submit"]');
+        const submitBtn = document.querySelector('#addFloorForm button[type="submit"]');
         const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Creating...';
+        submitBtn.textContent = 'Adding...';
         submitBtn.disabled = true;
 
-        fetch('/bulk_create_rooms', {
+        fetch('/add_floor', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -309,8 +289,8 @@
 
             if (data.success) {
                 alert('✅ ' + data.message);
-                document.getElementById('bulkModal').style.display = 'none';
-                document.getElementById('bulkCreateForm').reset();
+                document.getElementById('addFloorModal').style.display = 'none';
+                document.getElementById('addFloorForm').reset();
                 loadFloors();
             } else {
                 errorMsg.textContent = data.error;
@@ -320,7 +300,7 @@
         .catch(error => {
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
-            errorMsg.textContent = 'Error creating rooms: ' + error.message;
+            errorMsg.textContent = 'Error adding floor: ' + error.message;
             errorMsg.style.display = 'block';
         });
     }

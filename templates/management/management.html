@@ -13,7 +13,11 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h1>{{ header_title }}</h1>
     {% if not from_dashboard %}
+    {% if item_name == "Room" and current_floor %}
+    <button id="bulkCreateBtn" class="btn-success" style="padding: 10px 20px;">Add Rooms</button>
+    {% elif item_name != "Room" %}
     <button id="addBtn" class="btn-success">Add {{ item_name }}</button>
+    {% endif %}
     {% endif %}
 </div>
 
@@ -125,6 +129,111 @@
     </div>
 </div>
 
+<!-- Room Type and Availability Dropdown Styling -->
+<style>
+    /* Common dropdown styling */
+    .type-dropdown,
+    .availability-dropdown {
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: 2px solid;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 140px;
+        text-align: center;
+    }
+
+    /* Type dropdown styles */
+    .type-dropdown.type-lab {
+        background-color: #cfe2ff;
+        color: #084298;
+        border-color: #b6d4fe;
+    }
+
+    .type-dropdown.type-lab:hover {
+        background-color: #b6d4fe;
+        border-color: #9ec5fe;
+    }
+
+    .type-dropdown.type-lecture {
+        background-color: #e7d4f8;
+        color: #432874;
+        border-color: #d3b8e8;
+    }
+
+    .type-dropdown.type-lecture:hover {
+        background-color: #d3b8e8;
+        border-color: #c29fdc;
+    }
+
+    /* Availability dropdown styles */
+    .availability-dropdown.status-available {
+        background-color: #d4edda;
+        color: #155724;
+        border-color: #c3e6cb;
+    }
+
+    .availability-dropdown.status-available:hover {
+        background-color: #c3e6cb;
+        border-color: #b1dfbb;
+    }
+
+    .availability-dropdown.status-not-available {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+    }
+
+    .availability-dropdown.status-not-available:hover {
+        background-color: #f5c6cb;
+        border-color: #f1b0b7;
+    }
+
+    /* Focus state for all dropdowns */
+    .type-dropdown:focus,
+    .availability-dropdown:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+</style>
+
+{% if item_name == "Room" and current_floor %}
+<!-- Add Rooms Modal -->
+<div id="bulkModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Rooms to Floor {{ current_floor }}</h2>
+            <span class="close" id="bulkClose">&times;</span>
+        </div>
+        <form id="bulkCreateForm">
+            <div class="form-group">
+                <label for="rooms_per_floor">Number of Rooms *</label>
+                <input type="number" id="rooms_per_floor" name="rooms_per_floor"
+                       min="1" required placeholder="e.g., 10">
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; font-style: italic;">
+                    Rooms will be numbered sequentially from where they left off
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="room_type">Room Type *</label>
+                <select id="room_type" name="type" required>
+                    <option value="">-- Select Type --</option>
+                    <option value="Lab">Lab</option>
+                    <option value="Lecture Hall">Lecture Hall</option>
+                </select>
+            </div>
+
+            <div id="bulkErrorMessage" style="display: none; background-color: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #ff6b6b; padding: 12px 15px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 20px;"></div>
+
+            <button type="submit" class="btn-submit">Add Rooms</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <script>
     // Configuration for management page - rendered by Jinja
     const MANAGEMENT_CONFIG = {
@@ -132,7 +241,8 @@
         getUrl: "{{ get_url }}",
         itemName: "{{ item_name | lower }}",
         formFields: {{ form_fields | tojson }},
-        fromDashboard: {{ from_dashboard | tojson }}
+        fromDashboard: {{ from_dashboard | tojson }},
+        currentFloor: {{ current_floor | default('null') }}
     };
 </script>
 <script src="{{ url_for('static', filename='js/management.js') }}"></script>
