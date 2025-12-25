@@ -60,7 +60,7 @@
                     <i class="fas fa-eye-slash password-toggle" id="toggle_{{ field.name }}"></i>
                 </div>
                 {% else %}
-                <input type="{{ field.type }}" id="{{ field.name }}" name="{{ field.name }}" {% if field.readonly %}readonly{% endif %} required>
+                <input type="{{ field.type }}" id="{{ field.name }}" name="{{ field.name }}" {% if field.readonly %}readonly{% endif %} {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %} {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %} {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %} required>
                 {% endif %}
                 {% if field.name == 'confirm_password' %}
                 <div class="error-message" id="password_error" style="color: red; display: none;">Passwords do not match, please re-enter.</div>
@@ -98,7 +98,7 @@
                     <i class="fas fa-eye-slash password-toggle" id="toggle_edit_{{ field.name }}"></i>
                 </div>
                 {% else %}
-                <input type="{{ field.type }}" id="edit_{{ field.name }}" name="{{ field.name }}" {% if field.readonly %}readonly{% endif %} required>
+                <input type="{{ field.type }}" id="edit_{{ field.name }}" name="{{ field.name }}" {% if field.readonly %}readonly{% endif %} {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %} {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %} {% if field.placeholder %}placeholder="{{ field.placeholder }}"{% endif %} required>
                 {% endif %}
                 {% if field.name == 'confirm_password' %}
                 <div class="error-message" id="edit_password_error" style="color: red; display: none;">Passwords do not match, please re-enter.</div>

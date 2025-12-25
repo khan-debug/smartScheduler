@@ -243,6 +243,27 @@ def view_generated_timetable():
         page_title_text="Generated Timetable"
     )
 
+@app.route("/manual_timetable_edit")
+@login_required
+def manual_timetable_edit():
+    return render_template("pages/selectFloorEdit.html", active_page="generate")
+
+@app.route("/edit_timetable/<int:floor_number>")
+@login_required
+def edit_timetable_floor(floor_number):
+    return render_template(
+        "timetables/timetable_base.html",
+        floor_number=floor_number,
+        active_page="generate",
+        page_title="Edit Timetable",
+        hide_top_bar=True,
+        show_back_button=True,
+        show_teacher_header=False,
+        show_page_title=True,
+        page_title_text=f"Edit Timetable - Floor {floor_number}",
+        edit_mode=True
+    )
+
 # Route for Teacher View
 @app.route("/teacher")
 @login_required
@@ -730,7 +751,9 @@ def manage_courses():
         form_fields=[
             {"name": "course_name", "label": "Course Name", "type": "text", "table_display": True, "form_display": True},
             {"name": "credit_hour", "label": "Credit Hour", "type": "select", "options": ["1", "3"], "table_display": True, "form_display": True},
-            {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": True},
+            {"name": "shift", "label": "Shift Time", "type": "select", "options": ["Morning", "Evening"], "table_display": False, "form_display": True},
+            {"name": "section_digits", "label": "Section Code (3 digits)", "type": "text", "table_display": False, "form_display": True, "maxlength": "3", "pattern": "[0-9]{3}", "placeholder": "e.g., 123"},
+            {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": True, "readonly": True},
         ],
         from_dashboard=from_dashboard,
     )

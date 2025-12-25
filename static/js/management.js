@@ -253,4 +253,86 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     // Fetch items when the page loads
     fetchItems();
+
+    // Special handling for course section code (shift + 3 digits)
+    if (itemName === 'course') {
+        // Function to update section code based on shift and digits
+        function updateSectionCode(prefix) {
+            const shift = document.getElementById(`${prefix}shift`);
+            const digits = document.getElementById(`${prefix}section_digits`);
+            const sectionCode = document.getElementById(`${prefix}section_code`);
+
+            if (shift && digits && sectionCode) {
+                const updateCode = () => {
+                    const shiftValue = shift.value.toLowerCase().substring(0, 3); // "morning" -> "mor", "evening" -> "eve"
+                    const digitsValue = digits.value;
+                    if (shiftValue && digitsValue && digitsValue.length === 3) {
+                        sectionCode.value = shiftValue + digitsValue;
+                    }
+                };
+
+                shift.addEventListener('change', updateCode);
+                digits.addEventListener('input', updateCode);
+            }
+        }
+
+        // Function to parse section code into shift and digits when editing
+        function parseSectionCode(prefix) {
+            const sectionCode = document.getElementById(`${prefix}section_code`);
+            const shift = document.getElementById(`${prefix}shift`);
+            const digits = document.getElementById(`${prefix}section_digits`);
+
+            if (sectionCode && shift && digits && sectionCode.value) {
+                const code = sectionCode.value.toLowerCase();
+                if (code.startsWith('mor')) {
+                    shift.value = 'Morning';
+                    digits.value = code.substring(3);
+                } else if (code.startsWith('eve')) {
+                    shift.value = 'Evening';
+                    digits.value = code.substring(3);
+                }
+            }
+        }
+
+        // Setup for add form
+        updateSectionCode('');
+
+        // Override handleEdit to parse section code when editing
+        const originalHandleEdit = handleEdit;
+        handleEdit = function(event) {
+            const itemId = event.currentTarget.dataset.id;
+            fetch(`/get_item/${itemName}/${itemId}`)
+                .then(response => response.json())
+                .then(item => {
+                    document.getElementById('editItemId').value = itemId;
+                    formFields.forEach(field => {
+                        if (field.name === "floor_number") {
+                            document.getElementById(`edit_${field.name}`).value = item[field.name] || '';
+                            document.getElementById(`edit_${field.name}`).readOnly = true;
+                        } else if (field.type === "select") {
+                            const selectElement = document.getElementById(`edit_${field.name}`);
+                            if (selectElement) {
+                                selectElement.value = item[field.name] || '';
+                            }
+                        } else {
+                            document.getElementById(`edit_${field.name}`).value = item[field.name] || '';
+                        }
+                    });
+
+                    // Parse section code after populating fields
+                    parseSectionCode('edit_');
+
+                    // Setup listeners for edit form
+                    updateSectionCode('edit_');
+
+                    editModal.style.display = "block";
+                });
+        };
+
+        // Re-attach edit event listeners with new handler
+        document.querySelectorAll('.edit').forEach(button => {
+            button.removeEventListener('click', originalHandleEdit);
+            button.addEventListener('click', handleEdit);
+        });
+    }
 });
