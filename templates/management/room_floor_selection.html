@@ -1,0 +1,328 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Manage Rooms - Floor Selection{% endblock %}
+
+{% block top_bar %}{% endblock %}
+
+{% block content %}
+<button class="back-button" onclick="history.back()">&#8592;</button>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <h1>Manage Rooms - Select Floor</h1>
+    <div style="display: flex; gap: 12px;">
+        <button class="btn-submit" onclick="openBulkModal()" style="width: auto; padding: 12px 24px;">
+            Bulk Create Rooms
+        </button>
+        <button class="btn" onclick="window.location.href='/manage_rooms/all'" style="padding: 12px 24px;">
+            View All Rooms
+        </button>
+    </div>
+</div>
+
+<table class="user-list-table" id="floorTable">
+    <thead>
+        <tr>
+            <th>Sr No.</th>
+            <th>Floor Number</th>
+            <th>Total Rooms</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="floorTableBody">
+        <tr>
+            <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                Loading floors...
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- Bulk Create Modal -->
+<div id="bulkModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Bulk Create Rooms</h2>
+            <span class="close" id="bulkClose">&times;</span>
+        </div>
+        <form id="bulkCreateForm">
+            <div class="form-group">
+                <label for="floors">Floor(s) *</label>
+                <input type="text" id="floors" name="floors" required
+                       placeholder="e.g., 1 or 1-6">
+                <div class="help-text">
+                    Enter a single floor (1) or range (1-6)
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="rooms_per_floor">Rooms per Floor *</label>
+                <input type="number" id="rooms_per_floor" name="rooms_per_floor"
+                       min="1" required placeholder="e.g., 10">
+                <div class="help-text">
+                    Number of rooms to create on each floor
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="room_type">Room Type *</label>
+                <select id="room_type" name="type" required>
+                    <option value="">-- Select Type --</option>
+                    <option value="Lab">Lab</option>
+                    <option value="Lecture Hall">Lecture Hall</option>
+                </select>
+            </div>
+
+            <div class="error-message" id="errorMessage" style="display: none;"></div>
+
+            <button type="submit" class="btn-submit">Create Rooms</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .help-text {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-top: 6px;
+        font-style: italic;
+    }
+
+    .error-message {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.3);
+        color: #ff6b6b;
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    .floor-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .floor-row:hover {
+        background-color: rgba(0, 123, 255, 0.05);
+    }
+
+    .btn-view {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        background-color: var(--accent-blue);
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-view:hover {
+        background-color: #0056b3;
+        transform: translateY(-1px);
+    }
+
+    .btn-delete {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        background-color: #dc3545;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-left: 8px;
+    }
+
+    .btn-delete:hover {
+        background-color: #c82333;
+        transform: translateY(-1px);
+    }
+
+    .empty-row {
+        text-align: center;
+        padding: 60px 20px !important;
+        color: var(--text-secondary);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        opacity: 0.3;
+    }
+</style>
+
+<script>
+    // Load floors on page load
+    window.onload = function() {
+        loadFloors();
+        setupModal();
+    };
+
+    function setupModal() {
+        const modal = document.getElementById('bulkModal');
+        const closeBtn = document.getElementById('bulkClose');
+        const form = document.getElementById('bulkCreateForm');
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+            form.reset();
+            document.getElementById('errorMessage').style.display = 'none';
+        };
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+                form.reset();
+                document.getElementById('errorMessage').style.display = 'none';
+            }
+        };
+
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            handleBulkCreate();
+        };
+    }
+
+    function openBulkModal() {
+        document.getElementById('bulkModal').style.display = 'block';
+    }
+
+    function loadFloors() {
+        fetch('/get_floors')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('floorTableBody');
+
+                if (data.floors && data.floors.length > 0) {
+                    tbody.innerHTML = '';
+                    data.floors.forEach((floor, index) => {
+                        const row = document.createElement('tr');
+                        row.className = 'floor-row';
+
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>Floor ${floor.floor}</td>
+                            <td>${floor.count} room${floor.count !== 1 ? 's' : ''}</td>
+                            <td>
+                                <button class="btn-view" onclick="window.location.href='/manage_rooms/floor/${floor.floor}'">
+                                    View Rooms
+                                </button>
+                                <button class="btn-delete" onclick="deleteFloor(${floor.floor}, ${floor.count}); event.stopPropagation();">
+                                    Delete Floor
+                                </button>
+                            </td>
+                        `;
+
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="empty-row">
+                                <div class="empty-icon">🏢</div>
+                                <div>No floors created yet</div>
+                                <div style="font-size: 0.9rem; margin-top: 8px;">Click "Bulk Create Rooms" to get started</div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading floors:', error);
+                document.getElementById('floorTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty-row">
+                            <div class="empty-icon">⚠️</div>
+                            <div>Error loading floors</div>
+                            <div style="font-size: 0.9rem; margin-top: 8px;">Please refresh the page</div>
+                        </td>
+                    </tr>
+                `;
+            });
+    }
+
+    function deleteFloor(floorNumber, roomCount) {
+        // Confirmation dialog
+        const confirmMessage = `Are you sure you want to delete Floor ${floorNumber}?\n\nThis will permanently delete all ${roomCount} room${roomCount !== 1 ? 's' : ''} on this floor.\n\nThis action cannot be undone!`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        // Show loading state
+        const deleteButtons = document.querySelectorAll('.btn-delete');
+        deleteButtons.forEach(btn => btn.disabled = true);
+
+        fetch(`/delete_floor/${floorNumber}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            deleteButtons.forEach(btn => btn.disabled = false);
+
+            if (data.success) {
+                alert('✅ ' + data.message);
+                loadFloors(); // Reload the floor list
+            } else {
+                alert('❌ Error: ' + (data.error || 'Failed to delete floor'));
+            }
+        })
+        .catch(error => {
+            deleteButtons.forEach(btn => btn.disabled = false);
+            alert('❌ Error deleting floor: ' + error.message);
+            console.error('Error:', error);
+        });
+    }
+
+    function handleBulkCreate() {
+        const formData = {
+            floors: document.getElementById('floors').value,
+            rooms_per_floor: document.getElementById('rooms_per_floor').value,
+            type: document.getElementById('room_type').value
+        };
+
+        const errorMsg = document.getElementById('errorMessage');
+        errorMsg.style.display = 'none';
+
+        const submitBtn = document.querySelector('#bulkCreateForm button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Creating...';
+        submitBtn.disabled = true;
+
+        fetch('/bulk_create_rooms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+
+            if (data.success) {
+                alert('✅ ' + data.message);
+                document.getElementById('bulkModal').style.display = 'none';
+                document.getElementById('bulkCreateForm').reset();
+                loadFloors();
+            } else {
+                errorMsg.textContent = data.error;
+                errorMsg.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            errorMsg.textContent = 'Error creating rooms: ' + error.message;
+            errorMsg.style.display = 'block';
+        });
+    }
+</script>
+{% endblock %}

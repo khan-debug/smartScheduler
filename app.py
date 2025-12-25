@@ -272,10 +272,17 @@ def manage_users():
 @app.route("/manage_rooms")
 @login_required
 def manage_rooms():
+    # Show floor selection page
+    return render_template("management/room_floor_selection.html", active_page="admin")
+
+@app.route("/manage_rooms/all")
+@login_required
+def manage_rooms_all():
+    # View all rooms in one table
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
         "management/management.html",
-        header_title="Manage Rooms",
+        header_title="Manage Rooms - All Floors",
         item_name="Room",
         add_url="/add_room",
         get_url="/get_rooms",
@@ -285,6 +292,28 @@ def manage_rooms():
             {"name": "floor_number", "label": "Floor Number", "table_display": True, "form_display": False},
         ],
         from_dashboard=from_dashboard,
+        show_back_button=True,
+        back_url="/manage_rooms"
+    )
+
+@app.route("/manage_rooms/floor/<int:floor_number>")
+@login_required
+def manage_rooms_floor(floor_number):
+    # View rooms for specific floor
+    return render_template(
+        "management/management.html",
+        header_title=f"Manage Rooms - Floor {floor_number}",
+        item_name="Room",
+        add_url="/add_room",
+        get_url=f"/get_rooms_by_floor/{floor_number}",
+        form_fields=[
+            {"name": "room_number", "label": "Room Number", "type": "text", "table_display": True, "form_display": True},
+            {"name": "type", "label": "Type", "type": "select", "options": ["Lab", "Lecture Hall"], "table_display": True, "form_display": True},
+            {"name": "floor_number", "label": "Floor Number", "table_display": True, "form_display": False},
+        ],
+        from_dashboard=False,
+        show_back_button=True,
+        back_url="/manage_rooms"
     )
 
 
@@ -317,8 +346,216 @@ def get_rooms():
 @login_required
 def add_room():
     data = request.get_json()
+    room_number = data.get('room_number')
+
+    # Validate room number format (should be 3 digits minimum)
+    if not room_number or len(str(room_number)) < 3:
+        return {"success": False, "error": "Room number must be at least 3 digits (e.g., 101)"}, 400
+
+    # Extract floor from room number
+    floor = str(room_number)[:-2]
+    room_on_floor = str(room_number)[-2:]
+
+    # Get all rooms on this floor
+    floor_rooms = list(rooms_collection.find({}))
+    floor_rooms = [r for r in floor_rooms if str(r.get('room_number', '')).startswith(floor)]
+
+    if floor_rooms:
+        # Sort rooms to find the highest room number on this floor
+        room_numbers = sorted([int(r.get('room_number', 0)) for r in floor_rooms])
+        expected_next = room_numbers[-1] + 1
+
+        # Check if the new room number is sequential
+        if int(room_number) != expected_next:
+            return {
+                "success": False,
+                "error": f"Room number must be sequential. Expected {expected_next}, got {room_number}. No gaps allowed."
+            }, 400
+
     rooms_collection.insert_one(data)
     return {"success": True}
+
+@app.route("/bulk_create_rooms", methods=["POST"])
+@login_required
+def bulk_create_rooms():
+    data = request.get_json()
+    floor_input = data.get('floors', '').strip()
+    rooms_per_floor = data.get('rooms_per_floor')
+    room_type = data.get('type')
+
+    # Validate inputs
+    if not floor_input or not rooms_per_floor or not room_type:
+        return {"success": False, "error": "All fields are required"}, 400
+
+    try:
+        rooms_per_floor = int(rooms_per_floor)
+        if rooms_per_floor < 1:
+            return {"success": False, "error": "Rooms per floor must be at least 1"}, 400
+    except ValueError:
+        return {"success": False, "error": "Rooms per floor must be a number"}, 400
+
+    # Parse floor input (single floor or range)
+    floors = []
+    if '-' in floor_input:
+        # Range like "1-6"
+        try:
+            start, end = floor_input.split('-')
+            start, end = int(start.strip()), int(end.strip())
+            if start > end:
+                return {"success": False, "error": "Invalid floor range"}, 400
+            floors = list(range(start, end + 1))
+        except:
+            return {"success": False, "error": "Invalid floor format. Use single number (1) or range (1-6)"}, 400
+    else:
+        # Single floor
+        try:
+            floors = [int(floor_input)]
+        except:
+            return {"success": False, "error": "Floor must be a number"}, 400
+
+    # Auto-fill missing floors to avoid gaps
+    # Get existing floors from database
+    all_rooms = list(rooms_collection.find({}))
+    existing_floors = set()
+    for room in all_rooms:
+        room_number = str(room.get('room_number', ''))
+        if len(room_number) >= 3:
+            floor_num = room_number[:-2]
+            existing_floors.add(int(floor_num))
+
+    # Find the range we need to cover
+    if existing_floors:
+        min_existing = min(existing_floors)
+        max_requested = max(floors)
+        min_requested = min(floors)
+
+        # Determine the full range we need to create (fill gaps)
+        start_floor = min(min_existing, min_requested)
+        end_floor = max_requested
+
+        # Create a complete range with no gaps
+        floors_to_create = list(range(start_floor, end_floor + 1))
+    else:
+        # No existing floors, just create the requested ones
+        floors_to_create = floors
+
+    # Create rooms for each floor
+    created_count = 0
+    updated_count = 0
+    gap_filled_count = 0
+
+    for floor in floors_to_create:
+        # Check if this floor was in the original request or is a gap-fill
+        is_gap_fill = floor not in floors
+
+        # Delete existing rooms on this floor
+        deleted = rooms_collection.delete_many({
+            "room_number": {"$regex": f"^{floor}"}
+        })
+
+        if deleted.deleted_count > 0:
+            updated_count += 1
+
+        # Create new rooms
+        for room_num in range(1, rooms_per_floor + 1):
+            room_number = f"{floor}{room_num:02d}"  # Format: 101, 102, etc.
+            room_data = {
+                "room_number": room_number,
+                "type": room_type
+            }
+            rooms_collection.insert_one(room_data)
+            created_count += 1
+
+        if is_gap_fill:
+            gap_filled_count += 1
+
+    # Build message
+    message_parts = []
+    if gap_filled_count > 0:
+        message_parts.append(f"Auto-filled {gap_filled_count} missing floor(s)")
+
+    total_floors = len(floors_to_create)
+    message_parts.append(f"Created {created_count} rooms on {total_floors} floor(s)")
+
+    if updated_count > 0:
+        message_parts.append(f"Updated {updated_count} existing floor(s)")
+
+    return {
+        "success": True,
+        "message": " | ".join(message_parts)
+    }
+
+@app.route("/get_floors", methods=["GET"])
+@login_required
+def get_floors():
+    """Get all floors with room counts"""
+    all_rooms = list(rooms_collection.find({}))
+
+    # Group rooms by floor
+    floors = {}
+    for room in all_rooms:
+        room_number = str(room.get('room_number', ''))
+        if len(room_number) >= 3:
+            floor = room_number[:-2]
+            if floor not in floors:
+                floors[floor] = 0
+            floors[floor] += 1
+
+    # Convert to list format
+    floor_list = [
+        {"floor": int(floor), "count": count}
+        for floor, count in sorted(floors.items(), key=lambda x: int(x[0]))
+    ]
+
+    return {"floors": floor_list}
+
+@app.route("/get_rooms_by_floor/<int:floor_number>", methods=["GET"])
+@login_required
+def get_rooms_by_floor(floor_number):
+    """Get all rooms on a specific floor"""
+    rooms_list = list(rooms_collection.find({
+        "room_number": {"$regex": f"^{floor_number}"}
+    }))
+
+    rooms_with_floor = []
+    for room in rooms_list:
+        room_data = room.copy()
+        room_data['_id'] = str(room_data['_id'])
+        room_number_str = room_data.get("room_number", "")
+        room_data["floor_number"] = _extract_floor_from_room_number(room_number_str)
+        rooms_with_floor.append(room_data)
+
+    # Sort by room number
+    rooms_with_floor.sort(key=lambda x: int(x.get('room_number', 0)))
+
+    return {"items": rooms_with_floor}
+
+@app.route("/delete_floor/<int:floor_number>", methods=["DELETE"])
+@login_required
+def delete_floor(floor_number):
+    """Delete an entire floor and all its rooms"""
+    try:
+        # Delete all rooms on this floor
+        result = rooms_collection.delete_many({
+            "room_number": {"$regex": f"^{floor_number}"}
+        })
+
+        if result.deleted_count > 0:
+            return {
+                "success": True,
+                "message": f"Deleted floor {floor_number} ({result.deleted_count} rooms)"
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Floor {floor_number} not found or already empty"
+            }, 404
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Error deleting floor: {str(e)}"
+        }, 500
 
 @app.route("/manage_courses")
 @login_required

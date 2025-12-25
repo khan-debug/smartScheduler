@@ -5,7 +5,11 @@
 {% block top_bar %}{% endblock %}
 
 {% block content %}
+{% if show_back_button %}
+<button class="back-button" onclick="window.location.href='{{ back_url }}'">&#8592;</button>
+{% else %}
 <button class="back-button" onclick="history.back()">&#8592;</button>
+{% endif %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h1>{{ header_title }}</h1>
     {% if not from_dashboard %}
