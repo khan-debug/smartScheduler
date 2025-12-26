@@ -1,4 +1,4 @@
-# SmartScheduler (prototype 2.2)
+# SmartScheduler (prototype 2.3)
 
 A web-based timetable management system for educational institutions. Manage users, rooms, courses, and generate schedules efficiently.
 
