@@ -247,9 +247,18 @@
 
         <form id="scheduleForm">
             <div class="form-group">
+                <label>Select Shift *</label>
+                <div class="day-buttons">
+                    <div class="day-btn" onclick="selectShift('Morning')">Morning</div>
+                    <div class="day-btn" onclick="selectShift('Evening')">Evening</div>
+                </div>
+                <input type="hidden" id="selectedShift" required>
+            </div>
+
+            <div class="form-group">
                 <label>Select Course *</label>
                 <select id="courseSelect" onchange="loadSections()" required>
-                    <option value="">-- Select a Course --</option>
+                    <option value="">-- Select Shift First --</option>
                 </select>
             </div>
 
@@ -295,9 +304,12 @@
 <script>
     let allRooms = [];
     let allCourses = [];
+    let uniqueCourses = []; // Unique courses (grouped by name with aggregated sections)
     let selectedRoom = null;
     let selectedCourse = null;
     let selectedDayValue = null;
+    let selectedShift = null;
+    let scheduledCourses = []; // Courses already scheduled in the selected room
 
     let selectedFloor = null;
 
@@ -385,9 +397,75 @@
 
     function populateCourseDropdown() {
         const courseSelect = document.getElementById('courseSelect');
+
+        if (!selectedShift) {
+            courseSelect.innerHTML = '<option value="">-- Select Shift First --</option>';
+            return;
+        }
+
         courseSelect.innerHTML = '<option value="">-- Select a Course --</option>';
 
+        // Get list of course names already scheduled in this room (to exclude entire course if already scheduled)
+        const scheduledCourseNames = scheduledCourses.map(sc => sc.course_name);
+
+        // Group courses by course name and aggregate their sections
+        const courseMap = new Map();
+
         allCourses.forEach(course => {
+            // Skip if this course is already scheduled
+            if (scheduledCourseNames.includes(course.course_name)) {
+                return;
+            }
+
+            // Check if course has sections matching the selected shift
+            const hasMatchingSections = course.sections && course.sections.some(section => {
+                const sectionCode = typeof section === 'string' ? section : section.section_code;
+                if (selectedShift === 'Morning') {
+                    return sectionCode && sectionCode.startsWith('MOR');
+                } else if (selectedShift === 'Evening') {
+                    return sectionCode && sectionCode.startsWith('EVE');
+                }
+                return false;
+            });
+
+            if (!hasMatchingSections) {
+                return; // Skip courses without matching sections
+            }
+
+            // Group by course name
+            const key = course.course_name;
+            if (!courseMap.has(key)) {
+                courseMap.set(key, {
+                    _id: course._id,
+                    course_name: course.course_name,
+                    teacher_name: course.teacher_name,
+                    credit_hour: course.credit_hour,
+                    shift: course.shift,
+                    course_type: course.course_type,
+                    teacher_registration: course.teacher_registration,
+                    sections: []
+                });
+            }
+
+            // Add sections from this course instance
+            const existingCourse = courseMap.get(key);
+            course.sections.forEach(section => {
+                const sectionCode = typeof section === 'string' ? section : section.section_code;
+                if (!existingCourse.sections.includes(sectionCode)) {
+                    existingCourse.sections.push(sectionCode);
+                }
+            });
+        });
+
+        // Store unique courses globally for use in loadSections
+        uniqueCourses = Array.from(courseMap.values());
+
+        if (uniqueCourses.length === 0) {
+            courseSelect.innerHTML = `<option value="">No ${selectedShift} courses available</option>`;
+            return;
+        }
+
+        uniqueCourses.forEach(course => {
             const option = document.createElement('option');
             option.value = course._id;
             option.textContent = `${course.course_name} (${course.teacher_name}, ${course.credit_hour}h)`;
@@ -408,8 +486,9 @@
             </p>`;
 
             rooms.forEach(room => {
+                const floorNum = room.floor || room.floor_number || selectedFloor;
                 html += `
-                    <div class="room-card" onclick="selectRoom('${room.room_number}', '${room.type}', '${room.floor}')">
+                    <div class="room-card" onclick="selectRoom('${room.room_number}', '${room.type}', '${floorNum}')">
                         <div class="room-number">Room ${room.room_number}</div>
                         <div class="room-info">
                             <span>Type: ${room.type}</span>
@@ -453,16 +532,55 @@
 
         // Reset form
         document.getElementById('scheduleForm').reset();
+        document.getElementById('courseSelect').innerHTML = '<option value="">-- Select Shift First --</option>';
         document.getElementById('sectionSelect').innerHTML = '<option value="">-- Select Course First --</option>';
         document.getElementById('endTime').textContent = 'Select start time first';
         selectedDayValue = null;
         selectedCourse = null;
+        selectedShift = null;
         document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('selected'));
         document.getElementById('errorMessage').style.display = 'none';
         document.getElementById('successMessage').style.display = 'none';
 
+        // Load already scheduled classes for this room
+        loadScheduledClassesForRoom(roomNumber);
+
         // Show modal
         document.getElementById('scheduleModal').style.display = 'block';
+    }
+
+    function loadScheduledClassesForRoom(roomNumber) {
+        fetch(`/get_scheduled_classes?room=${encodeURIComponent(roomNumber)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.classes) {
+                    scheduledCourses = data.classes;
+                    console.log('Scheduled courses for room:', scheduledCourses);
+                } else {
+                    scheduledCourses = [];
+                }
+            })
+            .catch(error => {
+                console.error('Error loading scheduled classes:', error);
+                scheduledCourses = [];
+            });
+    }
+
+    function selectShift(shift) {
+        selectedShift = shift;
+        document.getElementById('selectedShift').value = shift;
+
+        // Update button states
+        document.querySelectorAll('.day-buttons .day-btn').forEach(btn => {
+            if (btn.textContent === shift) {
+                btn.classList.add('selected');
+            } else if (btn.textContent === 'Morning' || btn.textContent === 'Evening') {
+                btn.classList.remove('selected');
+            }
+        });
+
+        // Update course dropdown based on selected shift
+        populateCourseDropdown();
     }
 
     function closeModal() {
@@ -479,8 +597,8 @@
             return;
         }
 
-        // Find selected course
-        selectedCourse = allCourses.find(c => c._id === courseId);
+        // Find selected course from unique courses (which have aggregated sections)
+        selectedCourse = uniqueCourses.find(c => c._id === courseId);
 
         if (!selectedCourse) {
             console.error('Course not found');
@@ -497,7 +615,7 @@
             document.getElementById('timeConstraint').textContent = 'Evening classes: 5:00 PM - 10:00 PM only';
         }
 
-        // Populate sections dropdown
+        // Populate sections dropdown - filter by selected shift
         const sectionSelect = document.getElementById('sectionSelect');
         sectionSelect.innerHTML = '';
 
@@ -511,14 +629,36 @@
             return;
         }
 
-        // If only one section, auto-select it
-        if (selectedCourse.sections.length === 1) {
+        // Filter sections based on selected shift
+        let filteredSections = selectedCourse.sections;
+        if (selectedShift === 'Morning') {
+            filteredSections = selectedCourse.sections.filter(section =>
+                section.section_code ? section.section_code.startsWith('MOR') : section.startsWith('MOR')
+            );
+        } else if (selectedShift === 'Evening') {
+            filteredSections = selectedCourse.sections.filter(section =>
+                section.section_code ? section.section_code.startsWith('EVE') : section.startsWith('EVE')
+            );
+        }
+
+        if (filteredSections.length === 0) {
             const option = document.createElement('option');
-            option.value = selectedCourse.sections[0];
-            option.textContent = selectedCourse.sections[0];
+            option.value = '';
+            option.textContent = `No ${selectedShift} sections available`;
+            sectionSelect.appendChild(option);
+            return;
+        }
+
+        // If only one section, auto-select it
+        if (filteredSections.length === 1) {
+            const section = filteredSections[0];
+            const sectionCode = section.section_code || section;
+            const option = document.createElement('option');
+            option.value = sectionCode;
+            option.textContent = sectionCode;
             option.selected = true;
             sectionSelect.appendChild(option);
-            console.log('Auto-selected single section:', selectedCourse.sections[0]);
+            console.log('Auto-selected single section:', sectionCode);
         } else {
             // Multiple sections - show dropdown
             const defaultOption = document.createElement('option');
@@ -526,13 +666,14 @@
             defaultOption.textContent = '-- Select a Section --';
             sectionSelect.appendChild(defaultOption);
 
-            selectedCourse.sections.forEach(section => {
+            filteredSections.forEach(section => {
+                const sectionCode = section.section_code || section;
                 const option = document.createElement('option');
-                option.value = section;
-                option.textContent = section;
+                option.value = sectionCode;
+                option.textContent = sectionCode;
                 sectionSelect.appendChild(option);
             });
-            console.log('Sections loaded for course:', selectedCourse.course_name);
+            console.log('Filtered sections loaded for course:', selectedCourse.course_name);
         }
     }
 

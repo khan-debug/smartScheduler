@@ -80,6 +80,93 @@
         font-weight: 600;
         margin-top: 15px;
     }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.6);
+    }
+
+    .modal-content {
+        background-color: var(--primary-dark);
+        margin: 10% auto;
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 25px 30px;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .modal-body {
+        padding: 30px;
+    }
+
+    .action-buttons {
+        display: grid;
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .action-btn {
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--card-bg) 100%);
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        color: var(--text-primary);
+    }
+
+    .action-btn:hover {
+        border-color: var(--accent-blue);
+        transform: translateX(5px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .action-btn-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .action-btn-desc {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .close-modal {
+        color: white;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        opacity: 0.8;
+        line-height: 1;
+    }
+
+    .close-modal:hover {
+        opacity: 1;
+    }
 </style>
 
 <button class="back-button" onclick="history.back()">&#8592;</button>
@@ -90,24 +177,90 @@
 
     <div class="options-grid">
         <!-- Edit by Course -->
-        <a href="/manual_edit_by_course" class="option-card">
+        <div class="option-card" onclick="showActionModal('course')">
             <div class="option-icon">📚</div>
             <h2 class="option-title">Edit by Course</h2>
             <p class="option-description">
                 Select a course and section, then assign a time slot and room to schedule the class.
             </p>
             <span class="option-badge">Recommended</span>
-        </a>
+        </div>
 
         <!-- Edit by Room -->
-        <a href="/manual_edit_by_room" class="option-card">
+        <div class="option-card" onclick="showActionModal('room')">
             <div class="option-icon">🚪</div>
             <h2 class="option-title">Edit by Room</h2>
             <p class="option-description">
                 Select a room first, then choose courses to schedule in that specific room.
             </p>
             <span class="option-badge">Room-based</span>
-        </a>
+        </div>
     </div>
 </div>
+
+<!-- Action Selection Modal -->
+<div id="actionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="close-modal" onclick="closeActionModal()">&times;</span>
+            <h2>Choose an Action</h2>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                What would you like to do?
+            </p>
+            <div class="action-buttons">
+                <div class="action-btn" onclick="scheduleClass()">
+                    <div class="action-btn-title">📅 Schedule a Class</div>
+                    <div class="action-btn-desc">
+                        Add a new class to the timetable
+                    </div>
+                </div>
+                <div class="action-btn" onclick="editScheduledClass()">
+                    <div class="action-btn-title">✏️ Edit Scheduled Class</div>
+                    <div class="action-btn-desc">
+                        Modify or remove an existing scheduled class
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedEditMode = null; // 'course' or 'room'
+
+    function showActionModal(mode) {
+        selectedEditMode = mode;
+        document.getElementById('actionModal').style.display = 'block';
+    }
+
+    function closeActionModal() {
+        document.getElementById('actionModal').style.display = 'none';
+        selectedEditMode = null;
+    }
+
+    function scheduleClass() {
+        if (selectedEditMode === 'course') {
+            window.location.href = '/manual_edit_by_course';
+        } else if (selectedEditMode === 'room') {
+            window.location.href = '/manual_edit_by_room';
+        }
+    }
+
+    function editScheduledClass() {
+        // TODO: Implement edit scheduled class feature
+        alert('Edit Scheduled Class feature will be implemented soon!');
+        closeActionModal();
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('actionModal');
+        if (event.target == modal) {
+            closeActionModal();
+        }
+    };
+</script>
+
 {% endblock %}
