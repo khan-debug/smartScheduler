@@ -564,6 +564,7 @@ h2 {
     overflow-x: scroll;
     max-height: 75vh;
     overflow-y: auto;
+    position: relative; /* Enable absolute positioning for overlay */
 }
 
 .timetable {
@@ -576,6 +577,8 @@ h2 {
     border: 1px solid var(--border-color);
     padding: 20px;
     text-align: center;
+    height: 60px; /* Fixed height for precise positioning calculations */
+    min-height: 60px;
 }
 
 .timetable thead th {
@@ -593,6 +596,88 @@ h2 {
 
 .timetable tbody tr:nth-child(odd) {
     background-color: #22223a;
+}
+
+/* --- Timetable Overlay for Precise Positioning --- */
+.timetable-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none; /* Allow clicks to pass through to table */
+    z-index: 10;
+}
+
+.class-overlay-item {
+    position: absolute;
+    pointer-events: auto; /* Re-enable clicks for class items */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.class-overlay-item:hover {
+    z-index: 20;
+    transform: scale(1.02);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+}
+
+.class-card-overlay {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.class-card-overlay .class-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.class-card-overlay .class-info {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    line-height: 1.3;
+}
+
+.count-badge-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    font-size: 1rem;
+    font-weight: 700;
+    min-width: 40px;
+    min-height: 40px;
+    height: 100%;
+    width: 100%;
+}
+
+.count-badge-overlay:hover {
+    transform: scale(1.15);
+}
+
+/* Minimum height for very short classes */
+.class-overlay-item.short-duration {
+    min-height: 30px;
+}
+
+.class-overlay-item.short-duration .class-card-overlay {
+    padding: 4px 6px;
+    font-size: 0.75rem;
 }
 
 /* --- User List Table (Management) --- */

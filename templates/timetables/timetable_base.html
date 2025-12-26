@@ -58,6 +58,9 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Overlay container for precisely positioned classes -->
+    <div class="timetable-overlay" id="timetableOverlay"></div>
 </div>
 
 <!-- Class Details Modal (for floor view) -->
@@ -173,12 +176,89 @@
         }
     };
 
+    // ========== Position Calculation Functions ==========
+
+    const TIME_CONSTANTS = {
+        START_HOUR: 8,
+        ROW_HEIGHT: 60,  // Must match CSS height
+        TIME_COL_WIDTH: 100
+    };
+
+    /**
+     * Convert time string (HH:MM) to minutes since start of day
+     */
+    function timeToMinutes(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+    }
+
+    /**
+     * Calculate top position in pixels for a given time
+     */
+    function calculateTopPosition(timeStr, tableTop, headerHeight) {
+        const timeMinutes = timeToMinutes(timeStr);
+        const startMinutes = TIME_CONSTANTS.START_HOUR * 60;
+        const minutesSinceStart = timeMinutes - startMinutes;
+        const pixelsPerMinute = TIME_CONSTANTS.ROW_HEIGHT / 60;
+        return tableTop + headerHeight + (minutesSinceStart * pixelsPerMinute);
+    }
+
+    /**
+     * Calculate height in pixels for a class duration
+     */
+    function calculateClassHeight(startTime, endTime) {
+        const durationMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
+        const pixelsPerMinute = TIME_CONSTANTS.ROW_HEIGHT / 60;
+        return durationMinutes * pixelsPerMinute;
+    }
+
+    /**
+     * Calculate left position and width for a day column
+     */
+    function calculateDayPosition(day, tableLeft) {
+        const dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday',
+                          'Friday', 'Saturday', 'Sunday'].indexOf(day);
+
+        // Get the actual cell for this day to measure its position and width
+        const dayCell = document.querySelector(`td[data-day="${day}"]`);
+        if (!dayCell) return { left: 0, width: 0 };
+
+        const container = document.querySelector('.timetable-container');
+        const containerRect = container.getBoundingClientRect();
+        const cellRect = dayCell.getBoundingClientRect();
+
+        return {
+            left: cellRect.left - containerRect.left,
+            width: cellRect.width
+        };
+    }
+
+    /**
+     * Get table dimensions and offsets
+     */
+    function getTableDimensions() {
+        const table = document.getElementById('timetableTable');
+        const tableRect = table.getBoundingClientRect();
+        const container = document.querySelector('.timetable-container');
+        const containerRect = container.getBoundingClientRect();
+        const header = table.querySelector('thead tr');
+
+        return {
+            tableTop: tableRect.top - containerRect.top,
+            tableLeft: tableRect.left - containerRect.left,
+            headerHeight: header ? header.offsetHeight : 0
+        };
+    }
+
     function loadFloorTimetable(floor) {
         // Load aggregate view for floor - shows count of classes
+        console.log('Loading floor timetable for floor:', floor);
         fetch(`/get_scheduled_classes?floor=${floor}`)
             .then(response => response.json())
             .then(data => {
+                console.log('Floor timetable data received:', data);
                 if (data.success) {
+                    console.log('Number of classes:', data.classes.length);
                     displayFloorAggregate(data.classes);
                 } else {
                     console.error('Error loading floor timetable:', data.error);
@@ -212,31 +292,206 @@
     }
 
     function displayTimetable(classes) {
-        // Display classes in timetable cells (for room/teacher view)
-        classes.forEach(cls => {
-            const startHour = parseInt(cls.start_time.split(':')[0]);
-            const cell = document.querySelector(`tr[data-hour="${startHour}"] td[data-day="${cls.day}"]`);
+        // Clear existing overlay classes
+        const overlay = document.getElementById('timetableOverlay');
+        overlay.innerHTML = '';
 
-            if (cell) {
-                cell.innerHTML = `
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                color: white;
-                                padding: 8px;
-                                border-radius: 6px;
-                                font-size: 0.85rem;
-                                cursor: pointer;"
-                         onclick='showClassInfo(${JSON.stringify(cls)})'>
-                        <div style="font-weight: 600; margin-bottom: 4px;">${cls.course_name}</div>
-                        <div style="font-size: 0.75rem; opacity: 0.9;">${cls.section_code}</div>
-                        <div style="font-size: 0.75rem; opacity: 0.9;">${cls.room_number}</div>
-                    </div>
-                `;
-            }
+        // Clear old table cell content
+        document.querySelectorAll('.timetable td[data-day]').forEach(cell => {
+            cell.innerHTML = '';
+        });
+
+        // Get table dimensions once
+        const dimensions = getTableDimensions();
+
+        // Detect overlaps and assign columns
+        const classesWithLayout = detectOverlaps(classes);
+
+        // Display each class with precise positioning
+        classesWithLayout.forEach(cls => {
+            createClassOverlay(cls, dimensions, 'individual');
         });
     }
 
+    /**
+     * Detect overlapping classes and assign column positions
+     */
+    function detectOverlaps(classes) {
+        // Group classes by day
+        const byDay = {};
+        classes.forEach(cls => {
+            if (!byDay[cls.day]) byDay[cls.day] = [];
+            byDay[cls.day].push(cls);
+        });
+
+        // For each day, detect overlaps and assign columns
+        Object.values(byDay).forEach(dayClasses => {
+            // Sort by start time
+            dayClasses.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+
+            // Track which columns are occupied at each time
+            const columns = [];
+
+            dayClasses.forEach(cls => {
+                const startMinutes = timeToMinutes(cls.start_time);
+                const endMinutes = timeToMinutes(cls.end_time);
+
+                // Find the first available column for this class
+                let columnIndex = 0;
+                while (true) {
+                    if (!columns[columnIndex]) {
+                        columns[columnIndex] = [];
+                    }
+
+                    // Check if this column is free for this time slot
+                    const isFree = columns[columnIndex].every(occupiedClass => {
+                        const occupiedEnd = timeToMinutes(occupiedClass.end_time);
+                        return startMinutes >= occupiedEnd;
+                    });
+
+                    if (isFree) {
+                        // Found a free column
+                        cls.columnIndex = columnIndex;
+                        columns[columnIndex].push(cls);
+
+                        // Count how many columns are needed at this time
+                        let maxColumns = 1;
+                        columns.forEach((col, idx) => {
+                            const hasOverlap = col.some(c => {
+                                const cStart = timeToMinutes(c.start_time);
+                                const cEnd = timeToMinutes(c.end_time);
+                                return (startMinutes < cEnd && endMinutes > cStart);
+                            });
+                            if (hasOverlap && idx + 1 > maxColumns) {
+                                maxColumns = idx + 1;
+                            }
+                        });
+                        cls.totalColumns = maxColumns;
+                        break;
+                    }
+
+                    columnIndex++;
+                }
+            });
+
+            // Update totalColumns for all overlapping classes
+            dayClasses.forEach(cls => {
+                const startMinutes = timeToMinutes(cls.start_time);
+                const endMinutes = timeToMinutes(cls.end_time);
+
+                let maxColumns = 1;
+                dayClasses.forEach(otherCls => {
+                    const otherStart = timeToMinutes(otherCls.start_time);
+                    const otherEnd = timeToMinutes(otherCls.end_time);
+
+                    // Check if they overlap
+                    if (startMinutes < otherEnd && endMinutes > otherStart) {
+                        if (otherCls.columnIndex + 1 > maxColumns) {
+                            maxColumns = otherCls.columnIndex + 1;
+                        }
+                    }
+                });
+
+                cls.totalColumns = maxColumns;
+            });
+        });
+
+        return classes;
+    }
+
+    /**
+     * Create an overlay element for a class
+     */
+    function createClassOverlay(cls, dimensions, mode = 'individual') {
+        const overlay = document.getElementById('timetableOverlay');
+
+        // Calculate precise positions
+        const topPosition = calculateTopPosition(cls.start_time,
+                                                 dimensions.tableTop,
+                                                 dimensions.headerHeight);
+        const dayPos = calculateDayPosition(cls.day, dimensions.tableLeft);
+
+        // Create positioned div
+        const classDiv = document.createElement('div');
+        classDiv.className = 'class-overlay-item';
+
+        if (mode === 'individual') {
+            // Individual class card - use full duration height
+            const height = calculateClassHeight(cls.start_time, cls.end_time);
+
+            // Calculate width and left position based on overlaps
+            const columnIndex = cls.columnIndex || 0;
+            const totalColumns = cls.totalColumns || 1;
+
+            const padding = 4; // Total horizontal padding
+            const availableWidth = dayPos.width - padding;
+            const columnWidth = availableWidth / totalColumns;
+            const adjustedLeft = dayPos.left + (columnWidth * columnIndex) + (padding / 2);
+            const adjustedWidth = columnWidth - 2; // Small gap between columns
+
+            // Add short-duration class if less than 30 minutes
+            const durationMinutes = timeToMinutes(cls.end_time) - timeToMinutes(cls.start_time);
+            if (durationMinutes < 30) {
+                classDiv.classList.add('short-duration');
+            }
+
+            // Set position and size
+            classDiv.style.top = `${topPosition}px`;
+            classDiv.style.left = `${adjustedLeft}px`;
+            classDiv.style.width = `${adjustedWidth}px`;
+            classDiv.style.height = `${height}px`;
+
+            // Individual class card
+            classDiv.innerHTML = `
+                <div class="class-card-overlay">
+                    <div class="class-title">${cls.course_name}</div>
+                    <div class="class-info">${cls.section_code}</div>
+                    <div class="class-info">${cls.room_number}</div>
+                    <div class="class-info">${cls.start_time} - ${cls.end_time}</div>
+                </div>
+            `;
+            classDiv.onclick = () => showClassInfo(cls);
+        } else {
+            // Aggregate mode - fixed size circular badge
+            const badgeSize = 50; // Fixed size for badge
+
+            // Center the badge in the cell
+            const centeredLeft = dayPos.left + (dayPos.width - badgeSize) / 2;
+            const centeredTop = topPosition + 5; // Small offset from top
+
+            // Set position and size for badge
+            classDiv.style.top = `${centeredTop}px`;
+            classDiv.style.left = `${centeredLeft}px`;
+            classDiv.style.width = `${badgeSize}px`;
+            classDiv.style.height = `${badgeSize}px`;
+
+            // Count badge
+            classDiv.innerHTML = `
+                <div class="count-badge-overlay">${cls.count}</div>
+            `;
+            classDiv.onclick = () => showClassDetails(cls.day, cls.hour, cls.count, cls.classes);
+        }
+
+        overlay.appendChild(classDiv);
+    }
+
     function displayFloorAggregate(classes) {
-        // Group classes by day and hour
+        console.log('displayFloorAggregate called with', classes.length, 'classes');
+
+        // Clear existing overlay classes
+        const overlay = document.getElementById('timetableOverlay');
+        overlay.innerHTML = '';
+
+        // Clear old table cell content
+        document.querySelectorAll('.timetable td[data-day]').forEach(cell => {
+            cell.innerHTML = '';
+        });
+
+        // Get table dimensions
+        const dimensions = getTableDimensions();
+        console.log('Table dimensions:', dimensions);
+
+        // Group classes by day and time slot
         const grouped = {};
 
         classes.forEach(cls => {
@@ -244,24 +499,33 @@
             const key = `${cls.day}-${startHour}`;
 
             if (!grouped[key]) {
-                grouped[key] = [];
+                grouped[key] = {
+                    day: cls.day,
+                    hour: startHour,
+                    classes: [],
+                    start_time: cls.start_time,
+                    end_time: cls.end_time
+                };
             }
-            grouped[key].push(cls);
+            grouped[key].classes.push(cls);
+
+            // Update to maximum end time
+            if (timeToMinutes(cls.end_time) > timeToMinutes(grouped[key].end_time)) {
+                grouped[key].end_time = cls.end_time;
+            }
         });
 
-        // Display count badges
-        Object.keys(grouped).forEach(key => {
-            const [day, hour] = key.split('-');
-            const cell = document.querySelector(`tr[data-hour="${hour}"] td[data-day="${day}"]`);
-            const classList = grouped[key];
+        console.log('Grouped classes:', grouped);
+        console.log('Number of groups:', Object.keys(grouped).length);
 
-            if (cell) {
-                cell.innerHTML = `
-                    <span class="class-count-badge" onclick='showClassDetails("${day}", ${hour}, ${classList.length}, ${JSON.stringify(classList)})'>
-                        ${classList.length}
-                    </span>
-                `;
-            }
+        // Display count badges with precise positioning
+        Object.values(grouped).forEach(group => {
+            const badgeData = {
+                ...group,
+                count: group.classes.length
+            };
+            console.log('Creating badge for:', group.day, 'at', group.start_time, 'with count:', badgeData.count);
+            createClassOverlay(badgeData, dimensions, 'aggregate');
         });
     }
 
@@ -328,11 +592,11 @@
                     <div class="class-detail-row">
                         <div class="class-detail-item">
                             <i class="fas fa-door-open"></i>
-                            <span>Room: <strong>${cls.room}</strong></span>
+                            <span>Room: <strong>${cls.room_number}</strong></span>
                         </div>
                         <div class="class-detail-item">
                             <i class="fas fa-user-tie"></i>
-                            <span>Teacher: <strong>${cls.teacher}</strong></span>
+                            <span>Teacher: <strong>${cls.teacher_name}</strong></span>
                         </div>
                         <div class="class-detail-item">
                             <i class="fas fa-book"></i>
@@ -364,6 +628,20 @@
             modal.style.display = 'none';
         }
     };
+
+    // Recalculate positions on window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            // Reload current view to recalculate positions
+            if (floorFilter) {
+                loadFloorTimetable(floorFilter);
+            } else if (roomFilter || teacherFilter) {
+                loadFilteredTimetable(roomFilter, teacherFilter);
+            }
+        }, 250);
+    });
 </script>
 
 {% endblock %}

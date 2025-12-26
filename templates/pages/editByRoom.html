@@ -200,18 +200,33 @@
 
 <div class="container">
     <h1>Schedule Classes by Room</h1>
-    <p class="description">Select a room to schedule a class in that room</p>
+    <p class="description">First select a floor, then choose a room to schedule a class</p>
 
-    <input
-        type="text"
-        id="searchInput"
-        class="search-input"
-        placeholder="Search rooms by number, type, or floor..."
-        onkeyup="filterRooms()"
-    >
+    <!-- Floor Selection Section -->
+    <div id="floorSelection">
+        <h3 style="color: var(--text-primary); margin-bottom: 15px;">Step 1: Select a Floor</h3>
+        <select id="floorSelect" class="search-input" onchange="onFloorSelected()">
+            <option value="">-- Select a Floor --</option>
+        </select>
+    </div>
 
-    <div id="roomsList">
-        <p style="text-align: center; color: var(--text-secondary);">Loading rooms...</p>
+    <!-- Rooms Section (hidden until floor is selected) -->
+    <div id="roomsSection" style="display: none;">
+        <h3 style="color: var(--text-primary); margin-top: 30px; margin-bottom: 15px;">
+            Step 2: Select a Room on Floor <span id="selectedFloorLabel"></span>
+        </h3>
+
+        <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Search rooms by number or type..."
+            onkeyup="filterRooms()"
+        >
+
+        <div id="roomsList">
+            <p style="text-align: center; color: var(--text-secondary);">Loading rooms...</p>
+        </div>
     </div>
 </div>
 
@@ -284,23 +299,65 @@
     let selectedCourse = null;
     let selectedDayValue = null;
 
+    let selectedFloor = null;
+
     window.onload = function() {
-        loadRooms();
+        loadFloors();
         loadCourses();
     };
 
-    function loadRooms() {
-        fetch('/get_all_rooms')
+    function loadFloors() {
+        fetch('/get_floors')
             .then(response => response.json())
             .then(data => {
-                console.log('Rooms loaded:', data);
+                console.log('Floors loaded:', data);
+
+                if (data.floors && data.floors.length > 0) {
+                    const floorSelect = document.getElementById('floorSelect');
+                    data.floors.forEach(floor => {
+                        const option = document.createElement('option');
+                        option.value = floor.floor;
+                        option.textContent = `Floor ${floor.floor} (${floor.count} room${floor.count !== 1 ? 's' : ''})`;
+                        floorSelect.appendChild(option);
+                    });
+                } else {
+                    const floorSelect = document.getElementById('floorSelect');
+                    floorSelect.innerHTML = '<option value="">No floors available</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading floors:', error);
+            });
+    }
+
+    function onFloorSelected() {
+        const floorSelect = document.getElementById('floorSelect');
+        selectedFloor = floorSelect.value;
+
+        if (selectedFloor) {
+            document.getElementById('selectedFloorLabel').textContent = selectedFloor;
+            document.getElementById('roomsSection').style.display = 'block';
+            loadRoomsByFloor(selectedFloor);
+        } else {
+            document.getElementById('roomsSection').style.display = 'none';
+        }
+    }
+
+    function loadRoomsByFloor(floor) {
+        document.getElementById('roomsList').innerHTML =
+            '<p style="text-align: center; color: var(--text-secondary);">Loading rooms...</p>';
+
+        fetch(`/get_rooms_by_floor/${floor}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Rooms loaded for floor', floor, ':', data);
 
                 if (data.success && data.rooms && data.rooms.length > 0) {
                     allRooms = data.rooms;
                     displayRooms(allRooms);
                 } else {
                     document.getElementById('roomsList').innerHTML =
-                        '<p style="text-align: center; color: var(--text-secondary);">No rooms found</p>';
+                        '<p style="text-align: center; color: var(--text-secondary);">No rooms found on this floor</p>';
                 }
             })
             .catch(error => {
@@ -342,17 +399,25 @@
         const roomsList = document.getElementById('roomsList');
         let html = '';
 
-        rooms.forEach(room => {
-            html += `
-                <div class="room-card" onclick="selectRoom('${room.room_number}', '${room.type}', '${room.floor}')">
-                    <div class="room-number">Room ${room.room_number}</div>
-                    <div class="room-info">
-                        <span>Type: ${room.type}</span>
-                        <span>Floor: ${room.floor}</span>
+        if (rooms.length === 0) {
+            html = '<p style="text-align: center; color: var(--text-secondary);">No rooms found</p>';
+        } else {
+            // Show count of rooms
+            html += `<p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem;">
+                Showing ${rooms.length} room${rooms.length !== 1 ? 's' : ''} on Floor ${selectedFloor}
+            </p>`;
+
+            rooms.forEach(room => {
+                html += `
+                    <div class="room-card" onclick="selectRoom('${room.room_number}', '${room.type}', '${room.floor}')">
+                        <div class="room-number">Room ${room.room_number}</div>
+                        <div class="room-info">
+                            <span>Type: ${room.type}</span>
+                        </div>
                     </div>
-                </div>
-            `;
-        });
+                `;
+            });
+        }
 
         roomsList.innerHTML = html;
     }
@@ -362,8 +427,7 @@
 
         const filtered = allRooms.filter(room => {
             return room.room_number.toString().includes(searchTerm) ||
-                   room.type.toLowerCase().includes(searchTerm) ||
-                   room.floor.toString().includes(searchTerm);
+                   room.type.toLowerCase().includes(searchTerm);
         });
 
         displayRooms(filtered);

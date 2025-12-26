@@ -1498,7 +1498,10 @@ def get_rooms_by_floor(floor_number):
     # Sort by room number
     rooms_with_floor.sort(key=lambda x: int(x.get('room_number', 0)))
 
-    return {"items": rooms_with_floor}
+    return jsonify({
+        "success": True,
+        "rooms": rooms_with_floor
+    })
 
 @app.route("/delete_floor/<int:floor_number>", methods=["DELETE"])
 @login_required
