@@ -249,9 +249,11 @@
     }
 
     function editScheduledClass() {
-        // TODO: Implement edit scheduled class feature
-        alert('Edit Scheduled Class feature will be implemented soon!');
-        closeActionModal();
+        if (selectedEditMode === 'course') {
+            window.location.href = '/manual_edit_by_course?edit_mode=true';
+        } else if (selectedEditMode === 'room') {
+            window.location.href = '/manual_edit_by_room?edit_mode=true';
+        }
     }
 
     // Close modal when clicking outside

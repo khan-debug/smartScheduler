@@ -462,6 +462,22 @@ def schedule_class_page():
         return redirect(url_for('login'))
     return render_template("pages/scheduleClass.html", active_page="generate")
 
+@app.route("/edit_scheduled_classes")
+@login_required
+def edit_scheduled_classes_page():
+    """Show page to edit scheduled classes for a course section"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+    return render_template("pages/editScheduledClasses.html", active_page="generate")
+
+@app.route("/edit_scheduled_classes_by_room")
+@login_required
+def edit_scheduled_classes_by_room_page():
+    """Show page to edit scheduled classes for a specific room"""
+    if session.get('role') != 'admin':
+        return redirect(url_for('login'))
+    return render_template("pages/editScheduledClassesByRoom.html", active_page="generate")
+
 @app.route("/save_scheduled_class", methods=["POST"])
 @login_required
 def save_scheduled_class():
@@ -1813,6 +1829,179 @@ def get_scheduled_classes():
             'success': True,
             'classes': classes_data
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/get_scheduled_classes_by_course", methods=["GET"])
+@login_required
+def get_scheduled_classes_by_course():
+    """Get scheduled classes for a specific course and section"""
+    try:
+        course_id = request.args.get('course_id')
+        section_code = request.args.get('section_code')
+
+        if not course_id or not section_code:
+            return jsonify({'success': False, 'error': 'Missing course_id or section_code'}), 400
+
+        # Get scheduled classes for this course and section
+        scheduled_classes = list(scheduled_classes_collection.find({
+            'course_id': course_id,
+            'section_code': section_code
+        }))
+
+        # Format the data
+        classes_data = []
+        for cls in scheduled_classes:
+            classes_data.append({
+                '_id': str(cls.get('_id')),
+                'course_name': cls.get('course_name'),
+                'section_code': cls.get('section_code'),
+                'teacher_name': cls.get('teacher_name'),
+                'teacher_registration': cls.get('teacher_registration'),
+                'course_type': cls.get('course_type'),
+                'credit_hour': cls.get('credit_hour'),
+                'shift': cls.get('shift'),
+                'day': cls.get('day'),
+                'start_time': cls.get('start_time'),
+                'end_time': cls.get('end_time'),
+                'room_number': cls.get('room_number'),
+                'floor': cls.get('floor')
+            })
+
+        return jsonify({
+            'success': True,
+            'classes': classes_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/update_scheduled_class/<class_id>", methods=["PUT"])
+@login_required
+def update_scheduled_class(class_id):
+    """Update an existing scheduled class"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        from bson.objectid import ObjectId
+
+        data = request.get_json()
+        day = data.get('day')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        room_number = data.get('room_number')
+
+        # Validation
+        if not all([day, start_time, end_time, room_number]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+        # Get the existing scheduled class
+        existing_class = scheduled_classes_collection.find_one({'_id': ObjectId(class_id)})
+        if not existing_class:
+            return jsonify({'success': False, 'error': 'Scheduled class not found'}), 404
+
+        # Get room details
+        room = rooms_collection.find_one({'room_number': room_number})
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        # Check for conflicts (exclude current class from conflict check)
+        # 1. Check if room is already occupied at this time
+        room_conflict = scheduled_classes_collection.find_one({
+            '_id': {'$ne': ObjectId(class_id)},
+            'room_number': room_number,
+            'day': day,
+            '$or': [
+                {
+                    'start_time': {'$lte': start_time},
+                    'end_time': {'$gt': start_time}
+                },
+                {
+                    'start_time': {'$lt': end_time},
+                    'end_time': {'$gte': end_time}
+                },
+                {
+                    'start_time': {'$gte': start_time},
+                    'end_time': {'$lte': end_time}
+                }
+            ]
+        })
+
+        if room_conflict:
+            return jsonify({
+                'success': False,
+                'error': f'Room {room_number} is already occupied on {day} at this time'
+            }), 400
+
+        # 2. Check if teacher is already teaching at this time
+        teacher_conflict = scheduled_classes_collection.find_one({
+            '_id': {'$ne': ObjectId(class_id)},
+            'teacher_registration': existing_class.get('teacher_registration'),
+            'day': day,
+            '$or': [
+                {
+                    'start_time': {'$lte': start_time},
+                    'end_time': {'$gt': start_time}
+                },
+                {
+                    'start_time': {'$lt': end_time},
+                    'end_time': {'$gte': end_time}
+                },
+                {
+                    'start_time': {'$gte': start_time},
+                    'end_time': {'$lte': end_time}
+                }
+            ]
+        })
+
+        if teacher_conflict:
+            return jsonify({
+                'success': False,
+                'error': f'Teacher is already scheduled for another class on {day} at this time'
+            }), 400
+
+        # Update the scheduled class
+        update_data = {
+            'day': day,
+            'start_time': start_time,
+            'end_time': end_time,
+            'room_number': room_number,
+            'floor': room.get('floor')
+        }
+
+        scheduled_classes_collection.update_one(
+            {'_id': ObjectId(class_id)},
+            {'$set': update_data}
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Class updated successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/delete_scheduled_class/<class_id>", methods=["DELETE"])
+@login_required
+def delete_scheduled_class(class_id):
+    """Delete a scheduled class"""
+    if session.get('role') != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        from bson.objectid import ObjectId
+
+        result = scheduled_classes_collection.delete_one({'_id': ObjectId(class_id)})
+
+        if result.deleted_count > 0:
+            return jsonify({
+                'success': True,
+                'message': 'Class deleted successfully'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Class not found'}), 404
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

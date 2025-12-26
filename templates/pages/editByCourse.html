@@ -215,8 +215,8 @@
 
 <div class="course-list-container">
     <div class="page-header">
-        <h1>Schedule Classes</h1>
-        <p>Click on a section code below to schedule that class</p>
+        <h1 id="pageTitle">Schedule Classes</h1>
+        <p id="pageDescription">Click on a section code below to schedule that class</p>
     </div>
 
     <input
@@ -289,8 +289,18 @@
     let currentCourse = null;
     let currentSection = null;
     let selectedDayValue = null;
+    let editMode = false;
 
     window.onload = function() {
+        // Check if we're in edit mode
+        const urlParams = new URLSearchParams(window.location.search);
+        editMode = urlParams.get('edit_mode') === 'true';
+
+        if (editMode) {
+            document.getElementById('pageTitle').textContent = 'Edit Scheduled Classes';
+            document.getElementById('pageDescription').textContent = 'Click on a section code below to view and edit scheduled classes';
+        }
+
         loadCourses();
         loadRooms();
     };
@@ -357,6 +367,12 @@
 
     function openScheduleModal(courseId, sectionCode) {
         console.log('Opening modal for:', courseId, sectionCode);
+
+        // If in edit mode, navigate to edit page instead
+        if (editMode) {
+            window.location.href = `/edit_scheduled_classes?course_id=${courseId}&section_code=${encodeURIComponent(sectionCode)}`;
+            return;
+        }
 
         // Find the course
         currentCourse = coursesData.find(c => c._id === courseId);
