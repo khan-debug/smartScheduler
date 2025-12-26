@@ -1,0 +1,177 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Manual Timetable Edit - Smart Scheduler{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1200px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <h1 style="margin-bottom: var(--space-2);">Manual Timetable Edit</h1>
+        <p class="text-secondary">Choose how you want to schedule classes</p>
+    </div>
+
+    <!-- Options Grid -->
+    <div class="card-grid card-grid-sm-2" style="margin-bottom: var(--space-8);">
+        <!-- Edit by Course -->
+        <div class="card card-interactive card-elevated" onclick="showActionModal('course')">
+            <div class="card-body" style="text-align: center; padding: var(--space-8);">
+                <div style="font-size: var(--text-6xl); margin-bottom: var(--space-4);">
+                    📚
+                </div>
+                <h3 style="margin-bottom: var(--space-3); font-size: var(--text-2xl);">Edit by Course</h3>
+                <p class="text-secondary" style="margin-bottom: var(--space-4); line-height: 1.6;">
+                    Select a course and section, then assign a time slot and room to schedule the class.
+                </p>
+                <span class="badge" style="background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%); color: white; padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--weight-semibold);">
+                    Recommended
+                </span>
+            </div>
+        </div>
+
+        <!-- Edit by Room -->
+        <div class="card card-interactive card-elevated" onclick="showActionModal('room')">
+            <div class="card-body" style="text-align: center; padding: var(--space-8);">
+                <div style="font-size: var(--text-6xl); margin-bottom: var(--space-4);">
+                    🚪
+                </div>
+                <h3 style="margin-bottom: var(--space-3); font-size: var(--text-2xl);">Edit by Room</h3>
+                <p class="text-secondary" style="margin-bottom: var(--space-4); line-height: 1.6;">
+                    Select a room first, then choose courses to schedule in that specific room.
+                </p>
+                <span class="badge" style="background-color: var(--info-100); color: var(--info-700); padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--weight-semibold);">
+                    Room-based
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="card card-flat">
+        <div class="card-body">
+            <div style="display: flex; gap: var(--space-4); align-items: start;">
+                <div style="flex-shrink: 0; color: var(--info-600); font-size: var(--text-2xl);">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: var(--space-2); color: var(--text-primary);">How to use Manual Edit</h4>
+                    <p class="text-secondary" style="line-height: 1.6; margin-bottom: var(--space-3);">
+                        Choose one of the options above to get started. Each option will present you with two actions:
+                    </p>
+                    <ul style="color: var(--text-secondary); line-height: 1.8; margin-left: var(--space-6);">
+                        <li><strong style="color: var(--text-primary);">Schedule a Class:</strong> Add a new class to the timetable</li>
+                        <li><strong style="color: var(--text-primary);">Edit Scheduled Class:</strong> Modify or remove an existing scheduled class</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Selection Modal -->
+<div id="actionModal" style="display: none; position: fixed; z-index: var(--z-modal); left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); overflow: auto;">
+    <div style="background-color: var(--bg-elevated); margin: 10% auto; padding: 0; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); width: 90%; max-width: 500px; box-shadow: var(--shadow-2xl);">
+        <!-- Modal Header -->
+        <div style="background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%); padding: var(--space-6) var(--space-8); border-radius: var(--radius-xl) var(--radius-xl) 0 0; position: relative;">
+            <span onclick="closeActionModal()" style="position: absolute; right: var(--space-6); top: var(--space-6); color: white; font-size: var(--text-2xl); font-weight: var(--weight-bold); cursor: pointer; opacity: 0.8; transition: opacity var(--transition-fast);" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">
+                &times;
+            </span>
+            <h2 style="margin: 0; color: white; font-size: var(--text-2xl);">Choose an Action</h2>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding: var(--space-8);">
+            <p class="text-secondary" style="margin-bottom: var(--space-6);">
+                What would you like to do?
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                <!-- Schedule a Class Action -->
+                <div class="card card-interactive" onclick="scheduleClass()" style="cursor: pointer;">
+                    <div class="card-body" style="padding: var(--space-5);">
+                        <div style="display: flex; gap: var(--space-4); align-items: center;">
+                            <div style="flex-shrink: 0; width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: var(--text-2xl);">
+                                📅
+                            </div>
+                            <div>
+                                <h4 style="margin-bottom: var(--space-1); color: var(--text-primary); font-size: var(--text-lg);">Schedule a Class</h4>
+                                <p class="text-sm text-secondary">Add a new class to the timetable</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Scheduled Class Action -->
+                <div class="card card-interactive" onclick="editScheduledClass()" style="cursor: pointer;">
+                    <div class="card-body" style="padding: var(--space-5);">
+                        <div style="display: flex; gap: var(--space-4); align-items: center;">
+                            <div style="flex-shrink: 0; width: 48px; height: 48px; background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: var(--text-2xl);">
+                                ✏️
+                            </div>
+                            <div>
+                                <h4 style="margin-bottom: var(--space-1); color: var(--text-primary); font-size: var(--text-lg);">Edit Scheduled Class</h4>
+                                <p class="text-sm text-secondary">Modify or remove an existing scheduled class</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedEditMode = null; // 'course' or 'room'
+
+    function showActionModal(mode) {
+        selectedEditMode = mode;
+        document.getElementById('actionModal').style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Prevent background scroll
+    }
+
+    function closeActionModal() {
+        document.getElementById('actionModal').style.display = 'none';
+        selectedEditMode = null;
+        document.body.style.overflow = 'auto'; // Restore scroll
+    }
+
+    function scheduleClass() {
+        if (selectedEditMode === 'course') {
+            window.location.href = '/manual_edit_by_course';
+        } else if (selectedEditMode === 'room') {
+            window.location.href = '/manual_edit_by_room';
+        }
+    }
+
+    function editScheduledClass() {
+        if (selectedEditMode === 'course') {
+            window.location.href = '/manual_edit_by_course?edit_mode=true';
+        } else if (selectedEditMode === 'room') {
+            window.location.href = '/manual_edit_by_room?edit_mode=true';
+        }
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('actionModal');
+        if (event.target == modal) {
+            closeActionModal();
+        }
+    };
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeActionModal();
+        }
+    });
+</script>
+
+<style>
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        .card-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+{% endblock %}

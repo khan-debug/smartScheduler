@@ -1,0 +1,213 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}View Timetable - Smart Scheduler{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 800px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <h1 style="margin-bottom: var(--space-2);">View Timetable</h1>
+        <p class="text-secondary">Select filters to view scheduled classes</p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="card card-elevated">
+        <div class="card-header">
+            <h3 class="card-title">Filter Options</h3>
+            <p class="card-subtitle">Choose at least one filter to view the timetable</p>
+        </div>
+
+        <div class="card-body">
+            <!-- Info Message -->
+            <div style="background-color: var(--info-100); border: 1px solid var(--info-200); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-6); color: var(--info-700);">
+                <div style="display: flex; gap: var(--space-3); align-items: start;">
+                    <i class="fas fa-info-circle" style="font-size: var(--text-lg); margin-top: 2px;"></i>
+                    <div>
+                        <strong>Note:</strong> You must select at least one filter (Room or Teacher) to view the timetable.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" style="display: none; background-color: var(--error-100); border: 1px solid var(--error-200); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-6); color: var(--error-700);">
+                <div style="display: flex; gap: var(--space-3); align-items: start;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: var(--text-lg); margin-top: 2px;"></i>
+                    <span id="errorText"></span>
+                </div>
+            </div>
+
+            <!-- Filter Form -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-6);">
+                <!-- Room Filter -->
+                <div class="form-group">
+                    <label for="roomInput" class="form-label">
+                        <i class="fas fa-door-open"></i> Room Number (Optional)
+                    </label>
+                    <input
+                        type="text"
+                        id="roomInput"
+                        class="form-input"
+                        list="roomList"
+                        placeholder="Type room number or select from list"
+                        autocomplete="off"
+                    >
+                    <datalist id="roomList">
+                    </datalist>
+                    <div class="form-help">
+                        You can type the room number directly or select from the dropdown
+                    </div>
+                </div>
+
+                <!-- Teacher Filter -->
+                <div class="form-group">
+                    <label for="teacherSelect" class="form-label">
+                        <i class="fas fa-user-tie"></i> Teacher (Optional)
+                    </label>
+                    <select id="teacherSelect" class="form-select">
+                        <option value="">-- Select a Teacher --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer">
+            <button class="btn btn-primary btn-lg" onclick="viewTimetable()" style="width: 100%;">
+                <i class="fas fa-calendar-alt"></i>
+                <span>View Timetable</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="card-grid card-grid-sm-2" style="margin-top: var(--space-6);">
+        <div class="card card-flat">
+            <div class="card-body" style="text-align: center;">
+                <div style="font-size: var(--text-2xl); color: var(--primary-500); margin-bottom: var(--space-2);">
+                    <i class="fas fa-door-open"></i>
+                </div>
+                <p class="text-sm text-secondary">Total Rooms</p>
+                <p id="roomCount" style="font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--text-primary); margin-top: var(--space-1);">--</p>
+            </div>
+        </div>
+
+        <div class="card card-flat">
+            <div class="card-body" style="text-align: center;">
+                <div style="font-size: var(--text-2xl); color: var(--success-500); margin-bottom: var(--space-2);">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <p class="text-sm text-secondary">Total Teachers</p>
+                <p id="teacherCount" style="font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--text-primary); margin-top: var(--space-1);">--</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        loadRooms();
+        loadTeachers();
+    };
+
+    function loadRooms() {
+        fetch('/get_all_rooms')
+            .then(response => response.json())
+            .then(data => {
+                const roomList = document.getElementById('roomList');
+                const roomCount = document.getElementById('roomCount');
+
+                if (data.success && data.rooms && data.rooms.length > 0) {
+                    roomCount.textContent = data.rooms.length;
+
+                    data.rooms.forEach(room => {
+                        const option = document.createElement('option');
+                        option.value = room.room_number;
+                        option.textContent = `Room ${room.room_number} (${room.type})`;
+                        roomList.appendChild(option);
+                    });
+                } else {
+                    roomCount.textContent = '0';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading rooms:', error);
+                document.getElementById('roomCount').textContent = 'Error';
+            });
+    }
+
+    function loadTeachers() {
+        fetch('/get_all_teachers')
+            .then(response => response.json())
+            .then(data => {
+                const teacherSelect = document.getElementById('teacherSelect');
+                const teacherCount = document.getElementById('teacherCount');
+
+                if (data.success && data.teachers && data.teachers.length > 0) {
+                    teacherCount.textContent = data.teachers.length;
+
+                    data.teachers.forEach(teacher => {
+                        const option = document.createElement('option');
+                        option.value = teacher.registration_number;
+                        option.textContent = `${teacher.username} (${teacher.registration_number})`;
+                        teacherSelect.appendChild(option);
+                    });
+                } else {
+                    teacherCount.textContent = '0';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading teachers:', error);
+                document.getElementById('teacherCount').textContent = 'Error';
+            });
+    }
+
+    function viewTimetable() {
+        const roomNumber = document.getElementById('roomInput').value.trim();
+        const teacherReg = document.getElementById('teacherSelect').value;
+        const errorDiv = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        // Hide previous error
+        errorDiv.style.display = 'none';
+
+        // Validate at least one is selected
+        if (!roomNumber && !teacherReg) {
+            errorText.textContent = 'Please enter/select at least one filter (Room or Teacher)';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        // Construct URL based on selection
+        let url = '/view_timetable?';
+        const params = [];
+
+        if (roomNumber) {
+            params.push(`room=${encodeURIComponent(roomNumber)}`);
+        }
+
+        if (teacherReg) {
+            params.push(`teacher=${encodeURIComponent(teacherReg)}`);
+        }
+
+        url += params.join('&');
+
+        // Navigate to timetable view
+        window.location.href = url;
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            viewTimetable();
+        }
+    });
+</script>
+
+<style>
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        .card-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+{% endblock %}

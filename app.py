@@ -288,8 +288,8 @@ def login():
             session['registration_number'] = user['registration_number']  # Store reg number too
             return redirect(url_for("teacher_view"))
 
-        return render_template("auth/login.html", error="Invalid credentials")
-    return render_template("auth/login.html")
+        return render_template("auth/login_v2.html", error="Invalid credentials")
+    return render_template("auth/login_v2.html")
 
 # Route for logging out
 @app.route("/logout")
@@ -305,19 +305,19 @@ def dashboard():
     teacher_count = users_collection.count_documents({})
     course_count = courses_collection.count_documents({})
     room_count = rooms_collection.count_documents({})
-    return render_template("pages/dashboard.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
+    return render_template("pages/dashboard_v2.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
 
 # Route for Generate Timetable
 @app.route("/generate")
 @login_required
 def generate():
-    return render_template("pages/generate.html", active_page="generate")
+    return render_template("pages/generate_v2.html", active_page="generate")
 
 @app.route("/view_generated_timetable")
 @login_required
 def view_generated_timetable():
     return render_template(
-        "timetables/timetable_base.html",
+        "timetables/timetable_base_v2.html",
         active_page="generate",
         page_title="View Generated Timetable",
         hide_top_bar=False,
@@ -330,13 +330,13 @@ def view_generated_timetable():
 @app.route("/manual_timetable_edit")
 @login_required
 def manual_timetable_edit():
-    return render_template("pages/selectFloorEdit.html", active_page="generate")
+    return render_template("pages/selectFloorEdit_v2.html", active_page="manual_edit")
 
 @app.route("/edit_timetable/<int:floor_number>")
 @login_required
 def edit_timetable_floor(floor_number):
     return render_template(
-        "timetables/timetable_base.html",
+        "timetables/timetable_base_v2.html",
         floor_number=floor_number,
         active_page="generate",
         page_title="Edit Timetable",
@@ -354,7 +354,7 @@ def manual_edit_by_course():
     """Show course list for manual scheduling"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editByCourse.html", active_page="generate")
+    return render_template("pages/editByCourse_v2.html", active_page="manual_edit")
 
 @app.route("/manual_edit_by_room")
 @login_required
@@ -362,47 +362,135 @@ def manual_edit_by_room():
     """Show room list for manual scheduling"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    # TODO: Implement room-based editing
-    return render_template("pages/editByRoom.html", active_page="generate")
+    return render_template("pages/editByRoom_v2.html", active_page="manual_edit")
 
 @app.route("/get_all_courses_with_sections", methods=["GET"])
 @login_required
 def get_all_courses_with_sections():
-    """Get all courses with their section codes"""
+    """Get all courses with ONLY their unscheduled sections (for scheduling mode)"""
     try:
+        # Get all scheduled classes to identify what's already scheduled
+        all_scheduled_classes = list(scheduled_classes_collection.find({}))
+
+        # Build a set of scheduled course_id + section combinations
+        scheduled_sections = set()
+        for cls in all_scheduled_classes:
+            course_id = cls.get('course_id')
+            section_code = cls.get('section_code')
+            if course_id and section_code:
+                scheduled_sections.add(f"{course_id}_{section_code}")
+
+        print(f"DEBUG: Found {len(scheduled_sections)} already scheduled sections")
+
         courses_list = list(courses_collection.find({}))
         courses_data = []
 
         for course in courses_list:
+            course_id = str(course.get('_id'))
+
             # Get teacher name
             teacher = users_collection.find_one({'registration_number': course.get('teacher_registration')})
             teacher_name = teacher.get('username', 'Unknown') if teacher else 'Unknown'
 
             # Handle both old (section_code) and new (section_codes) format
-            sections = course.get('section_codes', [])
-            if not sections and course.get('section_code'):
+            all_sections = course.get('section_codes', [])
+            if not all_sections and course.get('section_code'):
                 # Old format - convert to array
-                sections = [course.get('section_code')]
+                all_sections = [course.get('section_code')]
 
-            courses_data.append({
-                '_id': str(course.get('_id')),
-                'course_name': course.get('course_name', ''),
-                'credit_hour': course.get('credit_hour', 0),
-                'course_type': course.get('course_type', ''),
-                'shift': course.get('shift', ''),
-                'teacher_name': teacher_name,
-                'teacher_registration': course.get('teacher_registration', ''),
-                'sections': sections
-            })
+            # Filter out already scheduled sections
+            unscheduled_sections = [
+                section for section in all_sections
+                if f"{course_id}_{section}" not in scheduled_sections
+            ]
+
+            # Only include course if it has unscheduled sections
+            if unscheduled_sections:
+                courses_data.append({
+                    '_id': course_id,
+                    'course_name': course.get('course_name', ''),
+                    'credit_hour': course.get('credit_hour', 0),
+                    'course_type': course.get('course_type', ''),
+                    'shift': course.get('shift', ''),
+                    'teacher_name': teacher_name,
+                    'teacher_registration': course.get('teacher_registration', ''),
+                    'sections': unscheduled_sections  # Only unscheduled sections
+                })
 
         # Sort by course name
         courses_data.sort(key=lambda x: x['course_name'])
+
+        print(f"DEBUG: Returning {len(courses_data)} courses with unscheduled sections")
 
         return jsonify({
             'success': True,
             'courses': courses_data
         })
     except Exception as e:
+        print(f"DEBUG: Error in get_all_courses_with_sections: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route("/get_scheduled_courses_with_sections", methods=["GET"])
+@login_required
+def get_scheduled_courses_with_sections():
+    """Get only courses that have scheduled classes, with their scheduled sections"""
+    try:
+        # Get all scheduled classes
+        all_scheduled_classes = list(scheduled_classes_collection.find({}))
+
+        # Group by course_id and section_code
+        scheduled_courses_map = {}
+        for cls in all_scheduled_classes:
+            course_id = cls.get('course_id')
+            section_code = cls.get('section_code')
+            if course_id and section_code:
+                if course_id not in scheduled_courses_map:
+                    scheduled_courses_map[course_id] = set()
+                scheduled_courses_map[course_id].add(section_code)
+
+        print(f"DEBUG: Found {len(scheduled_courses_map)} courses with scheduled classes")
+
+        # Get course details for scheduled courses
+        courses_data = []
+        for course_id, sections_set in scheduled_courses_map.items():
+            try:
+                from bson.objectid import ObjectId
+                course = courses_collection.find_one({'_id': ObjectId(course_id)})
+
+                if course:
+                    # Get teacher name
+                    teacher = users_collection.find_one({'registration_number': course.get('teacher_registration')})
+                    teacher_name = teacher.get('username', 'Unknown') if teacher else 'Unknown'
+
+                    courses_data.append({
+                        '_id': str(course.get('_id')),
+                        'course_name': course.get('course_name', ''),
+                        'credit_hour': course.get('credit_hour', 0),
+                        'course_type': course.get('course_type', ''),
+                        'shift': course.get('shift', ''),
+                        'teacher_name': teacher_name,
+                        'teacher_registration': course.get('teacher_registration', ''),
+                        'sections': sorted(list(sections_set))  # Only scheduled sections
+                    })
+            except Exception as e:
+                print(f"DEBUG: Error processing course {course_id}: {str(e)}")
+                continue
+
+        # Sort by course name
+        courses_data.sort(key=lambda x: x.get('course_name', ''))
+
+        print(f"DEBUG: Returning {len(courses_data)} courses")
+
+        return jsonify({
+            'success': True,
+            'courses': courses_data
+        })
+    except Exception as e:
+        print(f"DEBUG: Error in get_scheduled_courses_with_sections: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/get_course_details", methods=["GET"])
@@ -468,7 +556,7 @@ def edit_scheduled_classes_page():
     """Show page to edit scheduled classes for a course section"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editScheduledClasses.html", active_page="generate")
+    return render_template("pages/editScheduledClasses_v2.html", active_page="generate")
 
 @app.route("/edit_scheduled_classes_by_room")
 @login_required
@@ -476,7 +564,13 @@ def edit_scheduled_classes_by_room_page():
     """Show page to edit scheduled classes for a specific room"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editScheduledClassesByRoom.html", active_page="generate")
+    return render_template("pages/editScheduledClassesByRoom_v2.html", active_page="generate")
+
+@app.route("/design_system_demo")
+@login_required
+def design_system_demo():
+    """Show the new design system demo page"""
+    return render_template("pages/design_system_demo.html", active_page="demo")
 
 @app.route("/save_scheduled_class", methods=["POST"])
 @login_required
@@ -576,6 +670,17 @@ def save_scheduled_class():
         teacher = users_collection.find_one({'registration_number': course.get('teacher_registration')})
         teacher_name = teacher.get('username', 'Unknown') if teacher else 'Unknown'
 
+        # Extract floor from room number (e.g., room 201 -> floor 2)
+        floor_number = None
+        try:
+            room_num_str = str(room_number)
+            if len(room_num_str) >= 3:
+                floor_number = int(room_num_str[:-2])  # Extract floor from room number
+        except (ValueError, TypeError):
+            floor_number = room.get('floor')  # Fallback to room's floor field if extraction fails
+
+        print(f"DEBUG: Scheduling class in room {room_number}, extracted floor: {floor_number}")
+
         # Create scheduled class document
         scheduled_class = {
             'course_id': str(course_id),
@@ -590,7 +695,7 @@ def save_scheduled_class():
             'start_time': start_time,
             'end_time': end_time,
             'room_number': room_number,
-            'floor': room.get('floor'),
+            'floor': floor_number,
             'created_at': datetime.now(),
             'created_by': session.get('username')
         }
@@ -614,7 +719,7 @@ def teacher_view():
     teacher_reg = session.get('registration_number')
 
     return render_template(
-        "timetables/timetable_base.html",
+        "timetables/timetable_base_v2.html",
         active_page="teacher",
         page_title="Timetable",
         hide_top_bar=False,
@@ -648,7 +753,7 @@ def teacher_about():
     }))
 
     return render_template(
-        "pages/teacher_about.html",
+        "pages/teacher_about_v2.html",
         active_page="teacher_about",
         teacher=teacher,
         assigned_courses=assigned_courses
@@ -779,7 +884,7 @@ def teacher_reset_password():
 @app.route("/admin")
 @login_required
 def admin_panel():
-    return render_template("pages/adminPanel.html", active_page="admin")
+    return render_template("pages/adminPanel_v2.html", active_page="admin")
 
 @app.route("/import_data")
 @login_required
@@ -787,7 +892,7 @@ def import_data():
     """Import data page for importing courses and faculty via CSV"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/import_data.html", active_page="admin")
+    return render_template("pages/import_data_v2.html", active_page="import")
 
 @app.route("/import_csv", methods=["POST"])
 @login_required
@@ -1173,7 +1278,7 @@ def add_user():
 def manage_users():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management/management.html",
+        "management/management_v2.html",
         header_title="Manage Users",
         item_name="User",
         add_url="/add_user",
@@ -1190,7 +1295,7 @@ def manage_users():
 @login_required
 def manage_rooms():
     # Show floor selection page
-    return render_template("management/room_floor_selection.html", active_page="admin")
+    return render_template("management/room_floor_selection_v2.html", active_page="rooms")
 
 @app.route("/manage_rooms/all")
 @login_required
@@ -1198,7 +1303,7 @@ def manage_rooms_all():
     # View all rooms in one table
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management/management.html",
+        "management/management_v2.html",
         header_title="Manage Rooms - All Floors",
         item_name="Room",
         add_url="/add_room",
@@ -1219,7 +1324,7 @@ def manage_rooms_all():
 def manage_rooms_floor(floor_number):
     # View rooms for specific floor
     return render_template(
-        "management/management.html",
+        "management/management_v2.html",
         header_title=f"Manage Rooms - Floor {floor_number}",
         item_name="Room",
         add_url="/add_room",
@@ -1487,9 +1592,19 @@ def get_floors():
 @app.route("/get_rooms_by_floor/<int:floor_number>", methods=["GET"])
 @login_required
 def get_rooms_by_floor(floor_number):
-    """Get all rooms on a specific floor"""
+    """Get all rooms on a specific floor with scheduled class counts"""
     # Get all rooms and filter by floor (handles both string and integer room_number)
     all_rooms = list(rooms_collection.find({}))
+
+    # Get all scheduled classes to count classes per room
+    all_scheduled_classes = list(scheduled_classes_collection.find({}))
+
+    # Count scheduled classes per room
+    room_class_count = {}
+    for cls in all_scheduled_classes:
+        room_num = str(cls.get('room_number', ''))
+        if room_num:
+            room_class_count[room_num] = room_class_count.get(room_num, 0) + 1
 
     rooms_with_floor = []
     for room in all_rooms:
@@ -1509,15 +1624,72 @@ def get_rooms_by_floor(floor_number):
             # Ensure availability field exists with default value
             if 'availability' not in room_data or not room_data['availability']:
                 room_data['availability'] = 'Available'
+            # Add scheduled class count
+            room_data['scheduled_classes_count'] = room_class_count.get(room_number_str, 0)
             rooms_with_floor.append(room_data)
 
     # Sort by room number
     rooms_with_floor.sort(key=lambda x: int(x.get('room_number', 0)))
 
-    return jsonify({
-        "success": True,
-        "rooms": rooms_with_floor
-    })
+    return {"items": rooms_with_floor}
+
+@app.route("/get_rooms_with_classes_by_floor/<int:floor_number>", methods=["GET"])
+@login_required
+def get_rooms_with_classes_by_floor(floor_number):
+    """Get only rooms on a specific floor that have scheduled classes"""
+    try:
+        # Get all scheduled classes
+        all_scheduled_classes = list(scheduled_classes_collection.find({}))
+
+        # Count scheduled classes per room and track which rooms have classes
+        room_class_count = {}
+        rooms_with_classes = set()
+
+        for cls in all_scheduled_classes:
+            room_num = cls.get('room_number')
+            if room_num:
+                room_num_str = str(room_num)
+                # Extract floor from room number
+                if len(room_num_str) >= 3:
+                    room_floor = room_num_str[:-2]
+                    # Only include if on the requested floor
+                    if room_floor == str(floor_number):
+                        rooms_with_classes.add(room_num_str)
+                        room_class_count[room_num_str] = room_class_count.get(room_num_str, 0) + 1
+
+        print(f"DEBUG: Found {len(rooms_with_classes)} rooms with classes on floor {floor_number}: {rooms_with_classes}")
+
+        # Get all rooms on this floor
+        all_rooms = list(rooms_collection.find({}))
+
+        rooms_with_floor = []
+        for room in all_rooms:
+            room_number_str = str(room.get("room_number", ""))
+
+            # Only include rooms that have scheduled classes
+            if room_number_str in rooms_with_classes:
+                room_data = room.copy()
+                room_data['_id'] = str(room_data['_id'])
+                room_data["floor_number"] = _extract_floor_from_room_number(room_number_str)
+                # Ensure availability field exists with default value
+                if 'availability' not in room_data or not room_data['availability']:
+                    room_data['availability'] = 'Available'
+                # Add scheduled class count
+                room_data['scheduled_classes_count'] = room_class_count.get(room_number_str, 0)
+                rooms_with_floor.append(room_data)
+
+        # Sort by room number
+        rooms_with_floor.sort(key=lambda x: int(x.get('room_number', 0)))
+
+        print(f"DEBUG: Returning {len(rooms_with_floor)} rooms")
+
+        return {"items": rooms_with_floor}
+
+    except Exception as e:
+        print(f"DEBUG: Error in get_rooms_with_classes_by_floor: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"items": []}
 
 @app.route("/delete_floor/<int:floor_number>", methods=["DELETE"])
 @login_required
@@ -1576,7 +1748,7 @@ def delete_floor(floor_number):
 def manage_courses():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management/management.html",
+        "management/management_v2.html",
         header_title="Manage Courses",
         item_name="Course",
         add_url="/add_course",
@@ -1627,6 +1799,39 @@ def get_courses():
     for course in courses_list:
         course['_id'] = str(course['_id'])
     return {"items": courses_list}
+
+@app.route("/get_courses_by_shift/<shift>", methods=["GET"])
+@login_required
+def get_courses_by_shift(shift):
+    """Get all courses for a specific shift"""
+    try:
+        # Get courses for the specified shift
+        courses_list = list(courses_collection.find({'shift': shift}))
+
+        courses_data = []
+        for course in courses_list:
+            # Get section codes (handle both old and new format)
+            sections = course.get('section_codes', [])
+            if not sections and course.get('section_code'):
+                sections = [course.get('section_code')]
+
+            courses_data.append({
+                '_id': str(course.get('_id')),
+                'course_name': course.get('course_name'),
+                'credit_hour': course.get('credit_hour'),
+                'course_type': course.get('course_type'),
+                'shift': course.get('shift'),
+                'teacher_name': course.get('teacher_name'),
+                'teacher_registration': course.get('teacher_registration'),
+                'sections': sections
+            })
+
+        return jsonify({
+            'success': True,
+            'courses': courses_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/add_course", methods=["POST"])
 @login_required
@@ -1699,14 +1904,13 @@ def add_course():
 @app.route("/view_timetable")
 @login_required
 def view_timetable():
-    """View timetable with optional room/teacher/floor filters"""
+    """View timetable with optional room/teacher filters"""
     room_number = request.args.get('room')
     teacher_reg = request.args.get('teacher')
-    floor_number = request.args.get('floor')
 
     # If no filters provided, show filter selection page
-    if not room_number and not teacher_reg and not floor_number:
-        return render_template("pages/selectFloor.html", active_page="view_timetable")
+    if not room_number and not teacher_reg:
+        return render_template("pages/selectFloor_v2.html", active_page="view_timetable")
 
     # Build title based on filters
     title_parts = []
@@ -1716,13 +1920,11 @@ def view_timetable():
         teacher = users_collection.find_one({'registration_number': teacher_reg})
         if teacher:
             title_parts.append(f"Teacher: {teacher.get('username')}")
-    if floor_number:
-        title_parts.append(f"Floor {floor_number}")
 
     page_title = f"Timetable - {' & '.join(title_parts)}" if title_parts else "Timetable"
 
     return render_template(
-        "timetables/timetable_base.html",
+        "timetables/timetable_base_v2.html",
         active_page="view_timetable",
         page_title="View Timetable",
         hide_top_bar=True,
@@ -1731,8 +1933,7 @@ def view_timetable():
         show_page_title=True,
         page_title_text=page_title,
         room_filter=room_number,
-        teacher_filter=teacher_reg,
-        floor_filter=floor_number
+        teacher_filter=teacher_reg
     )
 
 @app.route("/get_all_rooms", methods=["GET"])
@@ -1794,17 +1995,45 @@ def get_scheduled_classes():
         teacher_reg = request.args.get('teacher')
         floor_number = request.args.get('floor')
 
+        print(f"DEBUG: get_scheduled_classes called with room={room_number}, teacher={teacher_reg}, floor={floor_number}")
+
         # Build query based on filters
         query = {}
         if room_number:
-            query['room_number'] = room_number
+            # Try to match room_number as both string and int to handle inconsistencies
+            query['$or'] = [
+                {'room_number': room_number},
+                {'room_number': str(room_number)},
+                {'room_number': int(room_number) if room_number.isdigit() else None}
+            ]
+            # Remove None values
+            query['$or'] = [q for q in query['$or'] if None not in q.values()]
+
         if teacher_reg:
-            query['teacher_registration'] = teacher_reg
+            # If we already have room_number filter, we need to combine them properly
+            if 'room_number' in query or '$or' in query:
+                # Combine with existing query
+                room_query = query.copy()
+                query = {'$and': [room_query, {'teacher_registration': teacher_reg}]}
+            else:
+                query['teacher_registration'] = teacher_reg
+
         if floor_number:
-            query['floor'] = int(floor_number)
+            # Similar to above, combine with existing filters
+            if '$and' in query:
+                query['$and'].append({'floor': int(floor_number)})
+            elif '$or' in query:
+                room_query = query.copy()
+                query = {'$and': [room_query, {'floor': int(floor_number)}]}
+            else:
+                query['floor'] = int(floor_number)
+
+        print(f"DEBUG: MongoDB query: {query}")
 
         # Get scheduled classes
         scheduled_classes = list(scheduled_classes_collection.find(query))
+
+        print(f"DEBUG: Found {len(scheduled_classes)} classes")
 
         # Format the data
         classes_data = []
@@ -1821,7 +2050,7 @@ def get_scheduled_classes():
                 'day': cls.get('day'),
                 'start_time': cls.get('start_time'),
                 'end_time': cls.get('end_time'),
-                'room_number': cls.get('room_number'),
+                'room_number': str(cls.get('room_number')),  # Convert to string for consistency
                 'floor': cls.get('floor')
             })
 
@@ -1830,6 +2059,9 @@ def get_scheduled_classes():
             'classes': classes_data
         })
     except Exception as e:
+        print(f"DEBUG: Error in get_scheduled_classes: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route("/get_scheduled_classes_by_course", methods=["GET"])
@@ -1960,13 +2192,24 @@ def update_scheduled_class(class_id):
                 'error': f'Teacher is already scheduled for another class on {day} at this time'
             }), 400
 
+        # Extract floor from room number (e.g., room 201 -> floor 2)
+        floor_number = None
+        try:
+            room_num_str = str(room_number)
+            if len(room_num_str) >= 3:
+                floor_number = int(room_num_str[:-2])  # Extract floor from room number
+        except (ValueError, TypeError):
+            floor_number = room.get('floor')  # Fallback to room's floor field if extraction fails
+
+        print(f"DEBUG: Updating class to room {room_number}, extracted floor: {floor_number}")
+
         # Update the scheduled class
         update_data = {
             'day': day,
             'start_time': start_time,
             'end_time': end_time,
             'room_number': room_number,
-            'floor': room.get('floor')
+            'floor': floor_number
         }
 
         scheduled_classes_collection.update_one(

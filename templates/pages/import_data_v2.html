@@ -1,0 +1,396 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Import Data - Smart Scheduler{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1400px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <h1 style="margin-bottom: var(--space-2);">Import Data</h1>
+        <p class="text-secondary">Bulk import courses and faculty members via CSV files</p>
+    </div>
+
+    <!-- Import Type Selection -->
+    <div style="display: flex; gap: var(--space-4); justify-content: center; margin-bottom: var(--space-8); flex-wrap: wrap;">
+        <button class="btn btn-lg" id="importCoursesBtn" onclick="showImportSection('courses')" style="min-width: 200px;">
+            <i class="fas fa-book"></i>
+            <span>Import Courses</span>
+        </button>
+        <button class="btn btn-secondary btn-lg" id="importFacultyBtn" onclick="showImportSection('faculty')" style="min-width: 200px;">
+            <i class="fas fa-users"></i>
+            <span>Import Faculty</span>
+        </button>
+    </div>
+
+    <!-- Import Courses Section -->
+    <div id="coursesSection" class="import-section" style="display: none;">
+        <div class="card card-elevated" style="margin-bottom: var(--space-6);">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-info-circle"></i> CSV Format for Courses
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-secondary" style="margin-bottom: var(--space-4);">
+                    Your CSV file must contain the following columns in this exact order:
+                </p>
+
+                <!-- CSV Header Example -->
+                <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6); overflow-x: auto;">
+                    <div style="display: flex; gap: var(--space-2); font-family: monospace; font-weight: var(--weight-semibold); color: var(--primary-600);">
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--primary-100); border-radius: var(--radius-sm);">course_name</span>
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--primary-100); border-radius: var(--radius-sm);">credit_hour</span>
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--primary-100); border-radius: var(--radius-sm);">course_type</span>
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--primary-100); border-radius: var(--radius-sm);">shift</span>
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--primary-100); border-radius: var(--radius-sm);">teacher_registration</span>
+                    </div>
+                </div>
+
+                <!-- Column Details -->
+                <h4 style="margin-bottom: var(--space-4); color: var(--text-primary);">Column Details:</h4>
+                <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-6);">
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--primary-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">course_name:</strong>
+                        <span class="text-secondary"> Name of the course (e.g., "Data Structures")</span>
+                    </div>
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--primary-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">credit_hour:</strong>
+                        <span class="text-secondary"> Must be either "1" or "3"</span>
+                    </div>
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--primary-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">course_type:</strong>
+                        <span class="text-secondary"> Must be either "Lab" or "Lecture"</span>
+                    </div>
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--primary-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">shift:</strong>
+                        <span class="text-secondary"> Must be either "Morning" or "Evening"</span>
+                    </div>
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--primary-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">teacher_registration:</strong>
+                        <span class="text-secondary"> Teacher's registration number (must exist in system)</span>
+                    </div>
+                </div>
+
+                <!-- Example CSV -->
+                <div style="background-color: var(--warning-100); border: 1px solid var(--warning-200); padding: var(--space-4); border-radius: var(--radius-md);">
+                    <strong style="color: var(--warning-700);">Example CSV Content:</strong>
+                    <pre style="margin-top: var(--space-3); color: var(--text-primary); overflow-x: auto; background-color: var(--bg-elevated); padding: var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm);">course_name,credit_hour,course_type,shift,teacher_registration
+Data Structures,3,Lecture,Morning,12345
+Database Lab,1,Lab,Evening,12346
+Web Development,3,Lecture,Morning,12345</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="card card-elevated">
+            <div class="card-header">
+                <h3 class="card-title">Upload CSV File</h3>
+            </div>
+            <div class="card-body">
+                <input type="file" id="coursesFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect('courses', this)">
+
+                <div style="text-align: center; padding: var(--space-8); border: 2px dashed var(--border-primary); border-radius: var(--radius-lg); background-color: var(--bg-secondary); transition: all var(--transition-fast);" id="coursesDropZone">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: var(--text-5xl); color: var(--primary-500); margin-bottom: var(--space-4);"></i>
+                    <p style="margin-bottom: var(--space-4); color: var(--text-primary); font-weight: var(--weight-medium);">Drop your CSV file here or</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('coursesFileInput').click()">
+                        <i class="fas fa-folder-open"></i>
+                        <span>Browse Files</span>
+                    </button>
+                </div>
+
+                <div id="coursesFileName" style="margin-top: var(--space-4); display: none;">
+                    <div style="background-color: var(--success-100); border: 1px solid var(--success-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--success-700);">
+                        <i class="fas fa-file-csv"></i>
+                        <span id="coursesFileNameText" style="font-weight: var(--weight-medium); margin-left: var(--space-2);"></span>
+                    </div>
+                </div>
+
+                <div id="coursesError" style="display: none; margin-top: var(--space-4);">
+                    <div style="background-color: var(--error-100); border: 1px solid var(--error-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--error-700);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="coursesErrorText" style="margin-left: var(--space-2);"></span>
+                    </div>
+                </div>
+
+                <button id="coursesUploadBtn" class="btn btn-success btn-lg" onclick="uploadFile('courses')" style="display: none; margin-top: var(--space-4); width: 100%;">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Courses</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Faculty Section -->
+    <div id="facultySection" class="import-section" style="display: none;">
+        <div class="card card-elevated" style="margin-bottom: var(--space-6);">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-info-circle"></i> CSV Format for Faculty
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-secondary" style="margin-bottom: var(--space-4);">
+                    Your CSV file must contain the following columns in this exact order:
+                </p>
+
+                <!-- CSV Header Example -->
+                <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6); overflow-x: auto;">
+                    <div style="display: flex; gap: var(--space-2); font-family: monospace; font-weight: var(--weight-semibold); color: var(--success-600);">
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--success-100); border-radius: var(--radius-sm);">username</span>
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--success-100); border-radius: var(--radius-sm);">registration_number</span>
+                        <span style="padding: var(--space-2) var(--space-3); background-color: var(--success-100); border-radius: var(--radius-sm);">email</span>
+                    </div>
+                </div>
+
+                <!-- Column Details -->
+                <h4 style="margin-bottom: var(--space-4); color: var(--text-primary);">Column Details:</h4>
+                <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-6);">
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--success-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">username:</strong>
+                        <span class="text-secondary"> Teacher's full name (e.g., "John Doe")</span>
+                    </div>
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--success-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">registration_number:</strong>
+                        <span class="text-secondary"> Unique registration number (must be unique)</span>
+                    </div>
+                    <div style="padding: var(--space-3) var(--space-4); background-color: var(--bg-secondary); border-left: 3px solid var(--success-500); border-radius: var(--radius-sm);">
+                        <strong style="color: var(--text-primary);">email:</strong>
+                        <span class="text-secondary"> Valid email address (must be unique)</span>
+                    </div>
+                </div>
+
+                <!-- Example CSV -->
+                <div style="background-color: var(--warning-100); border: 1px solid var(--warning-200); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-4);">
+                    <strong style="color: var(--warning-700);">Example CSV Content:</strong>
+                    <pre style="margin-top: var(--space-3); color: var(--text-primary); overflow-x: auto; background-color: var(--bg-elevated); padding: var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm);">username,registration_number,email
+John Doe,12345,john.doe@example.com
+Jane Smith,12346,jane.smith@example.com
+Robert Johnson,12347,robert.j@example.com</pre>
+                </div>
+
+                <!-- Important Note -->
+                <div style="background-color: var(--info-100); border: 1px solid var(--info-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--info-700);">
+                    <i class="fas fa-info-circle"></i>
+                    <strong style="margin-left: var(--space-2);">Note:</strong>
+                    <span style="margin-left: var(--space-2);">Passwords will be auto-generated and sent to each faculty member's email address.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="card card-elevated">
+            <div class="card-header">
+                <h3 class="card-title">Upload CSV File</h3>
+            </div>
+            <div class="card-body">
+                <input type="file" id="facultyFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect('faculty', this)">
+
+                <div style="text-align: center; padding: var(--space-8); border: 2px dashed var(--border-primary); border-radius: var(--radius-lg); background-color: var(--bg-secondary); transition: all var(--transition-fast);" id="facultyDropZone">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: var(--text-5xl); color: var(--success-500); margin-bottom: var(--space-4);"></i>
+                    <p style="margin-bottom: var(--space-4); color: var(--text-primary); font-weight: var(--weight-medium);">Drop your CSV file here or</p>
+                    <button class="btn btn-success" onclick="document.getElementById('facultyFileInput').click()">
+                        <i class="fas fa-folder-open"></i>
+                        <span>Browse Files</span>
+                    </button>
+                </div>
+
+                <div id="facultyFileName" style="margin-top: var(--space-4); display: none;">
+                    <div style="background-color: var(--success-100); border: 1px solid var(--success-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--success-700);">
+                        <i class="fas fa-file-csv"></i>
+                        <span id="facultyFileNameText" style="font-weight: var(--weight-medium); margin-left: var(--space-2);"></span>
+                    </div>
+                </div>
+
+                <div id="facultyError" style="display: none; margin-top: var(--space-4);">
+                    <div style="background-color: var(--error-100); border: 1px solid var(--error-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--error-700);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="facultyErrorText" style="margin-left: var(--space-2);"></span>
+                    </div>
+                </div>
+
+                <button id="facultyUploadBtn" class="btn btn-success btn-lg" onclick="uploadFile('faculty')" style="display: none; margin-top: var(--space-4); width: 100%;">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Faculty</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedFiles = {
+        courses: null,
+        faculty: null
+    };
+
+    // Show courses section by default
+    window.onload = function() {
+        showImportSection('courses');
+    };
+
+    function showImportSection(type) {
+        // Hide all sections
+        document.getElementById('coursesSection').style.display = 'none';
+        document.getElementById('facultySection').style.display = 'none';
+
+        // Update button styles
+        const coursesBtn = document.getElementById('importCoursesBtn');
+        const facultyBtn = document.getElementById('importFacultyBtn');
+
+        if (type === 'courses') {
+            document.getElementById('coursesSection').style.display = 'block';
+            coursesBtn.className = 'btn btn-primary btn-lg';
+            facultyBtn.className = 'btn btn-secondary btn-lg';
+        } else {
+            document.getElementById('facultySection').style.display = 'block';
+            coursesBtn.className = 'btn btn-secondary btn-lg';
+            facultyBtn.className = 'btn btn-primary btn-lg';
+        }
+    }
+
+    function handleFileSelect(type, input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.name.endsWith('.csv')) {
+            showError(type, 'Please select a CSV file');
+            return;
+        }
+
+        selectedFiles[type] = file;
+
+        // Show file name
+        const fileNameDiv = document.getElementById(`${type}FileName`);
+        const fileNameText = document.getElementById(`${type}FileNameText`);
+        fileNameText.textContent = file.name;
+        fileNameDiv.style.display = 'block';
+
+        // Show upload button
+        document.getElementById(`${type}UploadBtn`).style.display = 'block';
+
+        // Hide error
+        document.getElementById(`${type}Error`).style.display = 'none';
+    }
+
+    function showError(type, message) {
+        const errorDiv = document.getElementById(`${type}Error`);
+        const errorText = document.getElementById(`${type}ErrorText`);
+        errorText.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+
+    function uploadFile(type) {
+        const file = selectedFiles[type];
+        if (!file) {
+            showError(type, 'Please select a file first');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadBtn = document.getElementById(`${type}UploadBtn`);
+        const originalText = uploadBtn.innerHTML;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
+        uploadBtn.disabled = true;
+
+        const endpoint = type === 'courses' ? '/upload_courses' : '/upload_faculty';
+
+        fetch(endpoint, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            uploadBtn.innerHTML = originalText;
+            uploadBtn.disabled = false;
+
+            if (data.success) {
+                // Show success message
+                const fileNameDiv = document.getElementById(`${type}FileName`);
+                fileNameDiv.innerHTML = `
+                    <div style="background-color: var(--success-100); border: 1px solid var(--success-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--success-700);">
+                        <i class="fas fa-check-circle"></i>
+                        <span style="font-weight: var(--weight-semibold); margin-left: var(--space-2);">${data.message}</span>
+                    </div>
+                `;
+
+                // Reset
+                selectedFiles[type] = null;
+                document.getElementById(`${type}FileInput`).value = '';
+                uploadBtn.style.display = 'none';
+
+                // Reload after 2 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                showError(type, data.message || 'Upload failed');
+            }
+        })
+        .catch(error => {
+            uploadBtn.innerHTML = originalText;
+            uploadBtn.disabled = false;
+            console.error('Error:', error);
+            showError(type, 'An error occurred during upload');
+        });
+    }
+
+    // Drag and drop functionality
+    ['coursesDropZone', 'facultyDropZone'].forEach(id => {
+        const dropZone = document.getElementById(id);
+        const type = id.replace('DropZone', '');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--primary-500)';
+            dropZone.style.backgroundColor = 'var(--primary-50)';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--border-primary)';
+            dropZone.style.backgroundColor = 'var(--bg-secondary)';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--border-primary)';
+            dropZone.style.backgroundColor = 'var(--bg-secondary)';
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const input = document.getElementById(`${type}FileInput`);
+                input.files = files;
+                handleFileSelect(type, input);
+            }
+        });
+    });
+</script>
+
+<style>
+    .import-section {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        pre {
+            font-size: var(--text-xs) !important;
+        }
+    }
+</style>
+{% endblock %}

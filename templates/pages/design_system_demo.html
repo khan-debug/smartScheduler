@@ -1,0 +1,378 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Design System Demo - Smart Scheduler{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1400px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <h1 style="margin-bottom: var(--space-2);">Design System Demo</h1>
+        <p class="text-secondary">Modern, cohesive component library for Smart Scheduler v2.0</p>
+    </div>
+
+    <!-- Color Palette -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Color Palette</h2>
+
+        <h3 style="margin-bottom: var(--space-4); font-size: var(--text-lg);">Primary Colors</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-8);">
+            <div style="text-align: center;">
+                <div style="width: 100%; height: 80px; background-color: var(--primary-500); border-radius: var(--radius-lg); margin-bottom: var(--space-2);"></div>
+                <p class="text-sm text-secondary">Primary</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="width: 100%; height: 80px; background-color: var(--secondary-600); border-radius: var(--radius-lg); margin-bottom: var(--space-2);"></div>
+                <p class="text-sm text-secondary">Secondary</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="width: 100%; height: 80px; background-color: var(--success-500); border-radius: var(--radius-lg); margin-bottom: var(--space-2);"></div>
+                <p class="text-sm text-secondary">Success</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="width: 100%; height: 80px; background-color: var(--warning-500); border-radius: var(--radius-lg); margin-bottom: var(--space-2);"></div>
+                <p class="text-sm text-secondary">Warning</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="width: 100%; height: 80px; background-color: var(--error-500); border-radius: var(--radius-lg); margin-bottom: var(--space-2);"></div>
+                <p class="text-sm text-secondary">Error</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="width: 100%; height: 80px; background-color: var(--info-500); border-radius: var(--radius-lg); margin-bottom: var(--space-2);"></div>
+                <p class="text-sm text-secondary">Info</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Typography -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Typography</h2>
+        <h1>Heading 1 - Inter Bold</h1>
+        <h2>Heading 2 - Inter Bold</h2>
+        <h3>Heading 3 - Inter Bold</h3>
+        <h4>Heading 4 - Inter Bold</h4>
+        <h5>Heading 5 - Inter Bold</h5>
+        <h6>Heading 6 - Inter Bold</h6>
+        <p>Body text - This is regular paragraph text using Inter font at 16px base size with 1.5 line height for optimal readability.</p>
+        <p class="text-sm text-secondary">Small text - This is smaller text often used for captions and secondary information.</p>
+    </section>
+
+    <!-- Buttons -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Buttons</h2>
+
+        <div class="card" style="margin-bottom: var(--space-6);">
+            <div class="card-header">
+                <h3 class="card-title">Button Variants</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-6);">
+                    <button class="btn btn-primary">Primary Button</button>
+                    <button class="btn btn-secondary">Secondary Button</button>
+                    <button class="btn btn-outline">Outline Button</button>
+                    <button class="btn btn-ghost">Ghost Button</button>
+                    <button class="btn btn-danger">Danger Button</button>
+                    <button class="btn btn-success">Success Button</button>
+                </div>
+
+                <h4 style="margin-bottom: var(--space-3);">Button Sizes</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-6);">
+                    <button class="btn btn-primary btn-xs">Extra Small</button>
+                    <button class="btn btn-primary btn-sm">Small</button>
+                    <button class="btn btn-primary btn-md">Medium</button>
+                    <button class="btn btn-primary btn-lg">Large</button>
+                    <button class="btn btn-primary btn-xl">Extra Large</button>
+                </div>
+
+                <h4 style="margin-bottom: var(--space-3);">Buttons with Icons</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-6);">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        <span>Add New</span>
+                    </button>
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-download"></i>
+                        <span>Download</span>
+                    </button>
+                    <button class="btn btn-danger">
+                        <i class="fas fa-trash"></i>
+                        <span>Delete</span>
+                    </button>
+                </div>
+
+                <h4 style="margin-bottom: var(--space-3);">Icon Buttons</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-3);">
+                    <button class="btn btn-primary btn-icon"><i class="fas fa-heart"></i></button>
+                    <button class="btn btn-secondary btn-icon"><i class="fas fa-share"></i></button>
+                    <button class="btn btn-ghost btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cards -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Cards</h2>
+
+        <div class="card-grid">
+            <!-- Basic Card -->
+            <div class="card card-elevated">
+                <div class="card-header">
+                    <h3 class="card-title">Basic Card</h3>
+                    <button class="card-action"><i class="fas fa-ellipsis-v"></i></button>
+                </div>
+                <div class="card-body">
+                    <p>This is a basic card with header, body, and footer sections.</p>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-secondary">Cancel</button>
+                    <button class="btn btn-primary">Save</button>
+                </div>
+            </div>
+
+            <!-- Stat Cards -->
+            <div class="stat-card">
+                <p class="stat-card-label">Total Students</p>
+                <p class="stat-card-value">2,456</p>
+                <p class="stat-card-change stat-card-change-positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>12% from last month</span>
+                </p>
+            </div>
+
+            <div class="stat-card stat-card-success">
+                <p class="stat-card-label">Active Courses</p>
+                <p class="stat-card-value">42</p>
+                <p class="stat-card-change stat-card-change-positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>5% increase</span>
+                </p>
+            </div>
+
+            <div class="stat-card stat-card-warning">
+                <p class="stat-card-label">Pending Tasks</p>
+                <p class="stat-card-value">18</p>
+                <p class="stat-card-change">
+                    <i class="fas fa-minus"></i>
+                    <span>No change</span>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Forms -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Form Elements</h2>
+
+        <div class="card card-elevated">
+            <div class="card-header">
+                <h3 class="card-title">Form Components</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-grid form-grid-2">
+                    <!-- Text Input -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            Full Name
+                            <span class="form-required">*</span>
+                        </label>
+                        <input type="text" class="form-input" placeholder="Enter your name">
+                        <p class="form-help">Please enter your full name</p>
+                    </div>
+
+                    <!-- Email Input -->
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-input" placeholder="you@example.com">
+                    </div>
+
+                    <!-- Select -->
+                    <div class="form-group">
+                        <label class="form-label">Department</label>
+                        <select class="form-select">
+                            <option value="">Select department</option>
+                            <option value="cs">Computer Science</option>
+                            <option value="math">Mathematics</option>
+                            <option value="eng">Engineering</option>
+                        </select>
+                    </div>
+
+                    <!-- Input with Icon -->
+                    <div class="form-group">
+                        <label class="form-label">Search</label>
+                        <div class="input-icon-container">
+                            <i class="fas fa-search input-icon"></i>
+                            <input type="text" class="form-input" placeholder="Search...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Textarea -->
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" placeholder="Enter description"></textarea>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="form-group">
+                    <label class="form-label">Preferences</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-checkbox form-check-input" id="check1">
+                        <label for="check1" class="form-check-label">
+                            Email notifications
+                            <p class="form-check-description">Receive email updates about your schedule</p>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-checkbox form-check-input" id="check2" checked>
+                        <label for="check2" class="form-check-label">
+                            Push notifications
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Radio Buttons -->
+                <div class="form-group">
+                    <label class="form-label">Shift Preference</label>
+                    <div class="form-check">
+                        <input type="radio" class="form-radio form-check-input" name="shift" id="morning">
+                        <label for="morning" class="form-check-label">Morning Shift</label>
+                    </div>
+                    <div class="form-check">
+                        <input type="radio" class="form-radio form-check-input" name="shift" id="evening" checked>
+                        <label for="evening" class="form-check-label">Evening Shift</label>
+                    </div>
+                </div>
+
+                <!-- Switch -->
+                <div class="form-group">
+                    <label class="form-label">Enable Feature</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-switch form-check-input" id="switch1" checked>
+                        <label for="switch1" class="form-check-label">Automatic scheduling</label>
+                    </div>
+                </div>
+
+                <!-- Validation States -->
+                <div class="form-grid form-grid-3">
+                    <div class="form-group">
+                        <label class="form-label">Success State</label>
+                        <input type="text" class="form-input form-input-success" value="Valid input">
+                        <p class="form-success"><i class="fas fa-check-circle"></i> Looks good!</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Error State</label>
+                        <input type="text" class="form-input form-input-error" value="Invalid input">
+                        <p class="form-error"><i class="fas fa-exclamation-circle"></i> This field is required</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Warning State</label>
+                        <input type="text" class="form-input form-input-warning" value="Questionable input">
+                        <p class="form-warning"><i class="fas fa-exclamation-triangle"></i> Please verify this</p>
+                    </div>
+                </div>
+
+                <div class="form-actions form-actions-right">
+                    <button class="btn btn-secondary">Cancel</button>
+                    <button class="btn btn-primary">Submit Form</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Course & Room Cards (Domain-Specific) -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Domain-Specific Components</h2>
+
+        <div class="card-grid">
+            <!-- Course Card -->
+            <div class="card course-card course-card-lecture">
+                <div class="card-body">
+                    <h4 style="margin-bottom: var(--space-2);">Introduction to Programming</h4>
+                    <p class="text-sm text-secondary" style="margin-bottom: var(--space-4);">CS101 - Section MOR001</p>
+                    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-sm); color: var(--text-secondary);">
+                        <span><i class="fas fa-user-tie"></i> Prof. Smith</span>
+                        <span><i class="fas fa-clock"></i> 3 hours</span>
+                        <span><i class="fas fa-book"></i> Lecture</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Card -->
+            <div class="card room-card room-card-available">
+                <div class="card-body">
+                    <h4 style="margin-bottom: var(--space-2);">Room 301</h4>
+                    <p class="text-sm text-secondary" style="margin-bottom: var(--space-4);">Lab - Floor 3</p>
+                    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-sm);">
+                        <span class="text-success"><i class="fas fa-check-circle"></i> Available</span>
+                        <span class="text-secondary"><i class="fas fa-users"></i> Capacity: 40</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class Schedule Card -->
+            <div class="card class-card">
+                <div class="card-body">
+                    <p class="class-card-time">Monday, 10:00 AM - 1:00 PM</p>
+                    <h4 style="margin-bottom: var(--space-3);">Data Structures</h4>
+                    <div class="class-card-details">
+                        <span><i class="fas fa-door-open"></i> Room 402</span>
+                        <span><i class="fas fa-user-tie"></i> Dr. Johnson</span>
+                        <span><i class="fas fa-users"></i> Section MOR002</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Utility Classes Demo -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Utility Classes</h2>
+
+        <div class="card">
+            <div class="card-body">
+                <h4 style="margin-bottom: var(--space-4);">Spacing</h4>
+                <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-6);">
+                    <div class="p-2 bg-tertiary rounded-md">p-2 (8px)</div>
+                    <div class="p-4 bg-tertiary rounded-md">p-4 (16px)</div>
+                    <div class="p-6 bg-tertiary rounded-md">p-6 (24px)</div>
+                    <div class="p-8 bg-tertiary rounded-md">p-8 (32px)</div>
+                </div>
+
+                <h4 style="margin-bottom: var(--space-4);">Shadows</h4>
+                <div style="display: flex; gap: var(--space-6); flex-wrap: wrap; margin-bottom: var(--space-6);">
+                    <div class="p-6 bg-elevated rounded-lg shadow-sm">shadow-sm</div>
+                    <div class="p-6 bg-elevated rounded-lg shadow-md">shadow-md</div>
+                    <div class="p-6 bg-elevated rounded-lg shadow-lg">shadow-lg</div>
+                    <div class="p-6 bg-elevated rounded-lg shadow-xl">shadow-xl</div>
+                </div>
+
+                <h4 style="margin-bottom: var(--space-4);">Border Radius</h4>
+                <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+                    <div class="p-4 bg-tertiary rounded-sm">rounded-sm</div>
+                    <div class="p-4 bg-tertiary rounded-md">rounded-md</div>
+                    <div class="p-4 bg-tertiary rounded-lg">rounded-lg</div>
+                    <div class="p-4 bg-tertiary rounded-xl">rounded-xl</div>
+                    <div class="p-4 bg-tertiary rounded-full">rounded-full</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Theme Toggle Demo -->
+    <section style="margin-bottom: var(--space-12);">
+        <h2 style="margin-bottom: var(--space-6);">Theme System</h2>
+
+        <div class="card">
+            <div class="card-body">
+                <p style="margin-bottom: var(--space-4);">The design system supports both light and dark themes with automatic system preference detection.</p>
+                <button class="btn btn-primary" onclick="toggleTheme()">
+                    <i class="fas fa-moon"></i>
+                    <span>Toggle Theme</span>
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
