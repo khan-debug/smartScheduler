@@ -1,0 +1,183 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Confirm Autopicked Courses - Floor {{ floor_number }}{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1200px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2);">
+            <a href="/autogenerate_configure?floor={{ floor_number }}" style="color: var(--text-secondary); text-decoration: none; font-size: var(--text-lg);">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 style="margin: 0;">Autopicked Courses - Floor {{ floor_number }}</h1>
+        </div>
+        <p class="text-secondary">Review and confirm the automatically selected courses</p>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card card-flat" style="margin-bottom: var(--space-8); background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%);">
+        <div class="card-body">
+            <div style="display: flex; gap: var(--space-4); align-items: center;">
+                <div style="flex-shrink: 0; color: var(--success-600); font-size: var(--text-3xl);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="margin-bottom: var(--space-2); color: var(--text-primary);">Autopick Complete</h3>
+                    <p class="text-secondary" style="margin-bottom: var(--space-3);">
+                        Successfully selected {{ total_courses }} unscheduled courses based on floor capacity
+                    </p>
+                    <div style="display: flex; gap: var(--space-6);">
+                        <div>
+                            <span class="text-secondary" style="font-size: var(--text-sm);">Lecture Courses:</span>
+                            <span style="color: var(--primary-600); font-weight: var(--weight-bold); margin-left: var(--space-2);">{{ lecture_courses|length }}</span>
+                        </div>
+                        <div>
+                            <span class="text-secondary" style="font-size: var(--text-sm);">Lab Courses:</span>
+                            <span style="color: var(--success-600); font-weight: var(--weight-bold); margin-left: var(--space-2);">{{ lab_courses|length }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if total_courses == 0 %}
+    <!-- No courses available -->
+    <div class="card card-flat">
+        <div class="card-body" style="text-align: center; padding: var(--space-12);">
+            <i class="fas fa-inbox" style="font-size: var(--text-6xl); color: var(--text-tertiary); margin-bottom: var(--space-4);"></i>
+            <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">No Unscheduled Courses</h3>
+            <p class="text-secondary" style="margin-bottom: var(--space-6);">
+                All courses are already scheduled, or no courses are available in the system.
+            </p>
+            <a href="/autogenerate_select_floor" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> <span>Back to Floor Selection</span>
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <!-- Course Lists -->
+    <div style="display: grid; gap: var(--space-6); margin-bottom: var(--space-8);">
+        {% if lecture_courses %}
+        <!-- Lecture Courses -->
+        <div class="card card-elevated">
+            <div class="card-body">
+                <h2 style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); color: var(--text-primary);">
+                    <i class="fas fa-graduation-cap" style="color: var(--primary-500);"></i>
+                    Lecture Courses ({{ lecture_courses|length }})
+                </h2>
+                <div style="display: grid; gap: var(--space-3);">
+                    {% for course in lecture_courses %}
+                    <div style="padding: var(--space-4); background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <h3 style="color: var(--text-primary); margin-bottom: var(--space-1);">
+                                    {{ course.section_code }}
+                                </h3>
+                                <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-2);">
+                                    {{ course.course_name }}
+                                </p>
+                                <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-sm);">
+                                    {% if course.teacher_name %}
+                                    <span class="text-secondary">
+                                        <i class="fas fa-user"></i> {{ course.teacher_name }}
+                                    </span>
+                                    {% endif %}
+                                    {% if course.shift %}
+                                    <span class="text-secondary">
+                                        <i class="fas fa-clock"></i> {{ course.shift }}
+                                    </span>
+                                    {% endif %}
+                                    {% if course.credit_hour %}
+                                    <span class="text-secondary">
+                                        <i class="fas fa-book"></i> {{ course.credit_hour }} CH
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <span style="padding: var(--space-1) var(--space-3); background: var(--primary-100); color: var(--primary-700); border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);">
+                                Lecture
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if lab_courses %}
+        <!-- Lab Courses -->
+        <div class="card card-elevated">
+            <div class="card-body">
+                <h2 style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); color: var(--text-primary);">
+                    <i class="fas fa-flask" style="color: var(--success-500);"></i>
+                    Lab Courses ({{ lab_courses|length }})
+                </h2>
+                <div style="display: grid; gap: var(--space-3);">
+                    {% for course in lab_courses %}
+                    <div style="padding: var(--space-4); background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <h3 style="color: var(--text-primary); margin-bottom: var(--space-1);">
+                                    {{ course.section_code }}
+                                </h3>
+                                <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-2);">
+                                    {{ course.course_name }}
+                                </p>
+                                <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-sm);">
+                                    {% if course.teacher_name %}
+                                    <span class="text-secondary">
+                                        <i class="fas fa-user"></i> {{ course.teacher_name }}
+                                    </span>
+                                    {% endif %}
+                                    {% if course.shift %}
+                                    <span class="text-secondary">
+                                        <i class="fas fa-clock"></i> {{ course.shift }}
+                                    </span>
+                                    {% endif %}
+                                    {% if course.credit_hour %}
+                                    <span class="text-secondary">
+                                        <i class="fas fa-book"></i> {{ course.credit_hour }} CH
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <span style="padding: var(--space-1) var(--space-3); background: var(--success-100); color: var(--success-700); border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold);">
+                                Lab
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display: flex; gap: var(--space-4); justify-content: center;">
+        <a href="/autogenerate_configure?floor={{ floor_number }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> <span>Go Back</span>
+        </a>
+        <button onclick="proceedToScheduling()" class="btn btn-primary" style="min-width: 200px;">
+            <i class="fas fa-calendar-plus"></i> <span>Proceed to Scheduling</span>
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function proceedToScheduling() {
+        // Show loading state
+        const button = event.target.closest('button');
+        const originalContent = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Generating Timetable...</span>';
+
+        // Redirect to scheduling execution
+        window.location.href = '/execute_autogenerate_scheduling?floor={{ floor_number }}';
+    }
+</script>
+{% endblock %}

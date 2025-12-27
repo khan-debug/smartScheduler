@@ -1,0 +1,265 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Timetable - Floor {{ floor_number }}{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1400px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+            <div style="display: flex; align-items: center; gap: var(--space-3);">
+                <a href="/autogenerate_select_floor" style="color: var(--text-secondary); text-decoration: none; font-size: var(--text-lg);">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 style="margin: 0;">Generated Timetable - Floor {{ floor_number }}</h1>
+            </div>
+        </div>
+        <p class="text-secondary">View the automatically generated schedule</p>
+    </div>
+
+    <!-- Success Message -->
+    {% if scheduled_count > 0 %}
+    <div class="card card-flat" style="margin-bottom: var(--space-6); background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%); border: 1px solid var(--success-300);">
+        <div class="card-body">
+            <div style="display: flex; gap: var(--space-4); align-items: center;">
+                <div style="flex-shrink: 0; color: var(--success-600); font-size: var(--text-3xl);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: var(--space-2); color: var(--success-900);">Scheduling Successful!</h3>
+                    <p style="color: var(--success-700); margin: 0;">
+                        Successfully scheduled <strong>{{ scheduled_count }}</strong> out of <strong>{{ total_count }}</strong> courses using genetic algorithm optimization.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Room Selector -->
+    <div class="card card-elevated" style="margin-bottom: var(--space-6);">
+        <div class="card-body">
+            <label for="roomSelect" style="display: block; margin-bottom: var(--space-3); font-weight: var(--weight-semibold); color: var(--text-primary);">
+                <i class="fas fa-door-open"></i> Select Room
+            </label>
+            <select id="roomSelect" onchange="displayTimetable()" style="width: 100%; padding: var(--space-3); border: 1px solid var(--border-primary); border-radius: var(--radius-md); font-size: var(--text-base); background: var(--bg-primary); color: var(--text-primary);">
+                <option value="">-- Select a room to view its timetable --</option>
+                {% for room in rooms %}
+                <option value="{{ room.room_number }}">
+                    Room {{ room.room_number }} - {{ room.type }} {% if room.capacity %}(Capacity: {{ room.capacity }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Timetable Grid Container -->
+    <div id="timetableContainer">
+        <div style="text-align: center; padding: var(--space-12); color: var(--text-secondary);">
+            <i class="fas fa-calendar-alt" style="font-size: var(--text-6xl); margin-bottom: var(--space-4); opacity: 0.3;"></i>
+            <p>Please select a room to view its timetable</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timetable-grid {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--bg-primary);
+        box-shadow: var(--shadow-md);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .timetable-grid th {
+        background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+        color: white;
+        padding: var(--space-4);
+        text-align: center;
+        font-weight: var(--weight-semibold);
+        border: 1px solid var(--primary-700);
+    }
+
+    .timetable-grid td {
+        padding: var(--space-3);
+        border: 1px solid var(--border-primary);
+        vertical-align: top;
+        min-height: 80px;
+        background: var(--bg-primary);
+    }
+
+    .time-column {
+        background: var(--bg-secondary);
+        font-weight: var(--weight-semibold);
+        color: var(--text-secondary);
+        white-space: nowrap;
+        text-align: center;
+        width: 140px;
+    }
+
+    .class-card {
+        background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
+        border-left: 4px solid var(--primary-500);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+    }
+
+    .class-card.lab {
+        background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%);
+        border-left-color: var(--success-500);
+    }
+
+    .class-code {
+        font-weight: var(--weight-bold);
+        color: var(--primary-700);
+        margin-bottom: var(--space-1);
+    }
+
+    .class-card.lab .class-code {
+        color: var(--success-700);
+    }
+
+    .class-teacher {
+        color: var(--text-secondary);
+        font-size: var(--text-xs);
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+    }
+
+    .empty-slot {
+        color: var(--text-tertiary);
+        font-style: italic;
+        text-align: center;
+        padding: var(--space-4);
+    }
+</style>
+
+<script>
+    const scheduledClasses = {{ scheduled_classes | tojson }};
+    const days = {{ days | tojson }};
+
+    // All time slots (lectures + labs combined and sorted)
+    const allTimeSlots = [
+        '8:30 AM - 9:20 AM',
+        '9:30 AM - 10:20 AM',
+        '8:30 AM - 11:20 AM',  // Lecture
+        '10:30 AM - 11:20 AM',
+        '11:30 AM - 12:20 PM',
+        '11:30 AM - 2:20 PM',  // Lecture
+        '12:30 PM - 1:20 PM',
+        '1:30 PM - 2:20 PM',
+        '2:30 PM - 3:20 PM',
+        '2:30 PM - 5:20 PM',   // Lecture
+        '3:30 PM - 4:20 PM',
+        '5:00 PM - 5:50 PM',
+        '5:00 PM - 7:50 PM',   // Lecture (evening)
+        '6:00 PM - 6:50 PM',
+        '7:00 PM - 7:50 PM',
+        '8:00 PM - 8:50 PM',
+        '9:00 PM - 9:50 PM'
+    ];
+
+    function displayTimetable() {
+        const roomNumber = parseInt(document.getElementById('roomSelect').value);
+        const container = document.getElementById('timetableContainer');
+
+        if (!roomNumber) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: var(--space-12); color: var(--text-secondary);">
+                    <i class="fas fa-calendar-alt" style="font-size: var(--text-6xl); margin-bottom: var(--space-4); opacity: 0.3;"></i>
+                    <p>Please select a room to view its timetable</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Filter classes for selected room (handle both string and int)
+        const roomClasses = scheduledClasses.filter(c =>
+            parseInt(c.room_number) === roomNumber || c.room_number === roomNumber.toString()
+        );
+
+        console.log('Selected room:', roomNumber);
+        console.log('All scheduled classes:', scheduledClasses);
+        console.log('Filtered room classes:', roomClasses);
+
+        // Check if room has any classes
+        if (roomClasses.length === 0) {
+            container.innerHTML = `
+                <div class="card card-flat">
+                    <div class="card-body" style="text-align: center; padding: var(--space-12);">
+                        <i class="fas fa-inbox" style="font-size: var(--text-6xl); color: var(--text-tertiary); margin-bottom: var(--space-4);"></i>
+                        <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">No Classes Scheduled</h3>
+                        <p class="text-secondary">Room ${roomNumber} has no scheduled classes yet.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        // Build timetable grid
+        let html = '<div class="card card-elevated"><div class="card-body" style="padding: 0; overflow-x: auto;">';
+        html += '<table class="timetable-grid">';
+
+        // Header row
+        html += '<thead><tr><th class="time-column">Time</th>';
+        days.forEach(day => {
+            html += `<th>${day}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        // Time slot rows
+        allTimeSlots.forEach(timeSlot => {
+            html += `<tr><td class="time-column">${timeSlot}</td>`;
+
+            days.forEach(day => {
+                // Find class for this day and time
+                const timeSlotFormatted = `${roomClasses[0]?.start_time} - ${roomClasses[0]?.end_time}`;
+                const classInSlot = roomClasses.find(c => {
+                    const classTimeSlot = `${c.start_time} - ${c.end_time}`;
+                    const match = c.day === day && classTimeSlot === timeSlot;
+                    if (match) {
+                        console.log('Match found:', c, 'for slot:', timeSlot);
+                    }
+                    return match;
+                });
+
+                if (classInSlot) {
+                    const isLab = timeSlot.includes('9:20') || timeSlot.includes('10:20') ||
+                                  timeSlot.includes('11:20') && !timeSlot.startsWith('8:30') ||
+                                  timeSlot.includes('12:20') || timeSlot.includes('1:20') ||
+                                  timeSlot.includes('2:20') && !timeSlot.startsWith('11:30') ||
+                                  timeSlot.includes('3:20') || timeSlot.includes('4:20') ||
+                                  timeSlot.includes('5:50') || timeSlot.includes('6:50') ||
+                                  timeSlot.includes('7:50') && !timeSlot.startsWith('5:00') ||
+                                  timeSlot.includes('8:50') || timeSlot.includes('9:50');
+
+                    html += `<td><div class="class-card ${isLab ? 'lab' : ''}">`;
+                    html += `<div class="class-code">${classInSlot.course_code}</div>`;
+                    html += `<div style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-1);">${classInSlot.course_name}</div>`;
+                    html += `<div class="class-teacher"><i class="fas fa-user"></i> ${classInSlot.teacher_name}</div>`;
+                    html += `</div></td>`;
+                } else {
+                    html += '<td><div class="empty-slot">-</div></td>';
+                }
+            });
+
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+        container.innerHTML = html;
+    }
+
+    // Auto-select first room if available
+    window.onload = function() {
+        const roomSelect = document.getElementById('roomSelect');
+        if (roomSelect.options.length > 1) {
+            roomSelect.selectedIndex = 1;
+            displayTimetable();
+        }
+    };
+</script>
+{% endblock %}

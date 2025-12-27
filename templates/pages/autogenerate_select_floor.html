@@ -1,0 +1,336 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Select Floor - Autogenerate{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1200px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <h1 style="margin-bottom: var(--space-2);">Auto-Generate Timetable</h1>
+        <p class="text-secondary">Select a floor to generate timetable based on available room capacity</p>
+    </div>
+
+    <!-- Configuration Info Card -->
+    <div class="card card-flat" style="margin-bottom: var(--space-8);">
+        <div class="card-body">
+            <div style="display: flex; gap: var(--space-4); align-items: start;">
+                <div style="flex-shrink: 0; color: var(--info-600); font-size: var(--text-2xl);">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: var(--space-3); color: var(--text-primary);">Scheduling Configuration</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
+                        <div>
+                            <div class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-1);">Operating Hours</div>
+                            <div style="color: var(--text-primary); font-weight: var(--weight-semibold);">
+                                <i class="fas fa-clock"></i> <span id="configHours">8:30 AM - 10:00 PM</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-1);">Days per Week</div>
+                            <div style="color: var(--text-primary); font-weight: var(--weight-semibold);">
+                                <i class="fas fa-calendar-week"></i> <span id="configDays">6 days</span> (Mon-Sat)
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-1);">Lecture Duration</div>
+                            <div style="color: var(--text-primary); font-weight: var(--weight-semibold);">
+                                <i class="fas fa-graduation-cap"></i> 3 hours
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-1);">Lab Duration</div>
+                            <div style="color: var(--text-primary); font-weight: var(--weight-semibold);">
+                                <i class="fas fa-flask"></i> 1 hour
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floors Grid -->
+    <div id="floorsContainer">
+        <!-- Loading state -->
+        <div style="text-align: center; padding: var(--space-12);">
+            <div class="spinner" style="width: 50px; height: 50px; border: 4px solid var(--border-primary); border-top-color: var(--primary-500); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto var(--space-4);"></div>
+            <p class="text-secondary">Loading floors and calculating capacity...</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .floor-card {
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .floor-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: left 0.5s;
+    }
+
+    .floor-card:hover::before {
+        left: 100%;
+    }
+
+    .floor-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-2xl);
+    }
+
+    .capacity-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        border-radius: var(--radius-full);
+        font-size: var(--text-sm);
+        font-weight: var(--weight-semibold);
+    }
+
+    .capacity-high {
+        background-color: var(--success-100);
+        color: var(--success-700);
+        border: 1px solid var(--success-300);
+    }
+
+    .capacity-medium {
+        background-color: var(--warning-100);
+        color: var(--warning-700);
+        border: 1px solid var(--warning-300);
+    }
+
+    .capacity-low {
+        background-color: var(--error-100);
+        color: var(--error-700);
+        border: 1px solid var(--error-300);
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: var(--space-4);
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-primary);
+    }
+
+    .stat-value {
+        font-size: var(--text-3xl);
+        font-weight: var(--weight-bold);
+        color: var(--primary-600);
+        margin-bottom: var(--space-1);
+    }
+
+    .stat-label {
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    window.onload = function() {
+        loadFloors();
+    };
+
+    function loadFloors() {
+        fetch('/get_floors_with_capacity')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayFloors(data.floors, data.config);
+                } else {
+                    showError('Failed to load floors: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error loading floors:', error);
+                showError('Error loading floors. Please try again.');
+            });
+    }
+
+    function displayFloors(floors, config) {
+        const container = document.getElementById('floorsContainer');
+
+        if (floors.length === 0) {
+            container.innerHTML = `
+                <div class="card card-flat">
+                    <div class="card-body" style="text-align: center; padding: var(--space-12);">
+                        <i class="fas fa-inbox" style="font-size: var(--text-6xl); color: var(--text-tertiary); margin-bottom: var(--space-4);"></i>
+                        <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">No Floors Available</h3>
+                        <p class="text-secondary">No floors found in the system.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '<div style="display: grid; gap: var(--space-6);">';
+
+        floors.forEach(floor => {
+            // Determine capacity level for badge
+            let capacityClass = 'capacity-low';
+            let capacityText = 'Low Capacity';
+            if (floor.total_capacity >= 100) {
+                capacityClass = 'capacity-high';
+                capacityText = 'High Capacity';
+            } else if (floor.total_capacity >= 50) {
+                capacityClass = 'capacity-medium';
+                capacityText = 'Medium Capacity';
+            }
+
+            // Status badge
+            let statusBadge = '';
+            if (floor.has_schedule) {
+                statusBadge = `
+                    <div style="display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--success-100); color: var(--success-700); border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--weight-semibold); margin-left: var(--space-2);">
+                        <i class="fas fa-check-circle"></i> ${floor.scheduled_count} Classes Scheduled
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="card card-elevated floor-card">
+                    <div class="card-body" style="padding: var(--space-8);">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-6);">
+                            <div>
+                                <h2 style="font-size: var(--text-3xl); color: var(--text-primary); margin-bottom: var(--space-2);">
+                                    <i class="fas fa-building" style="color: var(--primary-500);"></i>
+                                    Floor ${floor.floor_number}
+                                </h2>
+                                <div style="display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+                                    <span class="capacity-badge ${capacityClass}">
+                                        <i class="fas fa-chart-line"></i>
+                                        ${capacityText}
+                                    </span>
+                                    ${statusBadge}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: var(--text-4xl); font-weight: var(--weight-bold); color: var(--primary-600);">
+                                    ${floor.total_capacity}
+                                </div>
+                                <div class="text-secondary" style="font-size: var(--text-sm);">classes/week</div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6);">
+                            <div class="stat-item">
+                                <div class="stat-value">${floor.total_rooms}</div>
+                                <div class="stat-label"><i class="fas fa-door-open"></i> Total Rooms</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${floor.lecture_halls}</div>
+                                <div class="stat-label"><i class="fas fa-graduation-cap"></i> Lecture Halls</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${floor.labs}</div>
+                                <div class="stat-label"><i class="fas fa-flask"></i> Labs</div>
+                            </div>
+                        </div>
+
+                        <!-- Capacity Breakdown -->
+                        <div style="background: var(--bg-secondary); padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--border-primary);">
+                            <div style="font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-3); font-weight: var(--weight-semibold);">
+                                <i class="fas fa-chart-bar"></i> Capacity Breakdown
+                            </div>
+                            <div style="display: flex; justify-content: space-between; gap: var(--space-6); flex-wrap: wrap;">
+                                <div>
+                                    <div style="color: var(--text-secondary); font-size: var(--text-sm);">Lecture Classes</div>
+                                    <div style="color: var(--primary-600); font-size: var(--text-xl); font-weight: var(--weight-bold);">
+                                        ${floor.lecture_capacity} <span style="font-size: var(--text-sm); font-weight: normal; color: var(--text-secondary);">/week</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="color: var(--text-secondary); font-size: var(--text-sm);">Lab Classes</div>
+                                    <div style="color: var(--success-600); font-size: var(--text-xl); font-weight: var(--weight-bold);">
+                                        ${floor.lab_capacity} <span style="font-size: var(--text-sm); font-weight: normal; color: var(--text-secondary);">/week</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div style="margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-primary);">
+                            ${floor.has_schedule ? `
+                                <div style="display: flex; gap: var(--space-3);">
+                                    <button onclick="viewSchedule(${floor.floor_number}, ${floor.scheduled_count})" class="btn btn-primary" style="flex: 1;">
+                                        <i class="fas fa-calendar-alt"></i> <span>View Schedule</span>
+                                    </button>
+                                    <button onclick="regenerateSchedule(${floor.floor_number})" class="btn btn-secondary" style="flex: 1;">
+                                        <i class="fas fa-sync-alt"></i> <span>Regenerate</span>
+                                    </button>
+                                </div>
+                            ` : `
+                                <button onclick="selectFloor(${floor.floor_number}, ${floor.total_capacity})" class="btn btn-primary" style="width: 100%;">
+                                    <i class="fas fa-plus-circle"></i> <span>Generate Schedule</span>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function selectFloor(floorNumber, capacity) {
+        if (capacity === 0) {
+            alert(`Floor ${floorNumber} has no available rooms.\n\nCapacity: 0 classes per week\n\nPlease make sure rooms are available before generating a timetable.`);
+            return;
+        }
+
+        // Navigate to course selection page
+        window.location.href = `/autogenerate_configure?floor=${floorNumber}`;
+    }
+
+    function viewSchedule(floorNumber, scheduledCount) {
+        // Navigate to timetable view
+        window.location.href = `/view_autogenerated_timetable?floor=${floorNumber}&scheduled=${scheduledCount}&total=${scheduledCount}`;
+    }
+
+    function regenerateSchedule(floorNumber) {
+        const confirmed = confirm(
+            `Regenerate Schedule for Floor ${floorNumber}?\n\n` +
+            `This will DELETE the existing schedule and create a new one.\n\n` +
+            `Do you want to continue?`
+        );
+
+        if (confirmed) {
+            // Navigate to course selection to start regeneration
+            window.location.href = `/autogenerate_configure?floor=${floorNumber}`;
+        }
+    }
+
+    function showError(message) {
+        const container = document.getElementById('floorsContainer');
+        container.innerHTML = `
+            <div class="card card-flat">
+                <div class="card-body" style="text-align: center; padding: var(--space-12);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: var(--text-6xl); color: var(--error-500); margin-bottom: var(--space-4);"></i>
+                    <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">Error</h3>
+                    <p class="text-secondary">${message}</p>
+                    <button onclick="loadFloors()" class="btn btn-primary" style="margin-top: var(--space-4);">
+                        <i class="fas fa-redo"></i> <span>Retry</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+</script>
+{% endblock %}
