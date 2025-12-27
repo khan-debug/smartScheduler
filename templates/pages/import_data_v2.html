@@ -274,9 +274,12 @@ Robert Johnson,12347,robert.j@example.com</pre>
         document.getElementById(`${type}Error`).style.display = 'none';
     }
 
-    function showError(type, message) {
+    function showError(type, message, missingTeachers = null) {
         const errorDiv = document.getElementById(`${type}Error`);
         const errorText = document.getElementById(`${type}ErrorText`);
+
+        // Clear previous content
+        errorText.innerHTML = '';
 
         // Format multi-line error messages for better readability
         if (message.includes(';')) {
@@ -300,10 +303,83 @@ Robert Johnson,12347,robert.j@example.com</pre>
             errorText.textContent = message;
         }
 
+        // Add download button for missing teachers if any
+        if (missingTeachers && missingTeachers.length > 0) {
+            const btnContainer = document.createElement('div');
+            btnContainer.style.marginTop = 'var(--space-3)';
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'btn btn-warning';
+            downloadBtn.innerHTML = `<i class="fas fa-download"></i> <span>Download Missing Teacher Registrations (${missingTeachers.length})</span>`;
+            downloadBtn.onclick = function() {
+                downloadMissingTeachers(missingTeachers, type);
+            };
+
+            btnContainer.appendChild(downloadBtn);
+            errorText.appendChild(btnContainer);
+        }
+
         errorDiv.style.display = 'block';
 
         // Scroll to error message
         errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function downloadMissingTeachers(missingTeachers, type) {
+        console.log('downloadMissingTeachers called with:', missingTeachers, 'type:', type);
+
+        if (!missingTeachers || missingTeachers.length === 0) {
+            console.error('No missing teachers to download');
+            alert('No missing teachers to download');
+            return;
+        }
+
+        try {
+            // Create file content
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            let content = `Missing Teacher Registrations - ${type.toUpperCase()}\n`;
+            content += `Generated: ${new Date().toLocaleString()}\n`;
+            content += `Total Missing: ${missingTeachers.length}\n`;
+            content += `\n${'='.repeat(50)}\n\n`;
+            content += `Registration Numbers:\n`;
+            content += `${'='.repeat(50)}\n`;
+
+            missingTeachers.forEach((reg, idx) => {
+                content += `${idx + 1}. ${reg}\n`;
+            });
+
+            content += `\n${'='.repeat(50)}\n`;
+            content += `\nINSTRUCTIONS:\n`;
+            content += `1. Add these teachers to the faculty database first\n`;
+            content += `2. Use the "Import Faculty" section to bulk import them\n`;
+            content += `3. Then re-import the courses that failed\n`;
+
+            console.log('File content created, length:', content.length);
+
+            // Create blob and download
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const filename = `missing_teachers_${timestamp}.txt`;
+            a.download = filename;
+
+            console.log('Triggering download for:', filename);
+
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up after a short delay
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log('Download triggered successfully for:', filename);
+            }, 100);
+
+        } catch (error) {
+            console.error('Error generating download:', error);
+            alert('Failed to generate download file: ' + error.message);
+        }
     }
 
     function uploadFile(type) {
@@ -330,13 +406,23 @@ Robert Johnson,12347,robert.j@example.com</pre>
             // Log response status for debugging
             console.log('Response status:', response.status, response.statusText);
 
+            // Clone response so we can read it twice if needed
+            const clonedResponse = response.clone();
+
             // Parse JSON regardless of status
             return response.json().then(data => {
                 console.log('Response data:', data);
                 return { ok: response.ok, status: response.status, data: data };
             }).catch(parseError => {
                 console.error('Failed to parse response JSON:', parseError);
-                throw new Error(`HTTP ${response.status}: ${response.statusText} (Invalid JSON response)`);
+
+                // Get the actual response text to see what was returned
+                return clonedResponse.text().then(text => {
+                    console.error('Raw response text:', text);
+                    console.error('Response length:', text.length);
+                    console.error('First 500 chars:', text.substring(0, 500));
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} (Invalid JSON response). Check console for raw response.`);
+                });
             });
         })
         .then(result => {
@@ -356,26 +442,54 @@ Robert Johnson,12347,robert.j@example.com</pre>
             if (data.success) {
                 // Show success message
                 const fileNameDiv = document.getElementById(`${type}FileName`);
-                fileNameDiv.innerHTML = `
-                    <div style="background-color: var(--success-100); border: 1px solid var(--success-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--success-700);">
-                        <i class="fas fa-check-circle"></i>
-                        <span style="font-weight: var(--weight-semibold); margin-left: var(--space-2);">${data.message}</span>
-                    </div>
+
+                // Create success div
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'background-color: var(--success-100); border: 1px solid var(--success-200); padding: var(--space-4); border-radius: var(--radius-md); color: var(--success-700);';
+
+                successDiv.innerHTML = `
+                    <i class="fas fa-check-circle"></i>
+                    <span style="font-weight: var(--weight-semibold); margin-left: var(--space-2);">${data.message}</span>
                 `;
+
+                // Add download button if there are missing teachers
+                if (data.missing_teachers && data.missing_teachers.length > 0) {
+                    const btnContainer = document.createElement('div');
+                    btnContainer.style.marginTop = 'var(--space-3)';
+
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'btn btn-warning';
+                    downloadBtn.innerHTML = `
+                        <i class="fas fa-download"></i>
+                        <span>Download Missing Teacher Registrations (${data.missing_teachers.length})</span>
+                    `;
+                    downloadBtn.onclick = function() {
+                        downloadMissingTeachers(data.missing_teachers, type);
+                    };
+
+                    btnContainer.appendChild(downloadBtn);
+                    successDiv.appendChild(btnContainer);
+                }
+
+                fileNameDiv.innerHTML = '';
+                fileNameDiv.appendChild(successDiv);
 
                 // Reset
                 selectedFiles[type] = null;
                 document.getElementById(`${type}FileInput`).value = '';
                 uploadBtn.style.display = 'none';
 
-                // Reload after 2 seconds
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
+                // Don't auto-reload if there are missing teachers (user might want to download the file first)
+                if (!data.missing_teachers || data.missing_teachers.length === 0) {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
             } else {
                 const errorMsg = data.error || data.message || 'Upload failed with no error message';
                 console.error('Upload failed:', errorMsg);
-                showError(type, errorMsg);
+                // Pass missing teachers to error handler if available
+                showError(type, errorMsg, data.missing_teachers);
             }
         })
         .catch(error => {

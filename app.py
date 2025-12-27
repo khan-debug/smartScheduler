@@ -898,7 +898,13 @@ def import_data():
 @login_required
 def import_csv_data():
     """Import courses or faculty from CSV file"""
+    print("=== CSV Import Request Started ===")
+    print(f"Session: {session.get('username')}, Role: {session.get('role')}")
+    print(f"Files in request: {list(request.files.keys())}")
+    print(f"Form data: {dict(request.form)}")
+
     if session.get('role') != 'admin':
+        print("ERROR: Unauthorized access attempt")
         return jsonify({'success': False, 'error': 'Unauthorized. Admin access required.'}), 403
 
     try:
@@ -931,12 +937,20 @@ def import_csv_data():
             return jsonify({'success': False, 'error': f'Failed to read CSV file: {str(e)}'}), 400
 
         if import_type == 'courses':
-            return import_courses_from_csv(csv_reader)
+            print(f"Importing courses...")
+            result = import_courses_from_csv(csv_reader)
+            print(f"Course import result: {result}")
+            return result
         elif import_type == 'faculty':
-            return import_faculty_from_csv(csv_reader)
+            print(f"Importing faculty...")
+            result = import_faculty_from_csv(csv_reader)
+            print(f"Faculty import result: {result}")
+            return result
 
     except Exception as e:
         print(f"Error in import_csv_data: {str(e)}")  # Log to console for admin debugging
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': f'Unexpected error processing file: {str(e)}'}), 500
 
 def import_courses_from_csv(csv_reader):
@@ -961,6 +975,7 @@ def import_courses_from_csv(csv_reader):
 
         imported_count = 0
         errors = []
+        missing_teachers = []  # Track missing teacher registrations
 
         for idx, row in enumerate(rows, start=2):  # Start at 2 because row 1 is header
             try:
@@ -991,7 +1006,10 @@ def import_courses_from_csv(csv_reader):
                 # Check if teacher exists
                 teacher = users_collection.find_one({'registration_number': teacher_registration})
                 if not teacher:
-                    errors.append(f"Row {idx}: Teacher with registration {teacher_registration} not found")
+                    errors.append(f"Row {idx}: Teacher with registration number '{teacher_registration}' not found. Please first enroll this user in faculty before assigning courses")
+                    # Add to missing teachers list (avoid duplicates)
+                    if teacher_registration not in missing_teachers:
+                        missing_teachers.append(teacher_registration)
                     continue
 
                 # Auto-generate section code
@@ -1045,19 +1063,27 @@ def import_courses_from_csv(csv_reader):
 
         # Return result
         if imported_count > 0:
-            message = f'Successfully imported {imported_count} course(s)'
-            if errors:
-                message += f'. {len(errors)} row(s) had errors: {"; ".join(errors[:5])}'
-                if len(errors) > 5:
-                    message += f' (and {len(errors) - 5} more...)'
-            return jsonify({'success': True, 'message': message, 'count': imported_count})
+            if missing_teachers:
+                message = f'Successfully imported {imported_count} course(s). {len(errors)} row(s) could not be imported. Please download the text file to see unsuccessful imports.'
+            else:
+                message = f'Successfully imported {imported_count} course(s). All courses imported successfully!'
+            response_data = {'success': True, 'message': message, 'count': imported_count}
+            # Include missing teachers if any
+            if missing_teachers:
+                response_data['missing_teachers'] = missing_teachers
+                response_data['failed_count'] = len(errors)
+            return jsonify(response_data)
         else:
-            error_details = "; ".join(errors[:10])
-            if len(errors) > 10:
-                error_details += f' (and {len(errors) - 10} more errors...)'
-            error_message = f'No courses imported. Total errors: {len(errors)}. Details: {error_details}'
-            print(f"Course import failed - All errors: {errors}")  # Log all errors to console
-            return jsonify({'success': False, 'error': error_message}), 400
+            if missing_teachers:
+                error_message = f'No courses imported. All {len(errors)} row(s) failed due to missing teachers. Please download the text file for details.'
+            else:
+                error_message = f'No courses imported. {len(errors)} row(s) had errors. Please check your CSV file and try again.'
+            print(f"Course import failed - All errors: {errors}")  # Log all errors to console for debugging
+            response_data = {'success': False, 'error': error_message}
+            # Include missing teachers if any
+            if missing_teachers:
+                response_data['missing_teachers'] = missing_teachers
+            return jsonify(response_data), 400
 
     except Exception as e:
         print(f"Error importing courses: {str(e)}")  # Log to console
