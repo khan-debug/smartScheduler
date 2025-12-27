@@ -277,8 +277,33 @@ Robert Johnson,12347,robert.j@example.com</pre>
     function showError(type, message) {
         const errorDiv = document.getElementById(`${type}Error`);
         const errorText = document.getElementById(`${type}ErrorText`);
-        errorText.textContent = message;
+
+        // Format multi-line error messages for better readability
+        if (message.includes(';')) {
+            // Split by semicolon for multiple errors
+            const parts = message.split(';');
+            let formattedMessage = parts[0]; // Main error message
+
+            if (parts.length > 1) {
+                formattedMessage += '<br><br><strong>Details:</strong><ul style="margin: 8px 0; padding-left: 20px;">';
+                for (let i = 1; i < parts.length; i++) {
+                    const part = parts[i].trim();
+                    if (part) {
+                        formattedMessage += `<li>${part}</li>`;
+                    }
+                }
+                formattedMessage += '</ul>';
+            }
+            errorText.innerHTML = formattedMessage;
+        } else {
+            // Single line error
+            errorText.textContent = message;
+        }
+
         errorDiv.style.display = 'block';
+
+        // Scroll to error message
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function uploadFile(type) {
@@ -290,22 +315,43 @@ Robert Johnson,12347,robert.j@example.com</pre>
 
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('type', type);
 
         const uploadBtn = document.getElementById(`${type}UploadBtn`);
         const originalText = uploadBtn.innerHTML;
         uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Uploading...</span>';
         uploadBtn.disabled = true;
 
-        const endpoint = type === 'courses' ? '/upload_courses' : '/upload_faculty';
-
-        fetch(endpoint, {
+        fetch('/import_csv', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            // Log response status for debugging
+            console.log('Response status:', response.status, response.statusText);
+
+            // Parse JSON regardless of status
+            return response.json().then(data => {
+                console.log('Response data:', data);
+                return { ok: response.ok, status: response.status, data: data };
+            }).catch(parseError => {
+                console.error('Failed to parse response JSON:', parseError);
+                throw new Error(`HTTP ${response.status}: ${response.statusText} (Invalid JSON response)`);
+            });
+        })
+        .then(result => {
+            // Check if response was ok after parsing
+            if (!result.ok) {
+                const errorMsg = result.data.error || result.data.message || `HTTP ${result.status} error`;
+                throw new Error(errorMsg);
+            }
+            return result.data;
+        })
         .then(data => {
             uploadBtn.innerHTML = originalText;
             uploadBtn.disabled = false;
+
+            console.log('Upload response:', data);
 
             if (data.success) {
                 // Show success message
@@ -327,14 +373,20 @@ Robert Johnson,12347,robert.j@example.com</pre>
                     window.location.reload();
                 }, 2000);
             } else {
-                showError(type, data.message || 'Upload failed');
+                const errorMsg = data.error || data.message || 'Upload failed with no error message';
+                console.error('Upload failed:', errorMsg);
+                showError(type, errorMsg);
             }
         })
         .catch(error => {
             uploadBtn.innerHTML = originalText;
             uploadBtn.disabled = false;
-            console.error('Error:', error);
-            showError(type, 'An error occurred during upload');
+
+            const errorMessage = error.message || 'An unknown error occurred during upload';
+            console.error('Upload error:', errorMessage);
+            console.error('Full error object:', error);
+
+            showError(type, `Upload Failed: ${errorMessage}`);
         });
     }
 

@@ -904,20 +904,31 @@ def import_csv_data():
     try:
         # Get file and type from request
         if 'file' not in request.files:
-            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+            return jsonify({'success': False, 'error': 'No file uploaded. Please select a CSV file.'}), 400
 
         file = request.files['file']
         import_type = request.form.get('type')
 
         if not file or file.filename == '':
-            return jsonify({'success': False, 'error': 'No file selected'}), 400
+            return jsonify({'success': False, 'error': 'No file selected. Please choose a CSV file to upload.'}), 400
+
+        # Validate file extension
+        if not file.filename.endswith('.csv'):
+            return jsonify({'success': False, 'error': f'Invalid file type. Expected .csv file but got: {file.filename}'}), 400
 
         if not import_type or import_type not in ['courses', 'faculty']:
-            return jsonify({'success': False, 'error': 'Invalid import type'}), 400
+            return jsonify({'success': False, 'error': f'Invalid import type: "{import_type}". Must be either "courses" or "faculty".'}), 400
 
         # Read CSV file
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-        csv_reader = csv.DictReader(stream)
+        try:
+            # Read and decode file, removing BOM if present
+            file_content = file.stream.read().decode("utf-8-sig")  # utf-8-sig automatically removes BOM
+            stream = io.StringIO(file_content, newline=None)
+            csv_reader = csv.DictReader(stream)
+        except UnicodeDecodeError:
+            return jsonify({'success': False, 'error': 'File encoding error. Please ensure your CSV file is UTF-8 encoded.'}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Failed to read CSV file: {str(e)}'}), 400
 
         if import_type == 'courses':
             return import_courses_from_csv(csv_reader)
@@ -925,7 +936,8 @@ def import_csv_data():
             return import_faculty_from_csv(csv_reader)
 
     except Exception as e:
-        return jsonify({'success': False, 'error': f'Error processing file: {str(e)}'}), 500
+        print(f"Error in import_csv_data: {str(e)}")  # Log to console for admin debugging
+        return jsonify({'success': False, 'error': f'Unexpected error processing file: {str(e)}'}), 500
 
 def import_courses_from_csv(csv_reader):
     """Import courses from CSV data"""
@@ -936,13 +948,16 @@ def import_courses_from_csv(csv_reader):
 
         # Validate columns
         if not rows:
-            return jsonify({'success': False, 'error': 'CSV file is empty'}), 400
+            return jsonify({'success': False, 'error': 'CSV file is empty. Please add at least one course row with headers.'}), 400
 
         # Check required columns
         first_row_keys = list(rows[0].keys())
         missing_columns = [col for col in required_columns if col not in first_row_keys]
         if missing_columns:
-            return jsonify({'success': False, 'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+            return jsonify({
+                'success': False,
+                'error': f'Missing required columns: {", ".join(missing_columns)}. Found columns: {", ".join(first_row_keys)}'
+            }), 400
 
         imported_count = 0
         errors = []
@@ -1033,11 +1048,21 @@ def import_courses_from_csv(csv_reader):
             message = f'Successfully imported {imported_count} course(s)'
             if errors:
                 message += f'. {len(errors)} row(s) had errors: {"; ".join(errors[:5])}'
+                if len(errors) > 5:
+                    message += f' (and {len(errors) - 5} more...)'
             return jsonify({'success': True, 'message': message, 'count': imported_count})
         else:
-            return jsonify({'success': False, 'error': f'No courses imported. Errors: {"; ".join(errors[:5])}'}), 400
+            error_details = "; ".join(errors[:10])
+            if len(errors) > 10:
+                error_details += f' (and {len(errors) - 10} more errors...)'
+            error_message = f'No courses imported. Total errors: {len(errors)}. Details: {error_details}'
+            print(f"Course import failed - All errors: {errors}")  # Log all errors to console
+            return jsonify({'success': False, 'error': error_message}), 400
 
     except Exception as e:
+        print(f"Error importing courses: {str(e)}")  # Log to console
+        import traceback
+        traceback.print_exc()  # Print full stack trace to console
         return jsonify({'success': False, 'error': f'Error importing courses: {str(e)}'}), 500
 
 def import_faculty_from_csv(csv_reader):
@@ -1049,13 +1074,16 @@ def import_faculty_from_csv(csv_reader):
 
         # Validate columns
         if not rows:
-            return jsonify({'success': False, 'error': 'CSV file is empty'}), 400
+            return jsonify({'success': False, 'error': 'CSV file is empty. Please add at least one faculty row with headers.'}), 400
 
         # Check required columns
         first_row_keys = list(rows[0].keys())
         missing_columns = [col for col in required_columns if col not in first_row_keys]
         if missing_columns:
-            return jsonify({'success': False, 'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+            return jsonify({
+                'success': False,
+                'error': f'Missing required columns: {", ".join(missing_columns)}. Found columns: {", ".join(first_row_keys)}'
+            }), 400
 
         imported_count = 0
         errors = []
@@ -1111,11 +1139,21 @@ def import_faculty_from_csv(csv_reader):
             message = f'Successfully imported {imported_count} faculty member(s)'
             if errors:
                 message += f'. {len(errors)} row(s) had errors: {"; ".join(errors[:5])}'
+                if len(errors) > 5:
+                    message += f' (and {len(errors) - 5} more...)'
             return jsonify({'success': True, 'message': message, 'count': imported_count})
         else:
-            return jsonify({'success': False, 'error': f'No faculty imported. Errors: {"; ".join(errors[:5])}'}), 400
+            error_details = "; ".join(errors[:10])
+            if len(errors) > 10:
+                error_details += f' (and {len(errors) - 10} more errors...)'
+            error_message = f'No faculty imported. Total errors: {len(errors)}. Details: {error_details}'
+            print(f"Faculty import failed - All errors: {errors}")  # Log all errors to console
+            return jsonify({'success': False, 'error': error_message}), 400
 
     except Exception as e:
+        print(f"Error importing faculty: {str(e)}")  # Log to console
+        import traceback
+        traceback.print_exc()  # Print full stack trace to console
         return jsonify({'success': False, 'error': f'Error importing faculty: {str(e)}'}), 500
 
 # Route to initiate admin password change (send OTP)
