@@ -222,7 +222,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const roomNumber = urlParams.get('room_number');
 
-        fetch(`/get_scheduled_classes_by_room?room_number=${roomNumber}`)
+        fetch(`/get_scheduled_classes?room=${roomNumber}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -233,6 +233,7 @@
                 }
             })
             .catch(error => {
+                console.error('Error loading scheduled classes:', error);
                 displayNoClasses('Error loading scheduled classes');
             });
     }

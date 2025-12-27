@@ -246,7 +246,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         dropdown.dataset.currentValue = newAvailability;
                     } else {
                         console.error('Failed to update availability:', data.error);
-                        alert('Failed to update availability: ' + (data.error || 'Unknown error'));
+
+                        // If there are scheduled classes, show detailed modal
+                        if (data.scheduled_classes && data.scheduled_classes.length > 0) {
+                            showScheduledClassesModal(data.error, data.scheduled_classes);
+                        } else {
+                            alert('Failed to update availability: ' + (data.error || 'Unknown error'));
+                        }
+
                         // Revert dropdown to old value
                         dropdown.value = oldValue;
                         dropdown.classList.remove('status-available', 'status-not-available');
@@ -309,6 +316,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     if (data.success) {
                         fetchItems();
                         deleteConfirmModal.style.display = "none";
+                    } else {
+                        deleteConfirmModal.style.display = "none";
+
+                        // If there are scheduled classes, show detailed modal
+                        if (data.scheduled_classes && data.scheduled_classes.length > 0) {
+                            showScheduledClassesModal(data.error, data.scheduled_classes);
+                        } else {
+                            alert('Failed to delete: ' + (data.error || 'Unknown error'));
+                        }
                     }
                 });
         }
@@ -734,4 +750,39 @@ document.addEventListener('DOMContentLoaded', (event) => {
             button.addEventListener('click', handleEdit);
         });
     }
+
+    // Function to show scheduled classes modal
+    function showScheduledClassesModal(errorMessage, scheduledClasses) {
+        const modal = document.getElementById('scheduledClassesModal');
+        const messageEl = document.getElementById('scheduledClassesMessage');
+        const listEl = document.getElementById('scheduledClassesList');
+
+        // Set message
+        messageEl.textContent = errorMessage;
+
+        // Build class cards
+        let html = '';
+        scheduledClasses.forEach(cls => {
+            html += `
+                <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-2);">
+                        <div style="font-size: var(--text-lg); font-weight: var(--weight-semibold); color: var(--text-primary);">${cls.course_name}</div>
+                        <span style="background-color: var(--primary-100); color: var(--primary-700); padding: var(--space-1) var(--space-3); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--weight-semibold);">${cls.section}</span>
+                    </div>
+                    <div style="display: flex; gap: var(--space-4); color: var(--text-secondary); font-size: var(--text-sm);">
+                        <div><i class="fas fa-calendar"></i> ${cls.day}</div>
+                        <div><i class="fas fa-clock"></i> ${cls.time}</div>
+                    </div>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+
+        // Show modal
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Make the function available globally so it can be called from event handlers
+    window.showScheduledClassesModal = showScheduledClassesModal;
 });

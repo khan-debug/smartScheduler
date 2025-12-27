@@ -2461,11 +2461,23 @@ def update_item(item_type, item_id):
 
                 # If changing to "Not Available", check for scheduled classes
                 if new_availability == "Not Available" and current_room.get('availability') == 'Available':
-                    scheduled_classes = scheduled_classes_collection.find_one({'room': room_number})
+                    # Find all scheduled classes in this room
+                    scheduled_classes = list(scheduled_classes_collection.find({'room_number': room_number}))
                     if scheduled_classes:
+                        # Build a detailed error message with class information
+                        class_details = []
+                        for cls in scheduled_classes:
+                            class_details.append({
+                                'course_name': cls.get('course_name', 'Unknown'),
+                                'section': cls.get('section_code', 'N/A'),
+                                'day': cls.get('day', 'N/A'),
+                                'time': f"{cls.get('start_time', 'N/A')} - {cls.get('end_time', 'N/A')}"
+                            })
+
                         return {
                             "success": False,
-                            "error": f"Cannot mark room {room_number} as unavailable. There are classes scheduled in this room. Please reschedule all classes from this room before marking it unavailable."
+                            "error": f"Cannot mark room {room_number} as unavailable. There are {len(scheduled_classes)} class(es) scheduled in this room.",
+                            "scheduled_classes": class_details
                         }, 400
 
                 # Explicitly handle room updates to ensure all fields are updated
@@ -2530,11 +2542,22 @@ def delete_item(item_type, item_id):
             if item_type == "room":
                 room_number = item_to_delete.get('room_number')
                 # Check if there are any scheduled classes in this room
-                scheduled_classes = scheduled_classes_collection.find_one({'room': room_number})
+                scheduled_classes = list(scheduled_classes_collection.find({'room_number': room_number}))
                 if scheduled_classes:
+                    # Build detailed error message
+                    class_details = []
+                    for cls in scheduled_classes:
+                        class_details.append({
+                            'course_name': cls.get('course_name', 'Unknown'),
+                            'section': cls.get('section_code', 'N/A'),
+                            'day': cls.get('day', 'N/A'),
+                            'time': f"{cls.get('start_time', 'N/A')} - {cls.get('end_time', 'N/A')}"
+                        })
+
                     return {
                         "success": False,
-                        "error": f"Cannot delete room {room_number}. There are classes scheduled in this room. Please reschedule all classes from this room before deleting it."
+                        "error": f"Cannot delete room {room_number}. There are {len(scheduled_classes)} class(es) scheduled in this room.",
+                        "scheduled_classes": class_details
                     }, 400
 
             collection.delete_one({"_id": item_to_delete["_id"]})
