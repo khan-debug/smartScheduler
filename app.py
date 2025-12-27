@@ -576,13 +576,19 @@ def design_system_demo():
 @login_required
 def save_scheduled_class():
     """Save a scheduled class to the database"""
+    print("=== Save Scheduled Class Request Started ===")
+    print(f"Session: {session.get('username')}, Role: {session.get('role')}")
+
     if session.get('role') != 'admin':
+        print("ERROR: Unauthorized access attempt")
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     try:
         from bson.objectid import ObjectId
 
         data = request.get_json()
+        print(f"Request data: {data}")
+
         course_id = data.get('course_id')
         section_code = data.get('section_code')
         day = data.get('day')
@@ -590,14 +596,35 @@ def save_scheduled_class():
         end_time = data.get('end_time')
         room_number = data.get('room_number')
 
+        print(f"Parsed fields - Course ID: {course_id}, Section: {section_code}, Day: {day}, Time: {start_time}-{end_time}, Room: {room_number}")
+
         # Validation
         if not all([course_id, section_code, day, start_time, end_time, room_number]):
-            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            missing_fields = []
+            if not course_id: missing_fields.append('course_id')
+            if not section_code: missing_fields.append('section_code')
+            if not day: missing_fields.append('day')
+            if not start_time: missing_fields.append('start_time')
+            if not end_time: missing_fields.append('end_time')
+            if not room_number: missing_fields.append('room_number')
+
+            error_msg = f'Missing required fields: {", ".join(missing_fields)}'
+            print(f"ERROR: {error_msg}")
+            return jsonify({'success': False, 'error': error_msg}), 400
 
         # Get course details
-        course = courses_collection.find_one({'_id': ObjectId(course_id)})
+        print(f"Looking up course with ID: {course_id}")
+        try:
+            course = courses_collection.find_one({'_id': ObjectId(course_id)})
+        except Exception as e:
+            print(f"ERROR: Invalid course ID format: {e}")
+            return jsonify({'success': False, 'error': 'Invalid course ID. Please refresh the page and try again.'}), 400
+
         if not course:
+            print(f"ERROR: Course not found with ID: {course_id}")
             return jsonify({'success': False, 'error': 'Course not found'}), 404
+
+        print(f"Found course: {course.get('course_name')}")
 
         # Verify section exists - handle both old (section_code) and new (section_codes) format
         section_codes = course.get('section_codes', [])
@@ -701,7 +728,9 @@ def save_scheduled_class():
         }
 
         # Insert into database
-        scheduled_classes_collection.insert_one(scheduled_class)
+        print(f"Inserting scheduled class: {scheduled_class}")
+        result = scheduled_classes_collection.insert_one(scheduled_class)
+        print(f"Successfully inserted scheduled class with ID: {result.inserted_id}")
 
         return jsonify({
             'success': True,
@@ -709,7 +738,20 @@ def save_scheduled_class():
         })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        print(f"ERROR in save_scheduled_class: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        # Return detailed error message
+        error_message = str(e)
+        if "ObjectId" in error_message:
+            error_message = "Invalid course ID format. Please refresh the page and try again."
+        elif "duplicate" in error_message.lower():
+            error_message = "This class schedule already exists."
+        elif "room_number" in error_message.lower():
+            error_message = "Invalid room number. Please select a valid room."
+
+        return jsonify({'success': False, 'error': f'Error scheduling class: {error_message}'}), 500
 
 # Route for Teacher View
 @app.route("/teacher")
@@ -1763,13 +1805,27 @@ def delete_floor(floor_number):
         # Get all rooms and find rooms on this floor
         all_rooms = list(rooms_collection.find({}))
         rooms_to_delete = []
+        rooms_with_classes = []
 
         for room in all_rooms:
             room_number_str = str(room.get("room_number", ""))
             if len(room_number_str) >= 3:
                 room_floor = room_number_str[:-2]
                 if room_floor == str(floor_number):
-                    rooms_to_delete.append(room['_id'])
+                    room_number = room.get('room_number')
+                    # Check if this room has any scheduled classes
+                    scheduled_class = scheduled_classes_collection.find_one({'room': room_number})
+                    if scheduled_class:
+                        rooms_with_classes.append(room_number)
+                    else:
+                        rooms_to_delete.append(room['_id'])
+
+        # If any rooms have scheduled classes, prevent deletion
+        if rooms_with_classes:
+            return {
+                "success": False,
+                "error": f"Cannot delete floor {floor_number}. The following room(s) have scheduled classes: {', '.join(map(str, rooms_with_classes))}. Please reschedule all classes from these rooms before deleting the floor."
+            }, 400
 
         # Delete the identified rooms
         rooms_deleted_count = 0
@@ -2104,6 +2160,7 @@ def get_scheduled_classes():
         for cls in scheduled_classes:
             classes_data.append({
                 '_id': str(cls.get('_id')),
+                'course_id': cls.get('course_id'),  # Include course_id for filtering
                 'course_name': cls.get('course_name'),
                 'section_code': cls.get('section_code'),
                 'teacher_name': cls.get('teacher_name'),
@@ -2397,11 +2454,25 @@ def update_item(item_type, item_id):
                     'password': existing_password
                 }
             elif item_type == "room":
+                # Check if availability is being changed to "Not Available"
+                new_availability = data.get('availability', 'Available')
+                current_room = item_to_update
+                room_number = current_room.get('room_number')
+
+                # If changing to "Not Available", check for scheduled classes
+                if new_availability == "Not Available" and current_room.get('availability') == 'Available':
+                    scheduled_classes = scheduled_classes_collection.find_one({'room': room_number})
+                    if scheduled_classes:
+                        return {
+                            "success": False,
+                            "error": f"Cannot mark room {room_number} as unavailable. There are classes scheduled in this room. Please reschedule all classes from this room before marking it unavailable."
+                        }, 400
+
                 # Explicitly handle room updates to ensure all fields are updated
                 update_data = {
                     'room_number': data.get('room_number'),
                     'type': data.get('type'),
-                    'availability': data.get('availability', 'Available')
+                    'availability': new_availability
                 }
                 print(f"Updating room with data: {update_data}")  # Debug logging
             elif item_type == "course":
@@ -2454,6 +2525,18 @@ def delete_item(item_type, item_id):
         items_list = list(collection.find({}))
         if 0 <= item_id < len(items_list):
             item_to_delete = items_list[item_id]
+
+            # Special validation for room deletion
+            if item_type == "room":
+                room_number = item_to_delete.get('room_number')
+                # Check if there are any scheduled classes in this room
+                scheduled_classes = scheduled_classes_collection.find_one({'room': room_number})
+                if scheduled_classes:
+                    return {
+                        "success": False,
+                        "error": f"Cannot delete room {room_number}. There are classes scheduled in this room. Please reschedule all classes from this room before deleting it."
+                    }, 400
+
             collection.delete_one({"_id": item_to_delete["_id"]})
             return {"success": True}
     return {"error": "Item not found"}, 404

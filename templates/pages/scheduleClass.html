@@ -260,6 +260,7 @@
     <!-- Course Summary -->
     <div class="course-summary" id="courseSummary">
         <h1 id="courseName">Loading...</h1>
+        <small style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-left: 10px;">v2-FIX</small>
         <div class="course-summary-details">
             <div class="summary-item">
                 <i class="fas fa-tag"></i>
@@ -361,10 +362,14 @@
 </div>
 
 <script>
+    // VERSION: 2025-12-27-FIX-v2 - Fixed time calculation string concatenation bug
+    console.log('✅ Schedule Class Page Loaded - Version: 2025-12-27-FIX-v2');
+
     let courseData = null;
     let selectedDayValue = null;
 
     window.onload = function() {
+        console.log('Page initialized, loading course details and rooms...');
         loadCourseDetails();
         loadRooms();
     };
@@ -434,18 +439,62 @@
     }
 
     function calculateEndTime() {
-        const startTime = document.getElementById('startTime').value;
-        if (!startTime || !courseData) return;
+        const endTimeElement = document.getElementById('endTime');
+        const startTimeInput = document.getElementById('startTime');
 
-        const [hours, minutes] = startTime.split(':').map(Number);
-        const creditHours = parseInt(courseData.credit_hour);
+        if (!startTimeInput || !startTimeInput.value || !courseData) {
+            endTimeElement.innerHTML = '<i class="fas fa-calculator"></i> Auto-calculated';
+            return;
+        }
 
-        const endHour = (hours + creditHours) % 24;
-        const endTimeStr = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        try {
+            const startTime = startTimeInput.value;
 
-        document.getElementById('endTime').innerHTML = `
-            <i class="fas fa-check-circle"></i> ${endTimeStr}
-        `;
+            // Split time and force to integers
+            const timeParts = startTime.split(':');
+            const startHour = parseInt(timeParts[0], 10);
+            const startMinute = parseInt(timeParts[1], 10);
+
+            // Get credit hours - force to integer, strip any non-numeric chars
+            let creditValue = courseData.credit_hour;
+            if (typeof creditValue === 'string') {
+                creditValue = creditValue.replace(/[^0-9]/g, '');
+            }
+            const creditHour = parseInt(creditValue, 10);
+
+            console.log('=== TIME CALCULATION DEBUG ===');
+            console.log('Start Time Input:', startTime);
+            console.log('Start Hour (parsed):', startHour, typeof startHour);
+            console.log('Start Minute (parsed):', startMinute, typeof startMinute);
+            console.log('Credit Hour (raw):', courseData.credit_hour);
+            console.log('Credit Hour (parsed):', creditHour, typeof creditHour);
+
+            // Validate all are numbers
+            if (!Number.isInteger(startHour) || !Number.isInteger(startMinute) || !Number.isInteger(creditHour)) {
+                throw new Error('Failed to parse time values as integers');
+            }
+
+            if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59 || creditHour < 1 || creditHour > 24) {
+                throw new Error('Time values out of valid range');
+            }
+
+            // Calculate end hour - FORCE numeric addition
+            const calculatedEndHour = (0 + startHour + creditHour) % 24;
+
+            console.log('Calculation:', startHour, '+', creditHour, '=', (startHour + creditHour), 'mod 24 =', calculatedEndHour);
+            console.log('=== END DEBUG ===');
+
+            // Format with leading zeros
+            const endHourStr = String(calculatedEndHour).padStart(2, '0');
+            const endMinuteStr = String(startMinute).padStart(2, '0');
+            const endTimeStr = endHourStr + ':' + endMinuteStr;
+
+            endTimeElement.innerHTML = `<i class="fas fa-check-circle"></i> ${endTimeStr}`;
+
+        } catch (error) {
+            console.error('Error in calculateEndTime:', error);
+            endTimeElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Error: ${error.message}`;
+        }
     }
 
     function scheduleClass() {
@@ -473,11 +522,42 @@
         const courseId = urlParams.get('course_id');
         const sectionCode = urlParams.get('section_code');
 
-        // Calculate end time
-        const [hours, minutes] = startTime.split(':').map(Number);
-        const creditHours = parseInt(courseData.credit_hour);
-        const endHour = (hours + creditHours) % 24;
-        const endTime = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        // Calculate end time with bulletproof parsing
+        const timeParts = startTime.split(':');
+        const startHour = parseInt(timeParts[0], 10);
+        const startMinute = parseInt(timeParts[1], 10);
+
+        // Get credit hours - strip non-numeric chars
+        let creditValue = courseData.credit_hour;
+        if (typeof creditValue === 'string') {
+            creditValue = creditValue.replace(/[^0-9]/g, '');
+        }
+        const creditHour = parseInt(creditValue, 10);
+
+        console.log('=== SCHEDULING TIME CALCULATION ===');
+        console.log('Start Hour:', startHour, 'type:', typeof startHour);
+        console.log('Credit Hour:', creditHour, 'type:', typeof creditHour);
+
+        // Validate all are proper integers
+        if (!Number.isInteger(startHour) || !Number.isInteger(startMinute) || !Number.isInteger(creditHour)) {
+            showError('Invalid time values. Please refresh the page and try again.');
+            console.error('Not integers:', { startHour, startMinute, creditHour });
+            return;
+        }
+
+        if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59) {
+            showError('Invalid start time. Please select a valid time between 00:00 and 23:59.');
+            console.error('Out of range:', { startHour, startMinute });
+            return;
+        }
+
+        // FORCE numeric addition by adding 0 first
+        const calculatedEndHour = (0 + startHour + creditHour) % 24;
+        const endTime = String(calculatedEndHour).padStart(2, '0') + ':' + String(startMinute).padStart(2, '0');
+
+        console.log('Calculation:', startHour, '+', creditHour, '=', calculatedEndHour);
+        console.log('Final end time:', endTime);
+        console.log('=== END SCHEDULING CALC ===');
 
         // Disable button
         const submitBtn = document.querySelector('.btn-schedule');
@@ -499,24 +579,35 @@
                 room_number: roomNumber
             })
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            console.log('Response status:', response.status);
+
+            // Parse JSON regardless of status
+            return response.json().then(data => {
+                console.log('Response data:', data);
+                return { ok: response.ok, status: response.status, data: data };
+            });
+        })
+        .then(result => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Class';
 
-            if (data.success) {
+            if (result.ok && result.data.success) {
                 showSuccess('Class scheduled successfully!');
                 setTimeout(() => {
                     window.location.href = '/manual_edit_by_course';
                 }, 2000);
             } else {
-                showError(data.error || 'Failed to schedule class');
+                const errorMsg = result.data.error || result.data.message || 'Failed to schedule class';
+                console.error('Scheduling failed:', errorMsg);
+                showError(errorMsg);
             }
         })
         .catch(error => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-calendar-check"></i> Schedule Class';
-            showError('Error scheduling class: ' + error.message);
+            console.error('Fetch error:', error);
+            showError('Network error: ' + error.message + '. Check browser console for details.');
         });
     }
 

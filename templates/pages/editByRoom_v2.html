@@ -286,6 +286,9 @@
 </style>
 
 <script>
+    // VERSION: 2025-12-27-ROOM-FIX-v3 - Added validation to prevent duplicate course+section scheduling
+    console.log('✅ Edit by Room Page Loaded - Version: 2025-12-27-ROOM-FIX-v3');
+
     let roomsData = [];
     let currentRoom = null;
     let coursesData = [];
@@ -294,8 +297,10 @@
     let currentCourse = null;
     let currentSection = null;
     let editMode = false;
+    let scheduledClasses = [];  // Store all scheduled classes for filtering
 
     window.onload = function() {
+        console.log('Room scheduling page initialized...');
         // Check if we're in edit mode
         const urlParams = new URLSearchParams(window.location.search);
         editMode = urlParams.get('edit_mode') === 'true';
@@ -465,6 +470,23 @@
         // Reset form
         resetForm();
 
+        // Fetch all scheduled classes to filter out already scheduled sections
+        fetch('/get_scheduled_classes')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    scheduledClasses = data.classes || [];
+                    console.log('Loaded scheduled classes for filtering:', scheduledClasses.length);
+                } else {
+                    console.error('Failed to load scheduled classes:', data.error);
+                    scheduledClasses = [];
+                }
+            })
+            .catch(error => {
+                console.error('Error loading scheduled classes:', error);
+                scheduledClasses = [];
+            });
+
         // Show modal
         document.getElementById('scheduleModal').style.display = 'block';
         document.body.style.overflow = 'hidden';
@@ -539,6 +561,9 @@
         const courseId = document.getElementById('courseSelect').value;
         const sectionSelect = document.getElementById('sectionSelect');
 
+        // Clear previous error messages
+        hideMessages();
+
         if (!courseId) {
             sectionSelect.innerHTML = '<option value="">-- Select Course First --</option>';
             currentCourse = null;
@@ -548,13 +573,39 @@
         currentCourse = coursesData.find(c => c._id === courseId);
 
         if (currentCourse && currentCourse.sections) {
+            // Filter out sections that are already scheduled for this course
+            const scheduledSections = scheduledClasses
+                .filter(sc => sc.course_id === courseId)
+                .map(sc => sc.section_code);
+
+            console.log('Course:', currentCourse.course_name, 'Already scheduled sections:', scheduledSections);
+
+            // Get available (unscheduled) sections
+            const availableSections = currentCourse.sections.filter(
+                section => !scheduledSections.includes(section)
+            );
+
             sectionSelect.innerHTML = '<option value="">-- Select a Section --</option>';
-            currentCourse.sections.forEach(section => {
+
+            if (availableSections.length === 0) {
+                // No sections available - all are already scheduled
+                sectionSelect.innerHTML = '<option value="" disabled>All sections already scheduled</option>';
+                showError(`All sections for "${currentCourse.course_name}" have already been scheduled. Please select a different course or use "Edit Scheduled Class" to modify existing schedules.`);
+                return;
+            }
+
+            // Add available sections to dropdown
+            availableSections.forEach(section => {
                 const option = document.createElement('option');
                 option.value = section;
                 option.textContent = section;
                 sectionSelect.appendChild(option);
             });
+
+            // Show info message if some sections are filtered out
+            if (scheduledSections.length > 0) {
+                console.log(`Note: ${scheduledSections.length} section(s) hidden because already scheduled`);
+            }
 
             // Update time constraint info
             document.getElementById('timeConstraint').textContent = `Course duration: ${currentCourse.credit_hour} hour${currentCourse.credit_hour !== 1 ? 's' : ''}`;
@@ -576,20 +627,60 @@
     }
 
     function calculateEndTime() {
-        const startTime = document.getElementById('startTime').value;
+        const endTimeElement = document.getElementById('endTime');
+        const startTimeInput = document.getElementById('startTime');
 
-        if (!startTime || !currentCourse) {
-            document.getElementById('endTime').textContent = 'Select start time first';
+        if (!startTimeInput || !startTimeInput.value || !currentCourse) {
+            endTimeElement.textContent = 'Select start time first';
             return;
         }
 
-        const creditHours = currentCourse.credit_hour;
-        const [hours, minutes] = startTime.split(':').map(Number);
+        try {
+            const startTime = startTimeInput.value;
 
-        const endHours = hours + creditHours;
-        const endTime = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            // Split time and force to integers
+            const timeParts = startTime.split(':');
+            const startHour = parseInt(timeParts[0], 10);
+            const startMinute = parseInt(timeParts[1], 10);
 
-        document.getElementById('endTime').textContent = endTime;
+            // Get credit hours - force to integer, strip any non-numeric chars
+            let creditValue = currentCourse.credit_hour;
+            if (typeof creditValue === 'string') {
+                creditValue = creditValue.replace(/[^0-9]/g, '');
+            }
+            const creditHour = parseInt(creditValue, 10);
+
+            console.log('=== ROOM SCHEDULE TIME CALC ===');
+            console.log('Start Hour:', startHour, 'type:', typeof startHour);
+            console.log('Credit Hour (raw):', currentCourse.credit_hour);
+            console.log('Credit Hour (parsed):', creditHour, 'type:', typeof creditHour);
+
+            // Validate all are numbers
+            if (!Number.isInteger(startHour) || !Number.isInteger(startMinute) || !Number.isInteger(creditHour)) {
+                throw new Error('Failed to parse time values as integers');
+            }
+
+            if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59 || creditHour < 1 || creditHour > 24) {
+                throw new Error('Time values out of valid range');
+            }
+
+            // FORCE numeric addition
+            const calculatedEndHour = (0 + startHour + creditHour) % 24;
+
+            console.log('Calculation:', startHour, '+', creditHour, '=', (startHour + creditHour), 'mod 24 =', calculatedEndHour);
+            console.log('=== END CALC ===');
+
+            // Format with leading zeros
+            const endHourStr = String(calculatedEndHour).padStart(2, '0');
+            const endMinuteStr = String(startMinute).padStart(2, '0');
+            const endTimeStr = endHourStr + ':' + endMinuteStr;
+
+            endTimeElement.textContent = endTimeStr;
+
+        } catch (error) {
+            console.error('Error in calculateEndTime:', error);
+            endTimeElement.textContent = 'Error: ' + error.message;
+        }
     }
 
     function scheduleClass() {
@@ -629,11 +720,31 @@
             return;
         }
 
-        // Calculate end time
-        const creditHours = currentCourse.credit_hour;
-        const [hours, minutes] = startTime.split(':').map(Number);
-        const endHours = hours + creditHours;
-        const endTime = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        // Calculate end time with bulletproof parsing
+        const timeParts = startTime.split(':');
+        const startHour = parseInt(timeParts[0], 10);
+        const startMinute = parseInt(timeParts[1], 10);
+
+        let creditValue = currentCourse.credit_hour;
+        if (typeof creditValue === 'string') {
+            creditValue = creditValue.replace(/[^0-9]/g, '');
+        }
+        const creditHour = parseInt(creditValue, 10);
+
+        console.log('=== SUBMIT TIME CALC ===');
+        console.log('Start:', startHour, 'Credit:', creditHour);
+
+        if (!Number.isInteger(startHour) || !Number.isInteger(startMinute) || !Number.isInteger(creditHour)) {
+            showError('Invalid time values. Please try again.');
+            return;
+        }
+
+        // FORCE numeric addition
+        const calculatedEndHour = (0 + startHour + creditHour) % 24;
+        const endTime = String(calculatedEndHour).padStart(2, '0') + ':' + String(startMinute).padStart(2, '0');
+
+        console.log('End time:', endTime);
+        console.log('=== END SUBMIT CALC ===');
 
         // Prepare data
         const scheduleData = {
@@ -654,32 +765,42 @@
         submitBtn.disabled = true;
 
         // Send request
-        fetch('/schedule_class', {
+        fetch('/save_scheduled_class', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(scheduleData)
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            console.log('Schedule response status:', response.status);
+
+            // Parse JSON regardless of status
+            return response.json().then(data => {
+                console.log('Schedule response data:', data);
+                return { ok: response.ok, status: response.status, data: data };
+            });
+        })
+        .then(result => {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
 
-            if (data.success) {
+            if (result.ok && result.data.success) {
                 showSuccess('Class scheduled successfully!');
                 setTimeout(() => {
                     closeModal();
                 }, 1500);
             } else {
-                showError(data.message || 'Failed to schedule class');
+                const errorMsg = result.data.error || result.data.message || 'Failed to schedule class';
+                console.error('Scheduling failed:', errorMsg);
+                showError(errorMsg);
             }
         })
         .catch(error => {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
-            console.error('Error:', error);
-            showError('An error occurred while scheduling the class');
+            console.error('Fetch error:', error);
+            showError('Network error: ' + error.message + '. Check browser console for details.');
         });
     }
 
