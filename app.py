@@ -16,10 +16,12 @@ import io
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Use environment variable for secret key, fallback to random for development
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24))
 
-# MongoDB Connection
-MONGO_URI = "mongodb+srv://aarij:aarij0990@smartscheduler.tqtyuhp.mongodb.net/?retryWrites=true&w=majority&appName=smartscheduler"
+# MongoDB Connection - Use environment variables
+MONGO_URI = os.environ.get('MONGODB_URI', "mongodb+srv://aarij:aarij0990@smartscheduler.tqtyuhp.mongodb.net/?retryWrites=true&w=majority&appName=smartscheduler")
+MONGODB_DATABASE = os.environ.get('MONGODB_DATABASE', 'smartscheduler_db')
 
 # Try to connect to MongoDB
 try:
@@ -29,7 +31,7 @@ try:
     )
     # Test connection
     client.admin.command('ping')
-    db = client['smartscheduler_db']
+    db = client[MONGODB_DATABASE]
 
     # Collections
     users_collection = db['users']
@@ -52,7 +54,8 @@ except Exception as e:
 # Load email settings
 def load_email_settings():
     try:
-        with open('config/email_settings.txt', 'r') as f:
+        email_config_path = os.environ.get('EMAIL_CONFIG_PATH', 'config/email_settings.txt')
+        with open(email_config_path, 'r') as f:
             content = f.read()
             # Wrap content in braces to make it valid JSON
             json_content = '{' + content.strip().rstrip(',') + '}'
