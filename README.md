@@ -244,28 +244,50 @@ python -c "from pymongo import MongoClient; client = MongoClient('your-connectio
 - **Running the App**: `docs/RUN_APP.md`
 - **MongoDB Setup**: `docs/CREATE_MONGODB_CLUSTER.md`
 - **Troubleshooting**: `docs/MONGODB_SETUP_GUIDE.md`
+- **Deployment Guide**: `DEPLOYMENT.md` ⭐ **Deploy online for testing with friends!**
+
+---
+
+## Deploy Online
+
+Want to share this app with friends? Deploy it online in minutes!
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for step-by-step guides to deploy on:
+- ✅ **Render.com** (Recommended - Free tier, easiest setup)
+- ✅ **Railway.app** (Free $5/month credit)
+- ✅ **PythonAnywhere** (Free tier available)
+
+**Quick Deploy to Render:**
+1. Push your code to GitHub
+2. Sign up at [render.com](https://render.com)
+3. Create a "Web Service" from your GitHub repo
+4. Done! Get a live URL to share
+
+Full instructions in [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 
 ## Security Notes
 
-⚠️ **Before Production Deployment**:
+⚠️ **Current Configuration** (for testing/demo purposes):
+- Email credentials are committed to repository (email created specifically for this project)
+- This is acceptable for testing and sharing with friends
+- MongoDB connection string is in `app.py` for easy deployment
+
+⚠️ **For Production Deployment**:
 1. Change default admin password using "Change Admin Password" in Admin Panel
-2. Use environment variables for sensitive data
+2. Move credentials to environment variables
 3. Enable HTTPS
 4. Restrict MongoDB Network Access (remove 0.0.0.0/0)
-5. Use production WSGI server (not Flask dev server)
+5. Use production WSGI server (gunicorn - already configured)
 6. Never commit sensitive files to git:
-   - `config/email_settings.txt`
-   - `config/admin_credentials.txt`
    - `.env`
 
-⚠️ **Files Included in Repository** (for open source):
-- `config/email_settings.txt.example` - Template for email configuration
-- `config/admin_credentials.txt.example` - Template for custom admin password (optional)
+⚠️ **Files Included in Repository**:
+- `config/email_settings.txt` - Email configuration (safe to share - dedicated email for this project)
 - `.env.example` - Template for environment variables
 
-**Setup Instructions**: Copy the `.example` files and remove the `.example` extension, then fill in your actual credentials.
+**Note**: The email account used (smartschedulerr@gmail.com) was created specifically for this project, so sharing credentials is acceptable for testing purposes.
 
 ---
 

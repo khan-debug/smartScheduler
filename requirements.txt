@@ -13,3 +13,6 @@ dnspython==2.7.0
 certifi==2025.11.12
 
 # Email (using built-in smtplib, no extra dependencies needed)
+
+# Production Server
+gunicorn==21.2.0

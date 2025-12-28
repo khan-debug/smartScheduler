@@ -33,11 +33,8 @@ instance/
 .env.local
 config.py
 
-# Email configuration (contains sensitive SMTP credentials)
-config/email_settings.txt
-
-# Admin credentials (contains admin password)
-config/admin_credentials.txt
+# Note: email_settings.txt and admin_credentials.txt are now tracked
+# since this email was created specifically for this project
 
 # ==========================================
 # IDEs
