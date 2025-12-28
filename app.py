@@ -3243,6 +3243,12 @@ def delete_item(item_type, item_id):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Smart Scheduler')
-    parser.add_argument('--port', type=int, default=5000, help='Port to run the application on.')
+    parser.add_argument('--port', type=int, default=None, help='Port to run the application on.')
     args = parser.parse_args()
-    app.run(debug=True, port=args.port)
+
+    # Use Railway's PORT environment variable, or command line arg, or default to 5000
+    port = int(os.environ.get('PORT', args.port or 5000))
+
+    # Bind to 0.0.0.0 for cloud deployments (Railway, Render, etc.)
+    # Debug mode is automatically disabled when not running locally
+    app.run(host='0.0.0.0', port=port, debug=False)
