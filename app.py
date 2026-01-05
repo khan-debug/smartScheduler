@@ -231,6 +231,12 @@ class TimetableScheduler:
             if (is_morning_slot and not is_morning_course) or (not is_morning_slot and is_morning_course):
                 score -= 800  # Wrong shift
 
+        # Penalize using more rooms to encourage concentration (SOFT CONSTRAINT)
+        # The goal is to use as few rooms as possible. A penalty is applied for each room used beyond the first one.
+        unique_rooms_used = len(set(g['room']['room_number'] for g in chromosome))
+        room_utilization_penalty = (unique_rooms_used - 1) * 50 if unique_rooms_used > 0 else 0
+        score -= room_utilization_penalty
+
         # Reward balanced day distribution
         avg_per_day = len(chromosome) / len(DAYS_OF_WEEK)
         balance_penalty = sum(abs(count - avg_per_day) for count in day_counts.values())
@@ -251,12 +257,13 @@ class TimetableScheduler:
         point = random.randint(1, min(len(parent1), len(parent2)) - 1)
         child = parent1[:point] + parent2[point:]
 
-        # Remove duplicate courses
+        # Remove duplicate courses by checking both course_id and section_code
         seen = set()
         unique_child = []
         for gene in child:
-            if gene['course_id'] not in seen:
-                seen.add(gene['course_id'])
+            class_identifier = (gene['course_id'], gene['section_code'])
+            if class_identifier not in seen:
+                seen.add(class_identifier)
                 unique_child.append(gene)
 
         return unique_child
@@ -280,12 +287,12 @@ class TimetableScheduler:
         if mutation_type == 'day':
             gene['day'] = random.choice(DAYS_OF_WEEK)
         elif mutation_type == 'time':
-            course = next((c for c in self.courses if str(c['_id']) == gene['course_id']), None)
+            course = next((c for c in self.courses if str(c['_id']) == gene['course_id'] and c['section_code'] == gene['section_code']), None)
             if course:
                 time_slots = get_time_slots_for_course(course)
                 gene['time_slot'] = random.choice(time_slots)
         elif mutation_type == 'room':
-            course = next((c for c in self.courses if str(c['_id']) == gene['course_id']), None)
+            course = next((c for c in self.courses if str(c['_id']) == gene['course_id'] and c['section_code'] == gene['section_code']), None)
             if course:
                 course_type = course.get('course_type', 'Lecture')
                 valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
@@ -699,69 +706,80 @@ def autogenerate_autopick():
     lecture_halls = sum(1 for room in floor_rooms if room.get('type') == 'Lecture Hall')
     labs = sum(1 for room in floor_rooms if room.get('type') == 'Lab')
 
-    capacity = calculate_floor_capacity(lecture_halls, labs)
-
-    # Get all courses
-    all_courses = list(courses_collection.find({}))
-
-    # Get already scheduled course IDs on this floor
-    scheduled_classes = list(scheduled_classes_collection.find({'floor': floor_number}))
-    scheduled_course_ids = set()
-    for sc in scheduled_classes:
+    # Get ALL already scheduled sections from all floors
+    all_scheduled_classes = list(scheduled_classes_collection.find({}))
+    scheduled_sections_set = set()
+    for sc in all_scheduled_classes:
         course_id = sc.get('course_id')
-        if course_id:
-            scheduled_course_ids.add(str(course_id))
+        section_code = sc.get('section_code')
+        if course_id and section_code:
+            scheduled_sections_set.add((str(course_id), section_code))
 
-    # Separate unscheduled courses by type and shift
+    # Prepare a list of all schedulable units (course sections that are not yet scheduled)
+    all_schedulable_units = []
+    for course in list(courses_collection.find({})): # Get all courses from DB
+        course_id_str = str(course['_id'])
+        
+        # Handle both old (section_code) and new (section_codes) format
+        sections_in_course = course.get('section_codes', [])
+        if not sections_in_course and course.get('section_code'):
+            sections_in_course = [course.get('section_code')]
+        
+        for section_code in sections_in_course:
+            if (course_id_str, section_code) not in scheduled_sections_set:
+                # This section is unscheduled, create a unique schedulable unit for it
+                schedulable_unit = course.copy()
+                schedulable_unit['section_code'] = section_code # Ensure this unit represents this specific section
+                all_schedulable_units.append(schedulable_unit)
+
+    # Separate unscheduled schedulable units by type and shift
     unscheduled_lectures_morning = []
     unscheduled_lectures_evening = []
     unscheduled_labs_morning = []
     unscheduled_labs_evening = []
 
-    for course in all_courses:
-        course_id_str = str(course.get('_id'))
-        if course_id_str not in scheduled_course_ids:
-            course_type = course.get('course_type', 'Lecture')
-            shift = course.get('shift', '')
-            section_code = course.get('section_code', '')
+    for unit in all_schedulable_units:
+        course_type = unit.get('course_type', 'Lecture')
+        shift = unit.get('shift', '')
+        section_code_for_unit = unit.get('section_code', '') # Use the specific section code of the unit
 
-            # Determine shift (check both shift field and section_code)
-            is_morning = shift == 'Morning' or section_code.startswith('MOR')
-            is_evening = shift == 'Evening' or section_code.startswith('EVE')
+        is_morning = shift == 'Morning' or section_code_for_unit.startswith('MOR')
+        is_evening = shift == 'Evening' or section_code_for_unit.startswith('EVE')
 
-            if course_type == 'Lab':
-                if is_morning:
-                    unscheduled_labs_morning.append(course)
-                elif is_evening:
-                    unscheduled_labs_evening.append(course)
-            else:  # Lecture
-                if is_morning:
-                    unscheduled_lectures_morning.append(course)
-                elif is_evening:
-                    unscheduled_lectures_evening.append(course)
+        if course_type == 'Lab':
+            if is_morning:
+                unscheduled_labs_morning.append(unit)
+            elif is_evening:
+                unscheduled_labs_evening.append(unit)
+        else:  # Lecture
+            if is_morning:
+                unscheduled_lectures_morning.append(unit)
+            elif is_evening:
+                unscheduled_lectures_evening.append(unit)
 
     # Calculate shift-specific capacity
-    # Morning: 3 lecture slots/day × 6 days = 18/week per hall
-    # Evening: 1 lecture slot/day × 6 days = 6/week per hall
     morning_lecture_capacity = lecture_halls * 3 * DAYS_PER_WEEK
     evening_lecture_capacity = lecture_halls * 1 * DAYS_PER_WEEK
-
-    # Morning: 8 lab slots/day × 6 days = 48/week per lab
-    # Evening: 5 lab slots/day × 6 days = 30/week per lab
     morning_lab_capacity = labs * 8 * DAYS_PER_WEEK
     evening_lab_capacity = labs * 5 * DAYS_PER_WEEK
 
-    # Pick courses based on shift-specific capacity
+    # Randomly shuffle the lists to ensure fairness in selection up to capacity
+    random.shuffle(unscheduled_lectures_morning)
+    random.shuffle(unscheduled_lectures_evening)
+    random.shuffle(unscheduled_labs_morning)
+    random.shuffle(unscheduled_labs_evening)
+
+    # Pick units based on shift-specific capacity
     selected_lectures_morning = unscheduled_lectures_morning[:morning_lecture_capacity]
     selected_lectures_evening = unscheduled_lectures_evening[:evening_lecture_capacity]
     selected_labs_morning = unscheduled_labs_morning[:morning_lab_capacity]
     selected_labs_evening = unscheduled_labs_evening[:evening_lab_capacity]
 
-    selected_courses = (selected_lectures_morning + selected_lectures_evening +
-                       selected_labs_morning + selected_labs_evening)
+    selected_schedulable_units = (selected_lectures_morning + selected_lectures_evening +
+                                  selected_labs_morning + selected_labs_evening)
 
-    # Store selected courses in session for next step
-    session['autopicked_courses'] = [str(c['_id']) for c in selected_courses]
+    # Store selected sections (course_id, section_code) in session for the next step
+    session['autopicked_sections'] = [(str(unit['_id']), unit['section_code']) for unit in selected_schedulable_units]
     session['autogenerate_floor'] = floor_number
 
     # Redirect to confirmation/scheduling page
@@ -770,18 +788,34 @@ def autogenerate_autopick():
 @app.route("/autogenerate_confirm_autopick")
 @login_required
 def autogenerate_confirm_autopick():
-    """Show confirmation page for autopicked courses"""
+    """Show confirmation page for autopicked course sections"""
     floor_number = request.args.get('floor', type=int)
-    if not floor_number or 'autopicked_courses' not in session:
+    if not floor_number or 'autopicked_sections' not in session: # Check new session key
         return redirect(url_for('autogenerate_select_floor'))
 
-    # Get selected course details
-    course_ids = [ObjectId(cid) for cid in session.get('autopicked_courses', [])]
-    selected_courses = list(courses_collection.find({'_id': {'$in': course_ids}}))
+    # Get selected sections (course_id, section_code) from session
+    selected_sections_from_session = session.get('autopicked_sections', [])
+    
+    # Reconstruct full course objects for each selected section for display
+    displayed_courses = []
+    if selected_sections_from_session:
+        course_ids_to_fetch = list(set([cid for cid, _ in selected_sections_from_session]))
+        
+        # Fetch actual course documents from DB once
+        db_courses_map = {str(c['_id']): c for c in courses_collection.find({'_id': {'$in': [ObjectId(cid) for cid in course_ids_to_fetch]}})}
 
-    # Separate by type
-    lecture_courses = [c for c in selected_courses if c.get('course_type', 'Lecture') != 'Lab']
-    lab_courses = [c for c in selected_courses if c.get('course_type') == 'Lab']
+        for course_id_str, section_code_to_display in selected_sections_from_session:
+            original_course = db_courses_map.get(course_id_str)
+            if original_course:
+                display_unit = original_course.copy()
+                display_unit['section_code'] = section_code_to_display # Ensure this unit represents this specific section
+                displayed_courses.append(display_unit)
+            else:
+                print(f"Warning: Original course {course_id_str} not found for section {section_code_to_display}")
+
+    # Separate by type for display
+    lecture_courses = [c for c in displayed_courses if c.get('course_type', 'Lecture') != 'Lab']
+    lab_courses = [c for c in displayed_courses if c.get('course_type') == 'Lab']
 
     return render_template(
         "pages/autogenerate_confirm_autopick.html",
@@ -789,7 +823,7 @@ def autogenerate_confirm_autopick():
         floor_number=floor_number,
         lecture_courses=lecture_courses,
         lab_courses=lab_courses,
-        total_courses=len(selected_courses)
+        total_courses=len(displayed_courses) # Use the new list length
     )
 
 @app.route("/autogenerate_pick_courses")
@@ -809,21 +843,36 @@ def execute_autogenerate_scheduling():
     """Execute the genetic algorithm and create the timetable"""
     floor_number = request.args.get('floor', type=int)
 
-    if not floor_number or 'autopicked_courses' not in session:
+    if not floor_number or 'autopicked_sections' not in session: # Check new session key
         return redirect(url_for('autogenerate_select_floor'))
 
     try:
-        # Get selected courses
-        course_ids = [ObjectId(cid) for cid in session.get('autopicked_courses', [])]
-        selected_courses = list(courses_collection.find({'_id': {'$in': course_ids}}))
+        # Get selected sections (course_id, section_code) from session
+        selected_sections_from_session = session.get('autopicked_sections', [])
+        
+        if not selected_sections_from_session:
+            return jsonify({'success': False, 'error': 'No course sections selected for scheduling'}), 400
 
-        if not selected_courses:
-            return jsonify({'success': False, 'error': 'No courses selected'}), 400
+        # Reconstruct full course objects for each selected section
+        selected_schedulable_units = []
+        course_ids_to_fetch = list(set([cid for cid, _ in selected_sections_from_session]))
+        
+        db_courses_map = {str(c['_id']): c for c in courses_collection.find({'_id': {'$in': [ObjectId(cid) for cid in course_ids_to_fetch]}})}
+
+        for course_id_str, section_code_to_schedule in selected_sections_from_session:
+            original_course = db_courses_map.get(course_id_str)
+            if original_course:
+                schedulable_unit = original_course.copy()
+                schedulable_unit['_id'] = original_course['_id'] # Ensure _id remains ObjectId
+                schedulable_unit['section_code'] = section_code_to_schedule
+                selected_schedulable_units.append(schedulable_unit)
+        
+        if not selected_schedulable_units:
+            return jsonify({'success': False, 'error': 'Failed to prepare courses for scheduling'}), 400
 
         # Get floor rooms
         all_rooms = list(rooms_collection.find({}))
         floor_rooms = []
-
         for room in all_rooms:
             room_floor = extract_floor_number_from_room(room.get('room_number', ''))
             if room_floor and room_floor.isdigit() and int(room_floor) == floor_number:
@@ -835,33 +884,46 @@ def execute_autogenerate_scheduling():
         print(f"\n{'='*60}")
         print(f"STARTING GENETIC ALGORITHM SCHEDULING")
         print(f"Floor: {floor_number}")
-        print(f"Courses to schedule: {len(selected_courses)}")
+        print(f"Courses to schedule: {len(selected_schedulable_units)}")
         print(f"Available rooms: {len(floor_rooms)}")
         print(f"{'='*60}\n")
 
         # Run genetic algorithm
-        scheduler = TimetableScheduler(selected_courses, floor_rooms, floor_number)
+        scheduler = TimetableScheduler(selected_schedulable_units, floor_rooms, floor_number)
         best_schedule, fitness_score = scheduler.evolve()
 
         print(f"\n{'='*60}")
         print(f"SCHEDULING COMPLETE")
         print(f"Final fitness score: {fitness_score}")
-        print(f"Courses scheduled: {len(best_schedule)}/{len(selected_courses)}")
+        print(f"Courses scheduled: {len(best_schedule)}/{len(selected_schedulable_units)}")
         print(f"{'='*60}\n")
 
-        # Delete existing scheduled classes for this floor
+        # In a real-world scenario, you might not delete, but instead just update.
+        # For simplicity, we delete and re-create for the floor.
+        # This should be changed in a production system to be more robust.
+        # It's better to remove only the classes that are being rescheduled.
+        # For now, we delete all classes on the floor.
         scheduled_classes_collection.delete_many({'floor': floor_number})
 
         # Save schedule to database
         scheduled_count = 0
         for gene in best_schedule:
+            original_course_for_db = db_courses_map.get(gene['course_id'])
+            if not original_course_for_db:
+                print(f"Warning: could not find original course for gene {gene}")
+                continue
+                
             scheduled_class = {
                 'course_id': ObjectId(gene['course_id']),
-                'course_code': gene['course_code'],
                 'course_name': gene['course_name'],
+                'section_code': gene['section_code'],
+                'teacher_registration': original_course_for_db.get('teacher_registration'),
                 'teacher_name': gene['teacher_name'],
+                'course_type': original_course_for_db.get('course_type'),
+                'credit_hour': original_course_for_db.get('credit_hour'),
+                'shift': original_course_for_db.get('shift'),
                 'floor': floor_number,
-                'room_number': int(gene['room']['room_number']),  # Ensure integer
+                'room_number': int(gene['room']['room_number']),
                 'day': gene['day'],
                 'start_time': gene['time_slot'][0],
                 'end_time': gene['time_slot'][1]
@@ -870,14 +932,14 @@ def execute_autogenerate_scheduling():
             scheduled_count += 1
 
         # Clear session data
-        session.pop('autopicked_courses', None)
+        session.pop('autopicked_sections', None)
         session.pop('autogenerate_floor', None)
 
         print(f"✓ Saved {scheduled_count} classes to database")
 
         # Redirect to timetable view
         return redirect(url_for('view_autogenerated_timetable', floor=floor_number,
-                               scheduled=scheduled_count, total=len(selected_courses)))
+                               scheduled=scheduled_count, total=len(selected_schedulable_units)))
 
     except Exception as e:
         print(f"Error during scheduling: {str(e)}")
