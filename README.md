@@ -102,23 +102,6 @@ See `docs/CREATE_MONGODB_CLUSTER.md` for detailed instructions.
 2. Generate App Password: Google Account → Security → App passwords
 3. Add credentials to `config/email_settings.txt`
 
-## Docker Support
-
-Docker configuration is included for easy deployment:
-
-```bash
-# Build and run
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-Make sure to configure `.env` before running.
-
 ## Security Notes
 
 ⚠️ **Before deploying to production**:

@@ -165,9 +165,18 @@ class TimetableScheduler:
         """Create a random schedule (chromosome)"""
         schedule = []
         for course in self.courses:
-            # Get valid rooms for this course type
+            # Get credit hours and course type
+            credit_hour = course.get('credit_hour', '3')
             course_type = course.get('course_type', 'Lecture')
-            valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
+
+            # ENFORCE RULE: 3ch must be in Lecture Hall, 1ch must be in Lab
+            if credit_hour == '3' or credit_hour == 3:
+                valid_rooms = [r for r in self.rooms if r.get('type') == 'Lecture Hall']
+            elif credit_hour == '1' or credit_hour == 1:
+                valid_rooms = [r for r in self.rooms if r.get('type') == 'Lab']
+            else:
+                # Fallback to old logic for any other credit hours
+                valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
 
             if not valid_rooms:
                 continue
@@ -205,11 +214,24 @@ class TimetableScheduler:
             day = gene['day']
             time_slot = gene['time_slot']
             room = gene['room']['room_number']
+            room_type = gene['room'].get('type', '')
             shift = gene.get('shift', '')
             section_code = gene.get('section_code', '')
+            course_id = gene.get('course_id', '')
 
             # Count classes per day
             day_counts[day] += 1
+
+            # Check credit hour and room type matching (HARD CONSTRAINT)
+            # Find the course to get credit hours
+            course = next((c for c in self.courses if str(c['_id']) == course_id and c.get('section_code') == section_code), None)
+            if course:
+                credit_hour = course.get('credit_hour', '3')
+                # ENFORCE RULE: 3ch must be in Lecture Hall, 1ch must be in Lab
+                if (credit_hour == '3' or credit_hour == 3) and room_type != 'Lecture Hall':
+                    score -= 1000  # Severe penalty for wrong room type
+                elif (credit_hour == '1' or credit_hour == 1) and room_type != 'Lab':
+                    score -= 1000  # Severe penalty for wrong room type
 
             # Check teacher conflicts (HARD CONSTRAINT)
             teacher_key = (teacher, day, time_slot)
@@ -294,8 +316,18 @@ class TimetableScheduler:
         elif mutation_type == 'room':
             course = next((c for c in self.courses if str(c['_id']) == gene['course_id'] and c['section_code'] == gene['section_code']), None)
             if course:
+                credit_hour = course.get('credit_hour', '3')
                 course_type = course.get('course_type', 'Lecture')
-                valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
+
+                # ENFORCE RULE: 3ch must be in Lecture Hall, 1ch must be in Lab
+                if credit_hour == '3' or credit_hour == 3:
+                    valid_rooms = [r for r in self.rooms if r.get('type') == 'Lecture Hall']
+                elif credit_hour == '1' or credit_hour == 1:
+                    valid_rooms = [r for r in self.rooms if r.get('type') == 'Lab']
+                else:
+                    # Fallback to old logic
+                    valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
+
                 if valid_rooms:
                     gene['room'] = random.choice(valid_rooms)
 
@@ -715,16 +747,24 @@ def autogenerate_autopick():
         if course_id and section_code:
             scheduled_sections_set.add((str(course_id), section_code))
 
+    print(f"\n{'='*60}")
+    print(f"AUTOPICK FOR FLOOR {floor_number}")
+    print(f"{'='*60}")
+    print(f"Total scheduled sections across all floors: {len(scheduled_sections_set)}")
+
     # Prepare a list of all schedulable units (course sections that are not yet scheduled)
     all_schedulable_units = []
+    total_sections_in_db = 0
     for course in list(courses_collection.find({})): # Get all courses from DB
         course_id_str = str(course['_id'])
-        
+
         # Handle both old (section_code) and new (section_codes) format
         sections_in_course = course.get('section_codes', [])
         if not sections_in_course and course.get('section_code'):
             sections_in_course = [course.get('section_code')]
-        
+
+        total_sections_in_db += len(sections_in_course)
+
         for section_code in sections_in_course:
             if (course_id_str, section_code) not in scheduled_sections_set:
                 # This section is unscheduled, create a unique schedulable unit for it
@@ -732,30 +772,52 @@ def autogenerate_autopick():
                 schedulable_unit['section_code'] = section_code # Ensure this unit represents this specific section
                 all_schedulable_units.append(schedulable_unit)
 
-    # Separate unscheduled schedulable units by type and shift
-    unscheduled_lectures_morning = []
-    unscheduled_lectures_evening = []
-    unscheduled_labs_morning = []
-    unscheduled_labs_evening = []
+    print(f"Total course sections in database: {total_sections_in_db}")
+    print(f"Available unscheduled sections: {len(all_schedulable_units)}")
+    print(f"{'='*60}\n")
+
+    # Separate unscheduled schedulable units by credit hour (which determines room type) and shift
+    unscheduled_lectures_morning = []  # 3ch courses for Lecture Halls
+    unscheduled_lectures_evening = []  # 3ch courses for Lecture Halls
+    unscheduled_labs_morning = []      # 1ch courses for Labs
+    unscheduled_labs_evening = []      # 1ch courses for Labs
 
     for unit in all_schedulable_units:
-        course_type = unit.get('course_type', 'Lecture')
+        credit_hour = unit.get('credit_hour', '3')
         shift = unit.get('shift', '')
-        section_code_for_unit = unit.get('section_code', '') # Use the specific section code of the unit
+        section_code_for_unit = unit.get('section_code', '')
 
         is_morning = shift == 'Morning' or section_code_for_unit.startswith('MOR')
         is_evening = shift == 'Evening' or section_code_for_unit.startswith('EVE')
 
-        if course_type == 'Lab':
+        # ENFORCE RULE: 3ch must be in Lecture Hall, 1ch must be in Lab
+        # Categorize based on credit hours (which determines room type requirement)
+        # Convert to string for consistent comparison
+        credit_hour_str = str(credit_hour)
+
+        if credit_hour_str == '1':
+            # 1ch courses need Labs
             if is_morning:
                 unscheduled_labs_morning.append(unit)
             elif is_evening:
                 unscheduled_labs_evening.append(unit)
-        else:  # Lecture
+        elif credit_hour_str == '3':
+            # 3ch courses need Lecture Halls
             if is_morning:
                 unscheduled_lectures_morning.append(unit)
             elif is_evening:
                 unscheduled_lectures_evening.append(unit)
+        else:
+            # Unknown credit hour - log warning and skip
+            print(f"WARNING: Course '{unit.get('course_name')}' has unexpected credit_hour: {credit_hour} (type: {type(credit_hour).__name__})")
+
+    # Log categorization results
+    print(f"Categorization by credit hours:")
+    print(f"  3ch Lectures (Morning): {len(unscheduled_lectures_morning)}")
+    print(f"  3ch Lectures (Evening): {len(unscheduled_lectures_evening)}")
+    print(f"  1ch Labs (Morning): {len(unscheduled_labs_morning)}")
+    print(f"  1ch Labs (Evening): {len(unscheduled_labs_evening)}")
+    print()
 
     # Calculate shift-specific capacity
     morning_lecture_capacity = lecture_halls * 3 * DAYS_PER_WEEK
@@ -813,9 +875,10 @@ def autogenerate_confirm_autopick():
             else:
                 print(f"Warning: Original course {course_id_str} not found for section {section_code_to_display}")
 
-    # Separate by type for display
-    lecture_courses = [c for c in displayed_courses if c.get('course_type', 'Lecture') != 'Lab']
-    lab_courses = [c for c in displayed_courses if c.get('course_type') == 'Lab']
+    # Separate by credit hour for display (which determines room type)
+    # 3ch courses → Lecture Halls, 1ch courses → Labs
+    lecture_courses = [c for c in displayed_courses if str(c.get('credit_hour', '3')) == '3']
+    lab_courses = [c for c in displayed_courses if str(c.get('credit_hour', '3')) == '1']
 
     return render_template(
         "pages/autogenerate_confirm_autopick.html",
@@ -1002,6 +1065,53 @@ def view_autogenerated_timetable():
         total_count=total,
         days=DAYS_OF_WEEK
     )
+
+@app.route("/regenerate_floor")
+@login_required
+def regenerate_floor():
+    """Delete existing schedule for a floor and redirect to course selection"""
+    floor_number = request.args.get('floor', type=int)
+
+    if not floor_number:
+        return redirect(url_for('autogenerate_select_floor'))
+
+    print(f"\n{'='*60}")
+    print(f"REGENERATING FLOOR {floor_number}")
+    print(f"{'='*60}")
+
+    # Check current scheduled classes before deletion
+    before_count = scheduled_classes_collection.count_documents({'floor': floor_number})
+    print(f"Classes on floor {floor_number} before deletion: {before_count}")
+
+    # Delete all scheduled classes for this floor
+    result = scheduled_classes_collection.delete_many({'floor': floor_number})
+    deleted_count = result.deleted_count
+
+    # Verify deletion
+    after_count = scheduled_classes_collection.count_documents({'floor': floor_number})
+    print(f"Classes deleted: {deleted_count}")
+    print(f"Classes remaining on floor {floor_number}: {after_count}")
+
+    # Check total scheduled classes across all floors
+    total_scheduled = scheduled_classes_collection.count_documents({})
+    print(f"Total scheduled classes across all floors: {total_scheduled}")
+    print(f"{'='*60}\n")
+
+    # Redirect to course selection page (autopick or manual pick)
+    return redirect(url_for('autogenerate_configure', floor=floor_number))
+
+@app.route("/autogenerate_all_three")
+@login_required
+def autogenerate_all_three():
+    """Placeholder route for autogenerating all three floors"""
+    floor_number = request.args.get('floor', type=int)
+
+    if not floor_number:
+        return redirect(url_for('autogenerate_select_floor'))
+
+    # For now, just return a simple message
+    # This will be implemented based on user requirements
+    return f"Autogenerate All Three Floors feature - Floor {floor_number} clicked. Implementation pending."
 
 @app.route("/get_floors_with_capacity")
 @login_required

@@ -57,15 +57,6 @@ If the above don't work, try getting a standard `mongodb://` connection string:
 4. Copy the standard connection string (mongodb:// not mongodb+srv://)
 5. Update `MONGO_URI` in `app.py`
 
-### Solution 5: Use Docker with Compatible Python
-```bash
-# Create a Dockerfile with Python 3.11
-docker run -it -p 5000:5000 -v $(pwd):/app python:3.11-slim bash
-cd /app
-pip install flask pymongo certifi dnspython
-python app.py
-```
-
 ## Testing the Connection
 After trying any solution, test with:
 ```bash
