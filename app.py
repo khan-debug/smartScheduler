@@ -182,10 +182,23 @@ class TimetableScheduler:
             if not valid_rooms:
                 continue
 
+            # Sort rooms by room number to prefer lower-numbered rooms
+            # This helps concentrate classes in fewer rooms
+            valid_rooms_sorted = sorted(valid_rooms, key=lambda r: r.get('room_number', 999))
+
             # Get valid time slots for this course
             time_slots = get_time_slots_for_course(course)
 
-            # Randomly assign day, time slot, and room
+            # Bias room selection towards first few rooms (80% chance to pick from first 2 rooms if available)
+            if len(valid_rooms_sorted) >= 2 and random.random() < 0.8:
+                selected_room = random.choice(valid_rooms_sorted[:2])
+            elif len(valid_rooms_sorted) == 1:
+                selected_room = valid_rooms_sorted[0]
+            else:
+                # 20% chance to use any room (maintains some diversity for genetic algorithm)
+                selected_room = random.choice(valid_rooms_sorted)
+
+            # Randomly assign day, time slot, and biased room selection
             gene = {
                 'course_id': str(course['_id']),
                 'course_code': course.get('section_code', ''),  # Use section_code as course identifier
@@ -195,7 +208,7 @@ class TimetableScheduler:
                 'section_code': course.get('section_code', ''),
                 'day': random.choice(DAYS_OF_WEEK),
                 'time_slot': random.choice(time_slots),
-                'room': random.choice(valid_rooms)
+                'room': selected_room
             }
             schedule.append(gene)
 
@@ -271,16 +284,36 @@ class TimetableScheduler:
             if (is_morning_slot and not is_morning_course) or (not is_morning_slot and is_morning_course):
                 score -= 800  # Wrong shift
 
-        # Penalize using more rooms to encourage concentration (SOFT CONSTRAINT)
-        # The goal is to use as few rooms as possible. A penalty is applied for each room used beyond the first one.
-        unique_rooms_used = len(set(g['room']['room_number'] for g in chromosome))
-        room_utilization_penalty = (unique_rooms_used - 1) * 50 if unique_rooms_used > 0 else 0
-        score -= room_utilization_penalty
+        # STRONG PENALTY for using more rooms - encourage MINIMAL room utilization
+        # Separate penalty for Lecture Halls and Labs to minimize both
+        lecture_halls_used = set()
+        labs_used = set()
 
-        # Reward balanced day distribution
-        avg_per_day = len(chromosome) / len(DAYS_OF_WEEK)
+        for g in chromosome:
+            room_num = g['room']['room_number']
+            room_type = g['room'].get('type', '')
+
+            if room_type == 'Lecture Hall':
+                lecture_halls_used.add(room_num)
+            elif room_type == 'Lab':
+                labs_used.add(room_num)
+
+        # Heavy penalty for each additional room used (increased from 50 to 200)
+        # This strongly encourages using fewer rooms
+        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 200
+        labs_penalty = max(0, len(labs_used) - 1) * 200
+        total_room_penalty = lecture_halls_penalty + labs_penalty
+
+        score -= total_room_penalty
+
+        # Bonus for using minimal rooms
+        if len(lecture_halls_used) == 1 and len(labs_used) <= 1:
+            score += 100  # Reward for excellent room concentration
+
+        # Reward balanced day distribution (reduced weight to prioritize room minimization)
+        avg_per_day = len(chromosome) / len(DAYS_OF_WEEK) if len(DAYS_OF_WEEK) > 0 else 0
         balance_penalty = sum(abs(count - avg_per_day) for count in day_counts.values())
-        score -= balance_penalty * 10
+        score -= balance_penalty * 5  # Reduced from 10 to 5
 
         # Bonus for scheduling all courses
         if len(chromosome) == len(self.courses):
@@ -353,7 +386,14 @@ class TimetableScheduler:
                     valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
 
                 if valid_rooms:
-                    gene['room'] = random.choice(valid_rooms)
+                    # Apply same room concentration bias during mutation
+                    valid_rooms_sorted = sorted(valid_rooms, key=lambda r: r.get('room_number', 999))
+
+                    # 70% chance to prefer first 2 rooms during mutation
+                    if len(valid_rooms_sorted) >= 2 and random.random() < 0.7:
+                        gene['room'] = random.choice(valid_rooms_sorted[:2])
+                    else:
+                        gene['room'] = random.choice(valid_rooms_sorted)
 
         return mutated
 
@@ -1010,6 +1050,22 @@ def execute_autogenerate_scheduling():
         print(f"SCHEDULING COMPLETE")
         print(f"Final fitness score: {fitness_score}")
         print(f"Courses scheduled: {len(best_schedule)}/{len(selected_schedulable_units)}")
+
+        # Calculate and display room utilization
+        lecture_halls_used = set()
+        labs_used = set()
+        for gene in best_schedule:
+            room_num = gene['room']['room_number']
+            room_type = gene['room'].get('type', '')
+            if room_type == 'Lecture Hall':
+                lecture_halls_used.add(room_num)
+            elif room_type == 'Lab':
+                labs_used.add(room_num)
+
+        print(f"\nROOM UTILIZATION:")
+        print(f"  Lecture Halls used: {len(lecture_halls_used)} - {sorted(lecture_halls_used) if lecture_halls_used else 'None'}")
+        print(f"  Labs used: {len(labs_used)} - {sorted(labs_used) if labs_used else 'None'}")
+        print(f"  Total rooms used: {len(lecture_halls_used) + len(labs_used)}")
         print(f"{'='*60}\n")
 
         # Check if we're in "add mode" (preserve existing) or "replace mode" (delete existing)
