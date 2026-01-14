@@ -956,13 +956,170 @@ def autogenerate_confirm_autopick():
 @app.route("/autogenerate_pick_courses")
 @login_required
 def autogenerate_pick_courses():
-    """Show manual course selection page"""
+    """Show manual course selection page with only courses that fit in available capacity"""
     floor_number = request.args.get('floor', type=int)
     if not floor_number:
         return redirect(url_for('autogenerate_select_floor'))
 
-    # TODO: Implement manual course selection
-    return "Manual course selection - Coming soon!", 200
+    # Get all rooms on the floor
+    all_rooms = list(rooms_collection.find({}))
+    floor_rooms = []
+    for room in all_rooms:
+        room_floor = extract_floor_number_from_room(room.get('room_number', ''))
+        if room_floor and room_floor.isdigit() and int(room_floor) == floor_number:
+            floor_rooms.append(room)
+
+    # Count rooms by type
+    lecture_halls = [r for r in floor_rooms if r.get('type') == 'Lecture Hall']
+    labs = [r for r in floor_rooms if r.get('type') == 'Lab']
+
+    print(f"\n{'='*60}")
+    print(f"MANUAL PICK FOR FLOOR {floor_number}")
+    print(f"{'='*60}")
+    print(f"Lecture halls on floor: {len(lecture_halls)}")
+    print(f"Labs on floor: {len(labs)}")
+
+    # Get existing scheduled classes on this floor to calculate remaining capacity
+    existing_schedules = list(scheduled_classes_collection.find({'floor': floor_number}))
+    print(f"Existing classes on floor: {len(existing_schedules)}")
+
+    # Calculate occupied slots per room
+    # Time slot structure: (day, start_time, end_time)
+    room_occupied_slots = {}
+    for room in floor_rooms:
+        room_num = room.get('room_number')
+        room_occupied_slots[room_num] = set()
+
+    for sc in existing_schedules:
+        room_num = sc.get('room_number')
+        day = sc.get('day')
+        start_time = sc.get('start_time')
+        end_time = sc.get('end_time')
+        if room_num and day and start_time and end_time:
+            room_occupied_slots.setdefault(room_num, set()).add((day, start_time, end_time))
+
+    # Calculate available capacity
+    # 6 days per week, 8:30 AM - 10:00 PM = 13.5 hours = 810 minutes
+    # 3ch courses take 3 hours (180 min), 1ch courses take 1 hour (60 min)
+    # Per day per room: can fit 4 x 3ch classes (4*180=720min) or 13 x 1ch classes (13*60=780min)
+    days_per_week = 6
+
+    # For lecture halls: 3ch courses (each occupies 3-hour slot)
+    lecture_capacity_per_room_per_week = 4 * days_per_week  # 24 classes/week
+    total_lecture_capacity = len(lecture_halls) * lecture_capacity_per_room_per_week
+
+    # For labs: 1ch courses (each occupies 1-hour slot)
+    lab_capacity_per_room_per_week = 13 * days_per_week  # 78 classes/week
+    total_lab_capacity = len(labs) * lab_capacity_per_room_per_week
+
+    # Count how many slots are already occupied
+    lecture_occupied = sum(1 for sc in existing_schedules if str(sc.get('credit_hour', '3')) == '3')
+    lab_occupied = sum(1 for sc in existing_schedules if str(sc.get('credit_hour', '1')) == '1')
+
+    # Calculate remaining capacity
+    remaining_lecture_capacity = max(0, total_lecture_capacity - lecture_occupied)
+    remaining_lab_capacity = max(0, total_lab_capacity - lab_occupied)
+
+    print(f"Lecture capacity: {lecture_occupied}/{total_lecture_capacity} used, {remaining_lecture_capacity} available")
+    print(f"Lab capacity: {lab_occupied}/{total_lab_capacity} used, {remaining_lab_capacity} available")
+
+    # Get ALL already scheduled sections from all floors
+    all_scheduled_classes = list(scheduled_classes_collection.find({}))
+    scheduled_sections_set = set()
+    for sc in all_scheduled_classes:
+        course_id = sc.get('course_id')
+        section_code = sc.get('section_code')
+        if course_id and section_code:
+            scheduled_sections_set.add((str(course_id), section_code))
+
+    print(f"Total scheduled sections across all floors: {len(scheduled_sections_set)}")
+
+    # Get all unscheduled course sections
+    all_unscheduled_units = []
+    for course in list(courses_collection.find({})):
+        course_id_str = str(course['_id'])
+        sections_in_course = course.get('section_codes', [])
+        if not sections_in_course and course.get('section_code'):
+            sections_in_course = [course.get('section_code')]
+
+        for section_code in sections_in_course:
+            if (course_id_str, section_code) not in scheduled_sections_set:
+                schedulable_unit = course.copy()
+                schedulable_unit['section_code'] = section_code
+                all_unscheduled_units.append(schedulable_unit)
+
+    # Separate by credit hour (which determines room type needed)
+    unscheduled_lectures = [u for u in all_unscheduled_units if str(u.get('credit_hour', '3')) == '3']
+    unscheduled_labs = [u for u in all_unscheduled_units if str(u.get('credit_hour', '1')) == '1']
+
+    # Only show courses that can fit in remaining capacity
+    available_lectures = unscheduled_lectures[:remaining_lecture_capacity] if remaining_lecture_capacity > 0 else []
+    available_labs = unscheduled_labs[:remaining_lab_capacity] if remaining_lab_capacity > 0 else []
+
+    print(f"Unscheduled lectures available: {len(unscheduled_lectures)} (showing {len(available_lectures)})")
+    print(f"Unscheduled labs available: {len(unscheduled_labs)} (showing {len(available_labs)})")
+    print(f"{'='*60}\n")
+
+    # Prepare capacity info for template
+    capacity_info = {
+        'total_lecture_capacity': total_lecture_capacity,
+        'total_lab_capacity': total_lab_capacity,
+        'lecture_occupied': lecture_occupied,
+        'lab_occupied': lab_occupied,
+        'remaining_lecture_capacity': remaining_lecture_capacity,
+        'remaining_lab_capacity': remaining_lab_capacity,
+        'lecture_halls': len(lecture_halls),
+        'labs': len(labs)
+    }
+
+    return render_template(
+        "pages/autogenerate_manual_pick.html",
+        active_page="generate",
+        floor_number=floor_number,
+        capacity=capacity_info,
+        available_lectures=available_lectures,
+        available_labs=available_labs,
+        total_available=len(available_lectures) + len(available_labs)
+    )
+
+@app.route("/autogenerate_submit_manual_pick", methods=['POST'])
+@login_required
+def autogenerate_submit_manual_pick():
+    """Process manually selected courses and redirect to scheduling"""
+    floor_number = request.form.get('floor_number', type=int)
+    if not floor_number:
+        return jsonify({'success': False, 'error': 'Floor number is required'}), 400
+
+    # Get selected course sections from form
+    selected_sections = []
+
+    # Form data comes as: selected_courses[] = "course_id|section_code"
+    raw_selections = request.form.getlist('selected_courses[]')
+
+    for selection in raw_selections:
+        if '|' in selection:
+            course_id, section_code = selection.split('|', 1)
+            selected_sections.append((course_id, section_code))
+
+    if not selected_sections:
+        return jsonify({'success': False, 'error': 'No courses selected'}), 400
+
+    print(f"\n{'='*60}")
+    print(f"MANUAL PICK SUBMISSION - Floor {floor_number}")
+    print(f"{'='*60}")
+    print(f"Selected {len(selected_sections)} course sections")
+    for course_id, section_code in selected_sections:
+        print(f"  - {section_code} (course_id: {course_id})")
+    print(f"{'='*60}\n")
+
+    # Store selections in session (same format as autopick)
+    session['autopicked_sections'] = selected_sections
+
+    # Redirect to scheduling execution
+    return jsonify({
+        'success': True,
+        'redirect': url_for('execute_autogenerate_scheduling', floor=floor_number)
+    })
 
 @app.route("/execute_autogenerate_scheduling")
 @login_required

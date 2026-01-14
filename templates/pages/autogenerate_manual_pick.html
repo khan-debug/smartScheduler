@@ -1,0 +1,361 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Manual Pick Courses - Floor {{ floor_number }}{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1200px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2);">
+            <a href="/autogenerate_configure?floor={{ floor_number }}" style="color: var(--text-secondary); text-decoration: none; font-size: var(--text-lg);">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 style="margin: 0;">Manual Course Selection - Floor {{ floor_number }}</h1>
+        </div>
+        <p class="text-secondary">Select courses to schedule based on available capacity</p>
+    </div>
+
+    <!-- Capacity Summary Card -->
+    <div class="card card-flat" style="margin-bottom: var(--space-8); background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);">
+        <div class="card-body">
+            <div style="display: flex; gap: var(--space-4); align-items: center;">
+                <div style="flex-shrink: 0; color: var(--primary-600); font-size: var(--text-3xl);">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="margin-bottom: var(--space-3); color: var(--text-primary);">Available Capacity</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
+                        <div>
+                            <div class="text-secondary" style="font-size: var(--text-sm);">Lecture Halls</div>
+                            <div style="color: var(--primary-600); font-size: var(--text-xl); font-weight: var(--weight-bold);">
+                                {{ capacity.remaining_lecture_capacity }} available
+                            </div>
+                            <div class="text-secondary" style="font-size: var(--text-xs);">
+                                {{ capacity.lecture_occupied }}/{{ capacity.total_lecture_capacity }} used
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-secondary" style="font-size: var(--text-sm);">Labs</div>
+                            <div style="color: var(--success-600); font-size: var(--text-xl); font-weight: var(--weight-bold);">
+                                {{ capacity.remaining_lab_capacity }} available
+                            </div>
+                            <div class="text-secondary" style="font-size: var(--text-xs);">
+                                {{ capacity.lab_occupied }}/{{ capacity.total_lab_capacity }} used
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if total_available == 0 %}
+    <!-- No courses available -->
+    <div class="card card-flat">
+        <div class="card-body" style="text-align: center; padding: var(--space-12);">
+            <i class="fas fa-inbox" style="font-size: var(--text-6xl); color: var(--text-tertiary); margin-bottom: var(--space-4);"></i>
+            <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">No Available Courses</h3>
+            <p class="text-secondary" style="margin-bottom: var(--space-6);">
+                {% if capacity.remaining_lecture_capacity == 0 and capacity.remaining_lab_capacity == 0 %}
+                    The floor is at full capacity. All available slots are occupied.
+                {% else %}
+                    No unscheduled courses available that fit the remaining capacity.
+                {% endif %}
+            </p>
+            <a href="/autogenerate_select_floor" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> <span>Back to Floor Selection</span>
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <!-- Course Selection Form -->
+    <form id="manualPickForm">
+        <input type="hidden" name="floor_number" value="{{ floor_number }}">
+
+        <!-- Selection Summary -->
+        <div class="card card-flat" style="margin-bottom: var(--space-6); background: var(--bg-secondary);">
+            <div class="card-body" style="padding: var(--space-4);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span class="text-secondary" style="font-size: var(--text-sm);">Selected Courses:</span>
+                        <span id="selectedCount" style="color: var(--primary-600); font-weight: var(--weight-bold); margin-left: var(--space-2); font-size: var(--text-lg);">0</span>
+                    </div>
+                    <div style="display: flex; gap: var(--space-3);">
+                        <button type="button" onclick="selectAll()" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-check-double"></i> <span>Select All</span>
+                        </button>
+                        <button type="button" onclick="clearAll()" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-times"></i> <span>Clear All</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Lists -->
+        <div style="display: grid; gap: var(--space-6); margin-bottom: var(--space-8);">
+            {% if available_lectures %}
+            <!-- Lecture Courses -->
+            <div class="card card-elevated">
+                <div class="card-body">
+                    <h2 style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); color: var(--text-primary);">
+                        <i class="fas fa-graduation-cap" style="color: var(--primary-500);"></i>
+                        Available Lecture Courses ({{ available_lectures|length }})
+                        <span class="text-secondary" style="font-size: var(--text-sm); font-weight: normal;">
+                            - 3 credit hours each
+                        </span>
+                    </h2>
+                    <div style="display: grid; gap: var(--space-3);">
+                        {% for course in available_lectures %}
+                        <label class="course-checkbox-card">
+                            <input type="checkbox" name="selected_courses[]" value="{{ course._id }}|{{ course.section_code }}" onchange="updateSelectedCount()">
+                            <div class="course-card-content">
+                                <div style="flex: 1;">
+                                    <h3 style="color: var(--text-primary); margin-bottom: var(--space-1);">
+                                        {{ course.section_code }}
+                                    </h3>
+                                    <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-2);">
+                                        {{ course.course_name }}
+                                    </p>
+                                    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-sm);">
+                                        {% if course.teacher_name %}
+                                        <span class="text-secondary">
+                                            <i class="fas fa-user"></i> {{ course.teacher_name }}
+                                        </span>
+                                        {% endif %}
+                                        {% if course.shift %}
+                                        <span class="text-secondary">
+                                            <i class="fas fa-clock"></i> {{ course.shift }}
+                                        </span>
+                                        {% endif %}
+                                        <span class="text-secondary">
+                                            <i class="fas fa-book"></i> {{ course.credit_hour }} CH
+                                        </span>
+                                    </div>
+                                </div>
+                                <span class="course-type-badge lecture-badge">
+                                    Lecture
+                                </span>
+                                <div class="checkbox-indicator">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if available_labs %}
+            <!-- Lab Courses -->
+            <div class="card card-elevated">
+                <div class="card-body">
+                    <h2 style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-6); color: var(--text-primary);">
+                        <i class="fas fa-flask" style="color: var(--success-500);"></i>
+                        Available Lab Courses ({{ available_labs|length }})
+                        <span class="text-secondary" style="font-size: var(--text-sm); font-weight: normal;">
+                            - 1 credit hour each
+                        </span>
+                    </h2>
+                    <div style="display: grid; gap: var(--space-3);">
+                        {% for course in available_labs %}
+                        <label class="course-checkbox-card">
+                            <input type="checkbox" name="selected_courses[]" value="{{ course._id }}|{{ course.section_code }}" onchange="updateSelectedCount()">
+                            <div class="course-card-content">
+                                <div style="flex: 1;">
+                                    <h3 style="color: var(--text-primary); margin-bottom: var(--space-1);">
+                                        {{ course.section_code }}
+                                    </h3>
+                                    <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-2);">
+                                        {{ course.course_name }}
+                                    </p>
+                                    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-sm);">
+                                        {% if course.teacher_name %}
+                                        <span class="text-secondary">
+                                            <i class="fas fa-user"></i> {{ course.teacher_name }}
+                                        </span>
+                                        {% endif %}
+                                        {% if course.shift %}
+                                        <span class="text-secondary">
+                                            <i class="fas fa-clock"></i> {{ course.shift }}
+                                        </span>
+                                        {% endif %}
+                                        <span class="text-secondary">
+                                            <i class="fas fa-book"></i> {{ course.credit_hour }} CH
+                                        </span>
+                                    </div>
+                                </div>
+                                <span class="course-type-badge lab-badge">
+                                    Lab
+                                </span>
+                                <div class="checkbox-indicator">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: var(--space-4); justify-content: center;">
+            <a href="/autogenerate_configure?floor={{ floor_number }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> <span>Go Back</span>
+            </a>
+            <button type="submit" class="btn btn-primary" id="submitBtn" style="min-width: 200px;" disabled>
+                <i class="fas fa-calendar-plus"></i> <span>Proceed to Scheduling</span>
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<style>
+    .course-checkbox-card {
+        display: block;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .course-checkbox-card input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .course-card-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        padding: var(--space-4);
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        border: 2px solid var(--border-primary);
+        transition: all var(--transition-normal);
+        gap: var(--space-4);
+    }
+
+    .course-checkbox-card:hover .course-card-content {
+        border-color: var(--primary-300);
+        background: var(--primary-50);
+    }
+
+    .course-checkbox-card input:checked ~ .course-card-content {
+        border-color: var(--primary-500);
+        background: var(--primary-50);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .checkbox-indicator {
+        width: 24px;
+        height: 24px;
+        border: 2px solid var(--border-primary);
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all var(--transition-normal);
+        flex-shrink: 0;
+        background: white;
+    }
+
+    .checkbox-indicator i {
+        opacity: 0;
+        color: white;
+        font-size: var(--text-sm);
+    }
+
+    .course-checkbox-card input:checked ~ .course-card-content .checkbox-indicator {
+        background: var(--primary-500);
+        border-color: var(--primary-500);
+    }
+
+    .course-checkbox-card input:checked ~ .course-card-content .checkbox-indicator i {
+        opacity: 1;
+    }
+
+    .course-type-badge {
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-full);
+        font-size: var(--text-xs);
+        font-weight: var(--weight-semibold);
+        flex-shrink: 0;
+    }
+
+    .lecture-badge {
+        background: var(--primary-100);
+        color: var(--primary-700);
+    }
+
+    .lab-badge {
+        background: var(--success-100);
+        color: var(--success-700);
+    }
+</style>
+
+<script>
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('input[name="selected_courses[]"]');
+        const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+
+        document.getElementById('selectedCount').textContent = selectedCount;
+        document.getElementById('submitBtn').disabled = selectedCount === 0;
+    }
+
+    function selectAll() {
+        const checkboxes = document.querySelectorAll('input[name="selected_courses[]"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        updateSelectedCount();
+    }
+
+    function clearAll() {
+        const checkboxes = document.querySelectorAll('input[name="selected_courses[]"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        updateSelectedCount();
+    }
+
+    // Handle form submission
+    document.getElementById('manualPickForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalContent = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Processing...</span>';
+
+        // Collect form data
+        const formData = new FormData(this);
+
+        // Submit via AJAX
+        fetch('/autogenerate_submit_manual_pick', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> <span>Success! Redirecting...</span>';
+                // Redirect to scheduling
+                window.location.href = data.redirect;
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+        });
+    });
+
+    // Initialize
+    updateSelectedCount();
+</script>
+{% endblock %}
