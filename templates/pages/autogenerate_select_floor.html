@@ -321,16 +321,8 @@
     }
 
     function autogenerateAllThree(floorNumber) {
-        const confirmed = confirm(
-            `Autogenerate All Three Floors?\n\n` +
-            `This will automatically generate schedules for floors ${floorNumber - 1}, ${floorNumber}, and ${floorNumber + 1}.\n\n` +
-            `Do you want to continue?`
-        );
-
-        if (confirmed) {
-            // Navigate to autogenerate all route
-            window.location.href = `/autogenerate_all_three?floor=${floorNumber}`;
-        }
+        // Navigate directly to autogenerate route (no confirmation needed)
+        window.location.href = `/autogenerate_all_three?floor=${floorNumber}`;
     }
 
     function showError(message) {

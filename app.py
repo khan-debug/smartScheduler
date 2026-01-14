@@ -160,6 +160,7 @@ class TimetableScheduler:
         self.mutation_rate = 0.15
         self.crossover_rate = 0.85
         self.elite_size = int(0.1 * self.population_size)
+        self.existing_schedules = []  # Will be set externally if needed
 
     def create_chromosome(self):
         """Create a random schedule (chromosome)"""
@@ -208,6 +209,23 @@ class TimetableScheduler:
         teacher_schedule = {}  # {(teacher, day, time): count}
         room_schedule = {}  # {(room, day, time): count}
         day_counts = {day: 0 for day in DAYS_OF_WEEK}
+
+        # Pre-populate with existing schedules to avoid conflicts
+        if self.existing_schedules:
+            for existing in self.existing_schedules:
+                teacher = existing.get('teacher_name')
+                day = existing.get('day')
+                start_time = existing.get('start_time')
+                end_time = existing.get('end_time')
+                room = existing.get('room_number')
+
+                # Mark these slots as occupied
+                time_slot = (start_time, end_time)
+                teacher_key = (teacher, day, time_slot)
+                room_key = (room, day, time_slot)
+
+                teacher_schedule[teacher_key] = 1
+                room_schedule[room_key] = 1
 
         for gene in chromosome:
             teacher = gene['teacher_name']
@@ -275,8 +293,14 @@ class TimetableScheduler:
         if random.random() > self.crossover_rate:
             return copy.deepcopy(parent1)
 
+        # Handle edge cases where parents are too small
+        min_len = min(len(parent1), len(parent2))
+        if min_len <= 1:
+            # If parents are too small, just return a copy of parent1
+            return copy.deepcopy(parent1)
+
         # Single-point crossover
-        point = random.randint(1, min(len(parent1), len(parent2)) - 1)
+        point = random.randint(1, min_len - 1)
         child = parent1[:point] + parent2[point:]
 
         # Remove duplicate courses by checking both course_id and section_code
@@ -931,7 +955,10 @@ def execute_autogenerate_scheduling():
                 selected_schedulable_units.append(schedulable_unit)
         
         if not selected_schedulable_units:
+            print("ERROR: No schedulable units prepared")
             return jsonify({'success': False, 'error': 'Failed to prepare courses for scheduling'}), 400
+
+        print(f"Schedulable units prepared: {len(selected_schedulable_units)}")
 
         # Get floor rooms
         all_rooms = list(rooms_collection.find({}))
@@ -942,18 +969,42 @@ def execute_autogenerate_scheduling():
                 floor_rooms.append(room)
 
         if not floor_rooms:
+            print(f"ERROR: No rooms found on floor {floor_number}")
             return jsonify({'success': False, 'error': 'No rooms found on this floor'}), 400
+
+        print(f"Floor rooms found: {len(floor_rooms)}")
 
         print(f"\n{'='*60}")
         print(f"STARTING GENETIC ALGORITHM SCHEDULING")
         print(f"Floor: {floor_number}")
         print(f"Courses to schedule: {len(selected_schedulable_units)}")
         print(f"Available rooms: {len(floor_rooms)}")
+
+        # Check if we need to preserve existing schedules
+        autogenerate_mode = session.get('autogenerate_mode', 'replace')
+        if autogenerate_mode == 'add':
+            # Get existing schedules on this floor to avoid conflicts
+            existing_schedules = list(scheduled_classes_collection.find({'floor': floor_number}))
+            print(f"Existing classes to preserve: {len(existing_schedules)}")
+        else:
+            existing_schedules = []
+
         print(f"{'='*60}\n")
 
         # Run genetic algorithm
-        scheduler = TimetableScheduler(selected_schedulable_units, floor_rooms, floor_number)
-        best_schedule, fitness_score = scheduler.evolve()
+        try:
+            scheduler = TimetableScheduler(selected_schedulable_units, floor_rooms, floor_number)
+
+            # Pass existing schedules if in "add mode"
+            if existing_schedules:
+                scheduler.existing_schedules = existing_schedules
+
+            best_schedule, fitness_score = scheduler.evolve()
+        except Exception as ga_error:
+            print(f"ERROR in genetic algorithm: {str(ga_error)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': f'Scheduling failed: {str(ga_error)}'}), 500
 
         print(f"\n{'='*60}")
         print(f"SCHEDULING COMPLETE")
@@ -961,12 +1012,17 @@ def execute_autogenerate_scheduling():
         print(f"Courses scheduled: {len(best_schedule)}/{len(selected_schedulable_units)}")
         print(f"{'='*60}\n")
 
-        # In a real-world scenario, you might not delete, but instead just update.
-        # For simplicity, we delete and re-create for the floor.
-        # This should be changed in a production system to be more robust.
-        # It's better to remove only the classes that are being rescheduled.
-        # For now, we delete all classes on the floor.
-        scheduled_classes_collection.delete_many({'floor': floor_number})
+        # Check if we're in "add mode" (preserve existing) or "replace mode" (delete existing)
+        autogenerate_mode = session.get('autogenerate_mode', 'replace')
+
+        if autogenerate_mode == 'replace':
+            # Delete all existing classes on the floor before adding new ones
+            result = scheduled_classes_collection.delete_many({'floor': floor_number})
+            print(f"✓ Deleted {result.deleted_count} existing classes from floor {floor_number}")
+        else:
+            # In "add mode", keep existing classes
+            existing_count = scheduled_classes_collection.count_documents({'floor': floor_number})
+            print(f"✓ Preserving {existing_count} existing classes on floor {floor_number}")
 
         # Save schedule to database
         scheduled_count = 0
@@ -997,6 +1053,7 @@ def execute_autogenerate_scheduling():
         # Clear session data
         session.pop('autopicked_sections', None)
         session.pop('autogenerate_floor', None)
+        session.pop('autogenerate_mode', None)  # Clear the mode flag
 
         print(f"✓ Saved {scheduled_count} classes to database")
 
@@ -1103,15 +1160,21 @@ def regenerate_floor():
 @app.route("/autogenerate_all_three")
 @login_required
 def autogenerate_all_three():
-    """Placeholder route for autogenerating all three floors"""
+    """Autogenerate schedule for a floor WITHOUT deleting existing classes"""
     floor_number = request.args.get('floor', type=int)
 
     if not floor_number:
         return redirect(url_for('autogenerate_select_floor'))
 
-    # For now, just return a simple message
-    # This will be implemented based on user requirements
-    return f"Autogenerate All Three Floors feature - Floor {floor_number} clicked. Implementation pending."
+    print(f"\n{'='*60}")
+    print(f"AUTOGENERATE FOR FLOOR {floor_number} (WITHOUT DELETING)")
+    print(f"{'='*60}")
+
+    # Set a session flag to indicate we're in "add mode" (don't delete existing)
+    session['autogenerate_mode'] = 'add'  # 'add' mode preserves existing schedules
+
+    # Redirect to course selection page (same as regenerate, but without deletion)
+    return redirect(url_for('autogenerate_configure', floor=floor_number))
 
 @app.route("/get_floors_with_capacity")
 @login_required
