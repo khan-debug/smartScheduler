@@ -301,6 +301,28 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         }
                     }
                 });
+
+                // Auto-set credit hours based on course type in edit form (for Courses only)
+                if (itemName === 'course') {
+                    const editCourseTypeField = document.getElementById('edit_course_type');
+                    const editCreditHourField = document.getElementById('edit_credit_hour');
+
+                    if (editCourseTypeField && editCreditHourField) {
+                        // Remove existing event listener if any
+                        const newEditCourseTypeField = editCourseTypeField.cloneNode(true);
+                        editCourseTypeField.parentNode.replaceChild(newEditCourseTypeField, editCourseTypeField);
+
+                        // Add event listener for edit form
+                        newEditCourseTypeField.addEventListener('change', function() {
+                            if (this.value === 'Lecture') {
+                                editCreditHourField.value = '3';
+                            } else if (this.value === 'Lab') {
+                                editCreditHourField.value = '1';
+                            }
+                        });
+                    }
+                }
+
                 editModal.style.display = "block";
             });
     }
@@ -391,6 +413,30 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
         if (event.target == deleteConfirmModal) {
             deleteConfirmModal.style.display = "none";
+        }
+    }
+
+    // Auto-set credit hours based on course type (for Courses only)
+    if (itemName === 'course') {
+        const courseTypeField = document.getElementById('course_type');
+        const creditHourField = document.getElementById('credit_hour');
+
+        if (courseTypeField && creditHourField) {
+            // Set initial value when page loads
+            if (courseTypeField.value === 'Lecture') {
+                creditHourField.value = '3';
+            } else if (courseTypeField.value === 'Lab') {
+                creditHourField.value = '1';
+            }
+
+            // Add event listener to change credit hour when course type changes
+            courseTypeField.addEventListener('change', function() {
+                if (this.value === 'Lecture') {
+                    creditHourField.value = '3';
+                } else if (this.value === 'Lab') {
+                    creditHourField.value = '1';
+                }
+            });
         }
     }
 

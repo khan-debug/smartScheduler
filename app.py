@@ -2745,8 +2745,8 @@ def manage_courses():
         get_url="/get_courses",
         form_fields=[
             {"name": "course_name", "label": "Course Name", "type": "text", "table_display": True, "form_display": True},
-            {"name": "credit_hour", "label": "Credit Hour", "type": "select", "options": ["1", "3"], "table_display": True, "form_display": True},
-            {"name": "course_type", "label": "Course Type", "type": "select", "options": ["Lab", "Lecture"], "table_display": True, "form_display": True},
+            {"name": "course_type", "label": "Course Type", "type": "select", "options": ["Lecture", "Lab"], "table_display": True, "form_display": True},
+            {"name": "credit_hour", "label": "Credit Hour (Auto-set)", "type": "select", "options": ["3", "1"], "table_display": True, "form_display": True},
             {"name": "shift", "label": "Shift Time", "type": "select", "options": ["Morning", "Evening"], "table_display": True, "form_display": True},
             {"name": "section_code", "label": "Section Code", "type": "text", "table_display": True, "form_display": False},
             {"name": "teacher_registration", "label": "Teacher Registration Number", "type": "text", "table_display": False, "form_display": True, "placeholder": "Enter registration number"},
@@ -2827,6 +2827,20 @@ def get_courses_by_shift(shift):
 @login_required
 def add_course():
     data = request.get_json()
+
+    # ENFORCE RULE: Auto-set credit hours based on course type
+    course_type = data.get('course_type', 'Lecture')
+    if course_type == 'Lecture':
+        data['credit_hour'] = '3'
+    elif course_type == 'Lab':
+        data['credit_hour'] = '1'
+
+    # Validate that credit hours match course type
+    credit_hour = data.get('credit_hour', '3')
+    if course_type == 'Lecture' and str(credit_hour) != '3':
+        return {"success": False, "error": "Lecture courses must have 3 credit hours"}, 400
+    if course_type == 'Lab' and str(credit_hour) != '1':
+        return {"success": False, "error": "Lab courses must have 1 credit hour"}, 400
 
     # Auto-generate section code from shift
     shift = data.get('shift', 'Morning')
@@ -3339,6 +3353,20 @@ def update_item(item_type, item_id):
                 }
                 print(f"Updating room with data: {update_data}")  # Debug logging
             elif item_type == "course":
+                # ENFORCE RULE: Auto-set credit hours based on course type
+                course_type = data.get('course_type', 'Lecture')
+                if course_type == 'Lecture':
+                    data['credit_hour'] = '3'
+                elif course_type == 'Lab':
+                    data['credit_hour'] = '1'
+
+                # Validate that credit hours match course type
+                credit_hour = data.get('credit_hour', '3')
+                if course_type == 'Lecture' and str(credit_hour) != '3':
+                    return {"success": False, "error": "Lecture courses must have 3 credit hours"}, 400
+                if course_type == 'Lab' and str(credit_hour) != '1':
+                    return {"success": False, "error": "Lab courses must have 1 credit hour"}, 400
+
                 # Ensure section_codes array exists for courses
                 update_data = data
 
