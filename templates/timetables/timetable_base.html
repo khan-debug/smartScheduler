@@ -2,199 +2,345 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% if hide_top_bar %}
-{% block top_bar %}{% endblock %}
-{% endif %}
-
 {% block content %}
-
-{% if show_back_button %}
-<button class="back-button" onclick="history.back()">&#8592;</button>
-{% endif %}
-
-{% if show_teacher_header %}
-<div class="header-container">
-    <div class="teacher-profile-header">
-        <div class="teacher-info">
-            <h1 class="teacher-name">Timetable</h1>
+<div style="padding: var(--space-6); max-width: 100%; margin: 0 auto;">
+    {% if show_teacher_header %}
+    <!-- Teacher Header -->
+    <div class="card card-elevated" style="background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%); border: none; margin-bottom: var(--space-6);">
+        <div class="card-body" style="padding: var(--space-6);">
+            <h1 style="color: white; margin-bottom: var(--space-2); font-size: var(--text-2xl);">My Timetable</h1>
+            <p style="color: rgba(255, 255, 255, 0.9); font-size: var(--text-base);">Welcome, {{ username }}!</p>
         </div>
     </div>
-    <div class="username-display">
-        Welcome, {{ username }}!
+    {% endif %}
+
+    {% if show_page_title %}
+    <h1 style="margin-bottom: var(--space-6); font-size: var(--text-3xl); color: var(--text-primary);">{{ page_title_text }}</h1>
+    {% endif %}
+
+    <!-- Timetable Card -->
+    <div class="card card-elevated">
+        <div class="card-body" style="padding: 0; overflow: auto;">
+            <div class="timetable-container">
+                <table class="timetable" id="timetableTable">
+                    <thead>
+                        <tr>
+                            <th class="time-col">Time</th>
+                            <th>Monday</th>
+                            <th>Tuesday</th>
+                            <th>Wednesday</th>
+                            <th>Thursday</th>
+                            <th>Friday</th>
+                            <th>Saturday</th>
+                            <th>Sunday</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timetableBody">
+                        {% for hour in range(8, 23) %}
+                        <tr data-hour="{{ hour }}">
+                            <td class="time-col">{{ '%02d:00' % hour }}</td>
+                            <td data-day="Monday"></td>
+                            <td data-day="Tuesday"></td>
+                            <td data-day="Wednesday"></td>
+                            <td data-day="Thursday"></td>
+                            <td data-day="Friday"></td>
+                            <td data-day="Saturday"></td>
+                            <td data-day="Sunday"></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Overlay container for precisely positioned classes -->
+                <div class="timetable-overlay" id="timetableOverlay"></div>
+            </div>
+        </div>
     </div>
 </div>
-{% endif %}
 
-{% if show_page_title %}
-<h1 class="mb-20">{{ page_title_text }}</h1>
-{% endif %}
-
-<div class="timetable-container">
-    <table class="timetable" id="timetableTable">
-        <thead>
-            <tr>
-                <th class="time-col">Time</th>
-                <th>Monday</th>
-                <th>Tuesday</th>
-                <th>Wednesday</th>
-                <th>Thursday</th>
-                <th>Friday</th>
-                <th>Saturday</th>
-                <th>Sunday</th>
-            </tr>
-        </thead>
-        <tbody id="timetableBody">
-            {% for hour in range(8, 23) %}
-            <tr data-hour="{{ hour }}">
-                <td class="time-col">{{ '%02d:00' % hour }}</td>
-                <td data-day="Monday"></td>
-                <td data-day="Tuesday"></td>
-                <td data-day="Wednesday"></td>
-                <td data-day="Thursday"></td>
-                <td data-day="Friday"></td>
-                <td data-day="Saturday"></td>
-                <td data-day="Sunday"></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <!-- Overlay container for precisely positioned classes -->
-    <div class="timetable-overlay" id="timetableOverlay"></div>
-</div>
-
-<!-- Class Details Modal (for floor view) -->
-<div id="classDetailsModal" class="modal">
-    <div class="modal-content" style="max-width: 700px;">
-        <div class="modal-header">
-            <h2 id="modalTitle">Scheduled Classes</h2>
-            <span class="close" id="closeClassModal">&times;</span>
+<!-- Class Details Modal -->
+<div id="classDetailsModal" style="display: none; position: fixed; z-index: var(--z-modal); left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); overflow: auto;">
+    <div style="background-color: var(--bg-elevated); margin: 5% auto; padding: 0; border: 1px solid var(--border-primary); border-radius: var(--radius-2xl); max-width: 700px; width: 90%; box-shadow: var(--shadow-2xl);">
+        <div style="background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%); padding: var(--space-6); border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; position: relative;">
+            <h2 id="modalTitle" style="margin: 0; color: white; font-size: var(--text-xl);">Scheduled Classes</h2>
+            <span id="closeClassModal" style="position: absolute; right: var(--space-6); top: var(--space-6); color: white; font-size: var(--text-2xl); cursor: pointer; width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                &times;
+            </span>
         </div>
-        <div class="modal-body" id="classDetailsBody">
+        <div id="classDetailsBody" style="padding: var(--space-6); max-height: 70vh; overflow-y: auto;">
             <!-- Class details will be inserted here -->
         </div>
     </div>
 </div>
 
 <style>
-    .class-count-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 50%;
-        font-size: 1rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        min-width: 40px;
-        min-height: 40px;
-        line-height: 24px;
+    /* Timetable Container */
+    .timetable-container {
+        position: relative;
+        width: 100%;
+        min-height: 500px;
+    }
+
+    /* Timetable Styles */
+    .timetable {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: var(--bg-elevated);
+        position: relative;
+    }
+
+    .timetable thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: var(--bg-secondary);
+    }
+
+    .timetable th {
+        padding: var(--space-4);
         text-align: center;
+        font-weight: var(--weight-semibold);
+        color: var(--text-primary);
+        border: 1px solid var(--border-primary);
+        background-color: var(--bg-secondary);
+        font-size: var(--text-sm);
+    }
+
+    .timetable th.time-col {
+        width: 100px;
+        background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%);
+        color: white;
+    }
+
+    .timetable td {
+        height: 60px;
+        border: 1px solid var(--border-primary);
+        padding: var(--space-2);
+        vertical-align: top;
+        background-color: var(--bg-elevated);
+        transition: background-color var(--transition-fast);
+    }
+
+    .timetable td:hover {
+        background-color: var(--bg-secondary);
+    }
+
+    .timetable td.time-col {
+        text-align: center;
+        font-weight: var(--weight-semibold);
+        color: var(--text-secondary);
+        background-color: var(--bg-secondary);
+        font-size: var(--text-sm);
+    }
+
+    /* Overlay for positioned classes */
+    .timetable-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    /* Class Block Styles */
+    .class-block {
+        position: absolute;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border-left: 4px solid;
+        cursor: pointer;
+        pointer-events: auto;
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-fast);
+        overflow: hidden;
+    }
+
+    .class-block:hover {
+        transform: translateX(2px);
+        box-shadow: var(--shadow-lg);
+        z-index: 100 !important;
+    }
+
+    .class-block-header {
+        font-weight: var(--weight-semibold);
+        font-size: var(--text-sm);
+        margin-bottom: var(--space-1);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .class-block-details {
+        font-size: var(--text-xs);
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-bottom: var(--space-0-5);
+    }
+
+    .class-block-time {
+        font-size: var(--text-xs);
+        opacity: 0.8;
+        font-weight: var(--weight-medium);
+    }
+
+    /* Class Count Badge */
+    .class-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%);
+        color: white;
+        padding: var(--space-2);
+        border-radius: 50%;
+        font-size: var(--text-sm);
+        font-weight: var(--weight-bold);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        min-width: 36px;
+        min-height: 36px;
+        box-shadow: var(--shadow-md);
     }
 
     .class-count-badge:hover {
         transform: scale(1.15);
-        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+        box-shadow: var(--shadow-xl);
     }
 
+    /* Modal Class List */
     .class-details-list {
         list-style: none;
         padding: 0;
         margin: 0;
+        display: grid;
+        gap: var(--space-4);
     }
 
     .class-item {
-        padding: 20px;
-        background-color: var(--card-bg);
-        border-radius: 8px;
-        margin-bottom: 15px;
-        border: 1px solid var(--border-color);
-        transition: all 0.3s ease;
+        padding: var(--space-5);
+        background-color: var(--bg-secondary);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-primary);
+        transition: all var(--transition-fast);
     }
 
     .class-item:hover {
-        border-color: var(--accent-blue);
+        border-color: var(--primary-500);
         transform: translateX(5px);
+        box-shadow: var(--shadow-md);
     }
 
     .class-item-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        margin-bottom: var(--space-3);
     }
 
     .class-name {
-        font-size: 1.1rem;
-        font-weight: 600;
+        font-size: var(--text-lg);
+        font-weight: var(--weight-semibold);
         color: var(--text-primary);
     }
 
     .class-detail-row {
         display: flex;
-        gap: 30px;
+        gap: var(--space-6);
         flex-wrap: wrap;
-        margin-top: 10px;
+        margin-top: var(--space-2);
     }
 
     .class-detail-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--space-2);
         color: var(--text-secondary);
-        font-size: 0.9rem;
+        font-size: var(--text-sm);
     }
 
     .class-detail-item i {
-        color: var(--accent-blue);
+        color: var(--primary-500);
     }
 
     .class-detail-item strong {
         color: var(--text-primary);
     }
 
-    .modal-body {
-        padding: 25px;
-        max-height: 70vh;
-        overflow-y: auto;
+    /* Responsive */
+    @media (max-width: 768px) {
+        .timetable th,
+        .timetable td {
+            padding: var(--space-2);
+            font-size: var(--text-xs);
+        }
+
+        .class-block {
+            padding: var(--space-2);
+        }
+
+        .class-block-header {
+            font-size: var(--text-xs);
+        }
+
+        .class-block-details,
+        .class-block-time {
+            font-size: 10px;
+        }
     }
 </style>
 
 <script>
     const roomFilter = {{ room_filter|tojson }};
     const teacherFilter = {{ teacher_filter|tojson }};
-    const floorFilter = {{ floor_filter|tojson }};
 
     window.onload = function() {
-        if (floorFilter) {
-            // Load floor timetable (aggregate view)
-            loadFloorTimetable(floorFilter);
-        } else if (roomFilter || teacherFilter) {
-            // Load specific room/teacher timetable
+        console.log('Filters:', { roomFilter, teacherFilter });
+
+        if (roomFilter || teacherFilter) {
+            console.log('Loading filtered timetable for room:', roomFilter, 'teacher:', teacherFilter);
             loadFilteredTimetable(roomFilter, teacherFilter);
+        } else {
+            console.log('No filters set');
         }
     };
 
-    // ========== Position Calculation Functions ==========
+    // ========== Time & Position Calculation ==========
 
     const TIME_CONSTANTS = {
         START_HOUR: 8,
-        ROW_HEIGHT: 60,  // Must match CSS height
+        ROW_HEIGHT: 60,
         TIME_COL_WIDTH: 100
     };
 
-    /**
-     * Convert time string (HH:MM) to minutes since start of day
-     */
     function timeToMinutes(timeStr) {
-        const [hours, minutes] = timeStr.split(':').map(Number);
+        // Handle both 12-hour (8:30 AM) and 24-hour (08:30) formats
+        const timePattern = /(\d+):(\d+)\s*(AM|PM)?/i;
+        const match = timeStr.match(timePattern);
+
+        if (!match) {
+            console.error('Invalid time format:', timeStr);
+            return 0;
+        }
+
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const period = match[3] ? match[3].toUpperCase() : null;
+
+        // Convert to 24-hour format if AM/PM is present
+        if (period) {
+            if (period === 'PM' && hours !== 12) {
+                hours += 12;
+            } else if (period === 'AM' && hours === 12) {
+                hours = 0;
+            }
+        }
+
         return hours * 60 + minutes;
     }
 
-    /**
-     * Calculate top position in pixels for a given time
-     */
     function calculateTopPosition(timeStr, tableTop, headerHeight) {
         const timeMinutes = timeToMinutes(timeStr);
         const startMinutes = TIME_CONSTANTS.START_HOUR * 60;
@@ -203,23 +349,13 @@
         return tableTop + headerHeight + (minutesSinceStart * pixelsPerMinute);
     }
 
-    /**
-     * Calculate height in pixels for a class duration
-     */
     function calculateClassHeight(startTime, endTime) {
         const durationMinutes = timeToMinutes(endTime) - timeToMinutes(startTime);
         const pixelsPerMinute = TIME_CONSTANTS.ROW_HEIGHT / 60;
         return durationMinutes * pixelsPerMinute;
     }
 
-    /**
-     * Calculate left position and width for a day column
-     */
     function calculateDayPosition(day, tableLeft) {
-        const dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday',
-                          'Friday', 'Saturday', 'Sunday'].indexOf(day);
-
-        // Get the actual cell for this day to measure its position and width
         const dayCell = document.querySelector(`td[data-day="${day}"]`);
         if (!dayCell) return { left: 0, width: 0 };
 
@@ -233,9 +369,6 @@
         };
     }
 
-    /**
-     * Get table dimensions and offsets
-     */
     function getTableDimensions() {
         const table = document.getElementById('timetableTable');
         const tableRect = table.getBoundingClientRect();
@@ -250,398 +383,145 @@
         };
     }
 
-    function loadFloorTimetable(floor) {
-        // Load aggregate view for floor - shows count of classes
-        console.log('Loading floor timetable for floor:', floor);
-        fetch(`/get_scheduled_classes?floor=${floor}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log('Floor timetable data received:', data);
-                if (data.success) {
-                    console.log('Number of classes:', data.classes.length);
-                    displayFloorAggregate(data.classes);
-                } else {
-                    console.error('Error loading floor timetable:', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error loading floor timetable:', error);
-            });
+    // ========== Color Assignment ==========
+
+    const COURSE_COLORS = [
+        { bg: 'rgba(102, 126, 234, 0.15)', border: 'var(--primary-500)', text: 'var(--primary-700)' },
+        { bg: 'rgba(76, 175, 80, 0.15)', border: 'var(--success-500)', text: 'var(--success-700)' },
+        { bg: 'rgba(255, 152, 0, 0.15)', border: 'var(--warning-500)', text: 'var(--warning-700)' },
+        { bg: 'rgba(156, 39, 176, 0.15)', border: '#9c27b0', text: '#7b1fa2' },
+        { bg: 'rgba(0, 188, 212, 0.15)', border: '#00bcd4', text: '#0097a7' },
+        { bg: 'rgba(244, 67, 54, 0.15)', border: 'var(--error-500)', text: 'var(--error-700)' },
+        { bg: 'rgba(63, 81, 181, 0.15)', border: '#3f51b5', text: '#303f9f' },
+        { bg: 'rgba(233, 30, 99, 0.15)', border: '#e91e63', text: '#c2185b' }
+    ];
+
+    const courseColorMap = new Map();
+    let colorIndex = 0;
+
+    function getCourseColor(courseName, sectionCode) {
+        const key = `${courseName}_${sectionCode}`;
+        if (!courseColorMap.has(key)) {
+            courseColorMap.set(key, COURSE_COLORS[colorIndex % COURSE_COLORS.length]);
+            colorIndex++;
+        }
+        return courseColorMap.get(key);
     }
 
-    function loadFilteredTimetable(room, teacher) {
-        // Load timetable filtered by room and/or teacher
-        let url = '/get_scheduled_classes?';
-        const params = [];
-        if (room) params.push(`room=${encodeURIComponent(room)}`);
-        if (teacher) params.push(`teacher=${encodeURIComponent(teacher)}`);
-        url += params.join('&');
+    // ========== Timetable Rendering ==========
 
-        fetch(url)
+    function loadFilteredTimetable(roomNumber, teacherReg) {
+        let endpoint = '/get_scheduled_classes?';
+        if (roomNumber) endpoint += `room=${encodeURIComponent(roomNumber)}`;
+        if (teacherReg) {
+            if (roomNumber) endpoint += '&';
+            endpoint += `teacher=${encodeURIComponent(teacherReg)}`;
+        }
+
+        console.log('Fetching from endpoint:', endpoint);
+
+        fetch(endpoint)
             .then(response => response.json())
             .then(data => {
+                console.log('Received data:', data);
                 if (data.success) {
-                    displayTimetable(data.classes);
+                    console.log('Number of classes:', data.classes.length);
+                    renderTimetableClasses(data.classes);
                 } else {
                     console.error('Error loading timetable:', data.error);
                 }
             })
-            .catch(error => {
-                console.error('Error loading timetable:', error);
-            });
+            .catch(error => console.error('Error fetching timetable:', error));
     }
 
-    function displayTimetable(classes) {
-        // Clear existing overlay classes
+
+    function renderTimetableClasses(classes) {
+        console.log('Rendering timetable classes:', classes);
         const overlay = document.getElementById('timetableOverlay');
         overlay.innerHTML = '';
 
-        // Clear old table cell content
-        document.querySelectorAll('.timetable td[data-day]').forEach(cell => {
-            cell.innerHTML = '';
-        });
-
-        // Get table dimensions once
-        const dimensions = getTableDimensions();
-
-        // Detect overlaps and assign columns
-        const classesWithLayout = detectOverlaps(classes);
-
-        // Display each class with precise positioning
-        classesWithLayout.forEach(cls => {
-            createClassOverlay(cls, dimensions, 'individual');
-        });
-    }
-
-    /**
-     * Detect overlapping classes and assign column positions
-     */
-    function detectOverlaps(classes) {
-        // Group classes by day
-        const byDay = {};
-        classes.forEach(cls => {
-            if (!byDay[cls.day]) byDay[cls.day] = [];
-            byDay[cls.day].push(cls);
-        });
-
-        // For each day, detect overlaps and assign columns
-        Object.values(byDay).forEach(dayClasses => {
-            // Sort by start time
-            dayClasses.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
-
-            // Track which columns are occupied at each time
-            const columns = [];
-
-            dayClasses.forEach(cls => {
-                const startMinutes = timeToMinutes(cls.start_time);
-                const endMinutes = timeToMinutes(cls.end_time);
-
-                // Find the first available column for this class
-                let columnIndex = 0;
-                while (true) {
-                    if (!columns[columnIndex]) {
-                        columns[columnIndex] = [];
-                    }
-
-                    // Check if this column is free for this time slot
-                    const isFree = columns[columnIndex].every(occupiedClass => {
-                        const occupiedEnd = timeToMinutes(occupiedClass.end_time);
-                        return startMinutes >= occupiedEnd;
-                    });
-
-                    if (isFree) {
-                        // Found a free column
-                        cls.columnIndex = columnIndex;
-                        columns[columnIndex].push(cls);
-
-                        // Count how many columns are needed at this time
-                        let maxColumns = 1;
-                        columns.forEach((col, idx) => {
-                            const hasOverlap = col.some(c => {
-                                const cStart = timeToMinutes(c.start_time);
-                                const cEnd = timeToMinutes(c.end_time);
-                                return (startMinutes < cEnd && endMinutes > cStart);
-                            });
-                            if (hasOverlap && idx + 1 > maxColumns) {
-                                maxColumns = idx + 1;
-                            }
-                        });
-                        cls.totalColumns = maxColumns;
-                        break;
-                    }
-
-                    columnIndex++;
-                }
-            });
-
-            // Update totalColumns for all overlapping classes
-            dayClasses.forEach(cls => {
-                const startMinutes = timeToMinutes(cls.start_time);
-                const endMinutes = timeToMinutes(cls.end_time);
-
-                let maxColumns = 1;
-                dayClasses.forEach(otherCls => {
-                    const otherStart = timeToMinutes(otherCls.start_time);
-                    const otherEnd = timeToMinutes(otherCls.end_time);
-
-                    // Check if they overlap
-                    if (startMinutes < otherEnd && endMinutes > otherStart) {
-                        if (otherCls.columnIndex + 1 > maxColumns) {
-                            maxColumns = otherCls.columnIndex + 1;
-                        }
-                    }
-                });
-
-                cls.totalColumns = maxColumns;
-            });
-        });
-
-        return classes;
-    }
-
-    /**
-     * Create an overlay element for a class
-     */
-    function createClassOverlay(cls, dimensions, mode = 'individual') {
-        const overlay = document.getElementById('timetableOverlay');
-
-        // Calculate precise positions
-        const topPosition = calculateTopPosition(cls.start_time,
-                                                 dimensions.tableTop,
-                                                 dimensions.headerHeight);
-        const dayPos = calculateDayPosition(cls.day, dimensions.tableLeft);
-
-        // Create positioned div
-        const classDiv = document.createElement('div');
-        classDiv.className = 'class-overlay-item';
-
-        if (mode === 'individual') {
-            // Individual class card - use full duration height
-            const height = calculateClassHeight(cls.start_time, cls.end_time);
-
-            // Calculate width and left position based on overlaps
-            const columnIndex = cls.columnIndex || 0;
-            const totalColumns = cls.totalColumns || 1;
-
-            const padding = 4; // Total horizontal padding
-            const availableWidth = dayPos.width - padding;
-            const columnWidth = availableWidth / totalColumns;
-            const adjustedLeft = dayPos.left + (columnWidth * columnIndex) + (padding / 2);
-            const adjustedWidth = columnWidth - 2; // Small gap between columns
-
-            // Add short-duration class if less than 30 minutes
-            const durationMinutes = timeToMinutes(cls.end_time) - timeToMinutes(cls.start_time);
-            if (durationMinutes < 30) {
-                classDiv.classList.add('short-duration');
-            }
-
-            // Set position and size
-            classDiv.style.top = `${topPosition}px`;
-            classDiv.style.left = `${adjustedLeft}px`;
-            classDiv.style.width = `${adjustedWidth}px`;
-            classDiv.style.height = `${height}px`;
-
-            // Individual class card
-            classDiv.innerHTML = `
-                <div class="class-card-overlay">
-                    <div class="class-title">${cls.course_name}</div>
-                    <div class="class-info">${cls.section_code}</div>
-                    <div class="class-info">${cls.room_number}</div>
-                    <div class="class-info">${cls.start_time} - ${cls.end_time}</div>
-                </div>
-            `;
-            classDiv.onclick = () => showClassInfo(cls);
-        } else {
-            // Aggregate mode - fixed size circular badge
-            const badgeSize = 50; // Fixed size for badge
-
-            // Center the badge in the cell
-            const centeredLeft = dayPos.left + (dayPos.width - badgeSize) / 2;
-            const centeredTop = topPosition + 5; // Small offset from top
-
-            // Set position and size for badge
-            classDiv.style.top = `${centeredTop}px`;
-            classDiv.style.left = `${centeredLeft}px`;
-            classDiv.style.width = `${badgeSize}px`;
-            classDiv.style.height = `${badgeSize}px`;
-
-            // Count badge
-            classDiv.innerHTML = `
-                <div class="count-badge-overlay">${cls.count}</div>
-            `;
-            classDiv.onclick = () => showClassDetails(cls.day, cls.hour, cls.count, cls.classes);
+        if (!classes || classes.length === 0) {
+            console.log('No classes to render');
+            overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-secondary);"><i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 16px;"></i><p>No scheduled classes found for the selected filter</p></div>';
+            return;
         }
 
-        overlay.appendChild(classDiv);
-    }
-
-    function displayFloorAggregate(classes) {
-        console.log('displayFloorAggregate called with', classes.length, 'classes');
-
-        // Clear existing overlay classes
-        const overlay = document.getElementById('timetableOverlay');
-        overlay.innerHTML = '';
-
-        // Clear old table cell content
-        document.querySelectorAll('.timetable td[data-day]').forEach(cell => {
-            cell.innerHTML = '';
-        });
-
-        // Get table dimensions
         const dimensions = getTableDimensions();
         console.log('Table dimensions:', dimensions);
 
-        // Group classes by day and time slot
-        const grouped = {};
-
+        let renderedCount = 0;
         classes.forEach(cls => {
-            const startHour = parseInt(cls.start_time.split(':')[0]);
-            const key = `${cls.day}-${startHour}`;
+            console.log('Processing class:', cls);
+            const dayPos = calculateDayPosition(cls.day, dimensions.tableLeft);
+            console.log('Day position for', cls.day, ':', dayPos);
 
-            if (!grouped[key]) {
-                grouped[key] = {
-                    day: cls.day,
-                    hour: startHour,
-                    classes: [],
-                    start_time: cls.start_time,
-                    end_time: cls.end_time
-                };
+            if (dayPos.width === 0) {
+                console.log('Skipping class - day position width is 0');
+                return;
             }
-            grouped[key].classes.push(cls);
 
-            // Update to maximum end time
-            if (timeToMinutes(cls.end_time) > timeToMinutes(grouped[key].end_time)) {
-                grouped[key].end_time = cls.end_time;
-            }
-        });
+            const top = calculateTopPosition(cls.start_time, dimensions.tableTop, dimensions.headerHeight);
+            const height = calculateClassHeight(cls.start_time, cls.end_time);
+            const color = getCourseColor(cls.course_name, cls.section_code);
 
-        console.log('Grouped classes:', grouped);
-        console.log('Number of groups:', Object.keys(grouped).length);
+            console.log('Class position:', { top, height, left: dayPos.left, width: dayPos.width });
 
-        // Display count badges with precise positioning
-        Object.values(grouped).forEach(group => {
-            const badgeData = {
-                ...group,
-                count: group.classes.length
-            };
-            console.log('Creating badge for:', group.day, 'at', group.start_time, 'with count:', badgeData.count);
-            createClassOverlay(badgeData, dimensions, 'aggregate');
-        });
-    }
-
-    function showClassInfo(cls) {
-        // Show individual class info modal
-        const modal = document.getElementById('classDetailsModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalBody = document.getElementById('classDetailsBody');
-
-        modalTitle.textContent = `${cls.course_name} - ${cls.section_code}`;
-
-        modalBody.innerHTML = `
-            <div class="class-item">
-                <div class="class-detail-row">
-                    <div class="class-detail-item">
-                        <i class="fas fa-door-open"></i>
-                        <span>Room: <strong>${cls.room_number}</strong></span>
-                    </div>
-                    <div class="class-detail-item">
-                        <i class="fas fa-user-tie"></i>
-                        <span>Teacher: <strong>${cls.teacher_name}</strong></span>
-                    </div>
-                    <div class="class-detail-item">
-                        <i class="fas fa-book"></i>
-                        <span>Type: <strong>${cls.course_type}</strong></span>
-                    </div>
-                    <div class="class-detail-item">
-                        <i class="fas fa-clock"></i>
-                        <span>Time: <strong>${cls.start_time} - ${cls.end_time}</strong></span>
-                    </div>
-                    <div class="class-detail-item">
-                        <i class="fas fa-calendar-day"></i>
-                        <span>Day: <strong>${cls.day}</strong></span>
-                    </div>
-                    <div class="class-detail-item">
-                        <i class="fas fa-graduation-cap"></i>
-                        <span>Credit: <strong>${cls.credit_hour}h</strong></span>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        modal.style.display = 'block';
-    }
-
-    function showClassDetails(day, hour, classCount, classes) {
-        const modal = document.getElementById('classDetailsModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalBody = document.getElementById('classDetailsBody');
-
-        modalTitle.textContent = `${classCount} Class${classCount !== 1 ? 'es' : ''} Scheduled - ${day} at ${hour}:00`;
-
-        let html = '<ul class="class-details-list">';
-
-        classes.forEach(cls => {
-            html += `
-                <li class="class-item">
-                    <div class="class-item-header">
-                        <span class="class-name">${cls.course_name}</span>
-                        <span class="badge" style="background-color: var(--accent-blue); padding: 5px 12px; border-radius: 12px; font-size: 0.85rem;">
-                            ${cls.section_code}
-                        </span>
-                    </div>
-                    <div class="class-detail-row">
-                        <div class="class-detail-item">
-                            <i class="fas fa-door-open"></i>
-                            <span>Room: <strong>${cls.room_number}</strong></span>
-                        </div>
-                        <div class="class-detail-item">
-                            <i class="fas fa-user-tie"></i>
-                            <span>Teacher: <strong>${cls.teacher_name}</strong></span>
-                        </div>
-                        <div class="class-detail-item">
-                            <i class="fas fa-book"></i>
-                            <span>Type: <strong>${cls.course_type}</strong></span>
-                        </div>
-                        <div class="class-detail-item">
-                            <i class="fas fa-clock"></i>
-                            <span>Credit: <strong>${cls.credit_hour}h</strong></span>
-                        </div>
-                    </div>
-                </li>
+            const classDiv = document.createElement('div');
+            classDiv.className = 'class-block';
+            classDiv.style.cssText = `
+                left: ${dayPos.left}px;
+                top: ${top}px;
+                width: ${dayPos.width}px;
+                height: ${height}px;
+                background-color: ${color.bg};
+                border-left-color: ${color.border};
+                color: ${color.text};
             `;
+
+            classDiv.innerHTML = `
+                <div class="class-block-header">${cls.course_name}</div>
+                <div class="class-block-details">
+                    <i class="fas fa-tag"></i> ${cls.section_code}
+                </div>
+                <div class="class-block-details">
+                    <i class="fas fa-door-open"></i> Room ${cls.room_number}
+                </div>
+                <div class="class-block-time">
+                    <i class="fas fa-clock"></i> ${cls.start_time} - ${cls.end_time}
+                </div>
+            `;
+
+            overlay.appendChild(classDiv);
+            renderedCount++;
         });
 
-        html += '</ul>';
-        modalBody.innerHTML = html;
-
-        modal.style.display = 'block';
+        console.log('Rendered', renderedCount, 'classes');
     }
 
-    // Modal close handlers
-    document.getElementById('closeClassModal').onclick = function() {
+
+    // Modal Controls
+    document.getElementById('closeClassModal').onclick = () => {
         document.getElementById('classDetailsModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
     };
 
-    window.onclick = function(event) {
+    window.onclick = (e) => {
         const modal = document.getElementById('classDetailsModal');
-        if (event.target == modal) {
+        if (e.target === modal) {
             modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
         }
     };
 
     // Recalculate positions on window resize
     let resizeTimeout;
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
-            // Reload current view to recalculate positions
-            if (floorFilter) {
-                loadFloorTimetable(floorFilter);
-            } else if (roomFilter || teacherFilter) {
+            if (roomFilter || teacherFilter) {
                 loadFilteredTimetable(roomFilter, teacherFilter);
             }
         }, 250);
     });
 </script>
-
 {% endblock %}

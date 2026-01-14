@@ -423,6 +423,8 @@ class TimetableScheduler:
                 print(f"Perfect solution found at generation {generation}!")
                 break
 
+
+
             # Selection: Keep elite
             new_population = [chromo for chromo, _ in fitness_scores[:self.elite_size]]
 
@@ -663,8 +665,8 @@ def login():
             session['registration_number'] = user['registration_number']  # Store reg number too
             return redirect(url_for("teacher_view"))
 
-        return render_template("auth/login_v2.html", error="Invalid credentials")
-    return render_template("auth/login_v2.html")
+        return render_template("auth/login.html", error="Invalid credentials")
+    return render_template("auth/login.html")
 
 # Route for logging out
 @app.route("/logout")
@@ -680,7 +682,19 @@ def dashboard():
     teacher_count = users_collection.count_documents({})
     course_count = courses_collection.count_documents({})
     room_count = rooms_collection.count_documents({})
-    return render_template("pages/dashboard_v2.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
+
+    # Calculate room utilization
+    scheduled_count = scheduled_classes_collection.count_documents({})
+    total_capacity = room_count * 24 * 6 if room_count > 0 else 1  # 24 classes/week/room * 6 days
+    utilization_percentage = int((scheduled_count / total_capacity) * 100) if total_capacity > 0 else 0
+
+    return render_template("pages/dashboard.html",
+                         active_page="dashboard",
+                         teacher_count=teacher_count,
+                         course_count=course_count,
+                         room_count=room_count,
+                         scheduled_count=scheduled_count,
+                         utilization_percentage=utilization_percentage)
 
 @app.route("/getting_started")
 @login_required
@@ -1473,7 +1487,7 @@ def get_floors_with_capacity():
 @login_required
 def view_generated_timetable():
     return render_template(
-        "timetables/timetable_base_v2.html",
+        "timetables/timetable_base.html",
         active_page="generate",
         page_title="View Generated Timetable",
         hide_top_bar=False,
@@ -1486,13 +1500,13 @@ def view_generated_timetable():
 @app.route("/manual_timetable_edit")
 @login_required
 def manual_timetable_edit():
-    return render_template("pages/selectFloorEdit_v2.html", active_page="manual_edit")
+    return render_template("pages/selectFloorEdit.html", active_page="manual_edit")
 
 @app.route("/edit_timetable/<int:floor_number>")
 @login_required
 def edit_timetable_floor(floor_number):
     return render_template(
-        "timetables/timetable_base_v2.html",
+        "timetables/timetable_base.html",
         floor_number=floor_number,
         active_page="generate",
         page_title="Edit Timetable",
@@ -1510,7 +1524,7 @@ def manual_edit_by_course():
     """Show course list for manual scheduling"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editByCourse_v2.html", active_page="manual_edit")
+    return render_template("pages/editByCourse.html", active_page="manual_edit")
 
 @app.route("/manual_edit_by_room")
 @login_required
@@ -1518,7 +1532,7 @@ def manual_edit_by_room():
     """Show room list for manual scheduling"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editByRoom_v2.html", active_page="manual_edit")
+    return render_template("pages/editByRoom.html", active_page="manual_edit")
 
 @app.route("/get_all_courses_with_sections", methods=["GET"])
 @login_required
@@ -1712,7 +1726,7 @@ def edit_scheduled_classes_page():
     """Show page to edit scheduled classes for a course section"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editScheduledClasses_v2.html", active_page="generate")
+    return render_template("pages/editScheduledClasses.html", active_page="generate")
 
 @app.route("/edit_scheduled_classes_by_room")
 @login_required
@@ -1720,7 +1734,7 @@ def edit_scheduled_classes_by_room_page():
     """Show page to edit scheduled classes for a specific room"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/editScheduledClassesByRoom_v2.html", active_page="generate")
+    return render_template("pages/editScheduledClassesByRoom.html", active_page="generate")
 
 @app.route("/design_system_demo")
 @login_required
@@ -1917,7 +1931,7 @@ def teacher_view():
     teacher_reg = session.get('registration_number')
 
     return render_template(
-        "timetables/timetable_base_v2.html",
+        "timetables/timetable_base.html",
         active_page="teacher",
         page_title="Timetable",
         hide_top_bar=False,
@@ -1951,7 +1965,7 @@ def teacher_about():
     }))
 
     return render_template(
-        "pages/teacher_about_v2.html",
+        "pages/teacher_about.html",
         active_page="teacher_about",
         teacher=teacher,
         assigned_courses=assigned_courses
@@ -2082,7 +2096,7 @@ def teacher_reset_password():
 @app.route("/admin")
 @login_required
 def admin_panel():
-    return render_template("pages/adminPanel_v2.html", active_page="admin")
+    return render_template("pages/adminPanel.html", active_page="admin")
 
 @app.route("/import_data")
 @login_required
@@ -2090,7 +2104,7 @@ def import_data():
     """Import data page for importing courses and faculty via CSV"""
     if session.get('role') != 'admin':
         return redirect(url_for('login'))
-    return render_template("pages/import_data_v2.html", active_page="import")
+    return render_template("pages/import_data.html", active_page="import")
 
 @app.route("/import_csv", methods=["POST"])
 @login_required
@@ -2540,7 +2554,7 @@ def add_user():
 def manage_users():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management/management_v2.html",
+        "management/management.html",
         header_title="Manage Users",
         item_name="User",
         add_url="/add_user",
@@ -2557,7 +2571,7 @@ def manage_users():
 @login_required
 def manage_rooms():
     # Show floor selection page
-    return render_template("management/room_floor_selection_v2.html", active_page="rooms")
+    return render_template("management/room_floor_selection.html", active_page="rooms")
 
 @app.route("/manage_rooms/all")
 @login_required
@@ -2565,7 +2579,7 @@ def manage_rooms_all():
     # View all rooms in one table
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management/management_v2.html",
+        "management/management.html",
         header_title="Manage Rooms - All Floors",
         item_name="Room",
         add_url="/add_room",
@@ -2586,7 +2600,7 @@ def manage_rooms_all():
 def manage_rooms_floor(floor_number):
     # View rooms for specific floor
     return render_template(
-        "management/management_v2.html",
+        "management/management.html",
         header_title=f"Manage Rooms - Floor {floor_number}",
         item_name="Room",
         add_url="/add_room",
@@ -3024,7 +3038,7 @@ def delete_floor(floor_number):
 def manage_courses():
     from_dashboard = request.args.get('from_dashboard', 'false').lower() == 'true'
     return render_template(
-        "management/management_v2.html",
+        "management/management.html",
         header_title="Manage Courses",
         item_name="Course",
         add_url="/add_course",
@@ -3200,7 +3214,7 @@ def view_timetable():
 
     # If no filters provided, show filter selection page
     if not room_number and not teacher_reg:
-        return render_template("pages/selectFloor_v2.html", active_page="view_timetable")
+        return render_template("pages/selectFloor.html", active_page="view_timetable")
 
     # Build title based on filters
     title_parts = []
@@ -3214,7 +3228,7 @@ def view_timetable():
     page_title = f"Timetable - {' & '.join(title_parts)}" if title_parts else "Timetable"
 
     return render_template(
-        "timetables/timetable_base_v2.html",
+        "timetables/timetable_base.html",
         active_page="view_timetable",
         page_title="View Timetable",
         hide_top_bar=True,

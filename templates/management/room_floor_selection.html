@@ -2,136 +2,161 @@
 
 {% block title %}Manage Rooms - Floor Selection{% endblock %}
 
-{% block top_bar %}{% endblock %}
-
 {% block content %}
-<button class="back-button" onclick="history.back()">&#8592;</button>
+<div style="padding: var(--space-8); max-width: 1400px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-4);">
+        <div>
+            <h1 style="margin-bottom: var(--space-2);">Manage Rooms - Select Floor</h1>
+            <p class="text-secondary">Choose a floor to manage its rooms or view all rooms</p>
+        </div>
+        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+            <button class="btn btn-success btn-lg" onclick="openAddFloorModal()">
+                <i class="fas fa-plus"></i>
+                <span>Add New Floor</span>
+            </button>
+            <button class="btn btn-secondary btn-lg" onclick="window.location.href='/manage_rooms/all'">
+                <i class="fas fa-th-list"></i>
+                <span>View All Rooms</span>
+            </button>
+        </div>
+    </div>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-    <h1>Manage Rooms - Select Floor</h1>
-    <div style="display: flex; gap: 12px;">
-        <button class="btn-success" onclick="openAddFloorModal()" style="width: auto; padding: 12px 24px;">
-            <i class="fas fa-plus"></i> Add New Floor
-        </button>
-        <button class="btn" onclick="window.location.href='/manage_rooms/all'" style="padding: 12px 24px;">
-            View All Rooms
-        </button>
+    <!-- Floors Table Card -->
+    <div class="card card-elevated">
+        <div class="card-body" style="padding: 0; overflow-x: auto;">
+            <table id="floorTable" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: var(--bg-secondary); border-bottom: 2px solid var(--border-primary);">
+                        <th style="padding: var(--space-4); text-align: left; font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap;">Sr No.</th>
+                        <th style="padding: var(--space-4); text-align: left; font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap;">Floor Number</th>
+                        <th style="padding: var(--space-4); text-align: left; font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap;">Total Rooms</th>
+                        <th style="padding: var(--space-4); text-align: left; font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="floorTableBody">
+                    <tr>
+                        <td colspan="4" style="padding: var(--space-8); text-align: center;">
+                            <div class="spinner" style="margin: 0 auto var(--space-4);"></div>
+                            <p class="text-secondary">Loading floors...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<table class="user-list-table" id="floorTable">
-    <thead>
-        <tr>
-            <th>Sr No.</th>
-            <th>Floor Number</th>
-            <th>Total Rooms</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody id="floorTableBody">
-        <tr>
-            <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">
-                Loading floors...
-            </td>
-        </tr>
-    </tbody>
-</table>
-
 <!-- Add Floor Modal -->
-<div id="addFloorModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Add New Floor</h2>
-            <span class="close" id="addFloorClose">&times;</span>
+<div id="addFloorModal" style="display: none; position: fixed; z-index: var(--z-modal); left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); overflow: auto;">
+    <div style="background-color: var(--bg-elevated); margin: 10% auto; padding: 0; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); width: 90%; max-width: 600px; box-shadow: var(--shadow-2xl);">
+        <div style="background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%); padding: var(--space-6) var(--space-8); border-radius: var(--radius-xl) var(--radius-xl) 0 0; position: relative;">
+            <span id="addFloorClose" onclick="closeAddFloorModal()" style="position: absolute; right: var(--space-6); top: var(--space-6); color: white; font-size: var(--text-2xl); font-weight: var(--weight-bold); cursor: pointer; opacity: 0.8; transition: opacity var(--transition-fast);" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">
+                &times;
+            </span>
+            <h2 style="margin: 0; color: white; font-size: var(--text-2xl);">Add New Floor</h2>
         </div>
-        <form id="addFloorForm">
-            <div class="form-group">
-                <label for="floor_number">Floor Number *</label>
-                <input type="number" id="floor_number" name="floor_number" min="1" required
-                       placeholder="e.g., 1">
-                <div class="help-text">
-                    Enter the floor number. You can add rooms to this floor later.
+        <div style="padding: var(--space-8);">
+            <form id="addFloorForm">
+                <div class="form-group">
+                    <label class="form-label" for="floor_number">Floor Number *</label>
+                    <input type="number" id="floor_number" name="floor_number" class="form-input" min="1" required placeholder="e.g., 1">
+                    <div class="form-help">
+                        Enter the floor number. You can add rooms to this floor later.
+                    </div>
                 </div>
-            </div>
 
-            <div class="error-message" id="errorMessage" style="display: none;"></div>
+                <div id="errorMessage" style="display: none; background-color: var(--error-100); border: 1px solid var(--error-200); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-4); color: var(--error-700);">
+                    <div style="display: flex; gap: var(--space-3); align-items: start;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: var(--text-lg); margin-top: 2px;"></i>
+                        <span id="errorText"></span>
+                    </div>
+                </div>
 
-            <button type="submit" class="btn-submit">Add Floor</button>
-        </form>
+                <button type="submit" class="btn btn-success btn-lg" style="width: 100%;">
+                    <i class="fas fa-save"></i>
+                    <span>Add Floor</span>
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 
 <style>
-    .help-text {
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        margin-top: 6px;
-        font-style: italic;
-    }
-
-    .error-message {
-        background-color: rgba(244, 67, 54, 0.1);
-        border: 1px solid rgba(244, 67, 54, 0.3);
-        color: #ff6b6b;
-        padding: 12px 15px;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        margin-bottom: 20px;
-    }
-
-    .floor-row {
+    /* Table Styles */
+    #floorTable tbody tr {
+        border-bottom: 1px solid var(--border-primary);
+        transition: background-color var(--transition-fast);
         cursor: pointer;
-        transition: background-color 0.2s ease;
     }
 
-    .floor-row:hover {
-        background-color: rgba(0, 123, 255, 0.05);
+    #floorTable tbody tr:hover {
+        background-color: var(--bg-secondary);
     }
 
-    .btn-view {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 6px;
-        background-color: var(--accent-blue);
+    #floorTable tbody td {
+        padding: var(--space-4);
         color: var(--text-primary);
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
+        vertical-align: middle;
     }
 
-    .btn-view:hover {
-        background-color: #0056b3;
+    /* Action buttons */
+    .action-btn {
+        padding: var(--space-2) var(--space-4);
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-size: var(--text-sm);
+        font-weight: var(--weight-medium);
+        transition: all var(--transition-fast);
+        margin-right: var(--space-2);
+    }
+
+    .action-btn-view {
+        background-color: var(--primary-100);
+        color: var(--primary-700);
+        border: 1px solid var(--primary-200);
+    }
+
+    .action-btn-view:hover {
+        background-color: var(--primary-200);
         transform: translateY(-1px);
     }
 
-    .btn-delete {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 6px;
-        background-color: #dc3545;
-        color: var(--text-primary);
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-left: 8px;
+    .action-btn-delete {
+        background-color: var(--error-100);
+        color: var(--error-700);
+        border: 1px solid var(--error-200);
     }
 
-    .btn-delete:hover {
-        background-color: #c82333;
+    .action-btn-delete:hover {
+        background-color: var(--error-200);
         transform: translateY(-1px);
     }
 
+    /* Loading Spinner */
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--border-primary);
+        border-top-color: var(--primary-500);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Empty State */
     .empty-row {
         text-align: center;
-        padding: 60px 20px !important;
-        color: var(--text-secondary);
+        padding: var(--space-12) var(--space-4);
     }
 
     .empty-icon {
-        font-size: 3rem;
-        margin-bottom: 10px;
+        font-size: var(--text-6xl);
+        margin-bottom: var(--space-4);
         opacity: 0.3;
     }
 </style>
@@ -140,36 +165,18 @@
     // Load floors on page load
     window.onload = function() {
         loadFloors();
-        setupModal();
     };
-
-    function setupModal() {
-        const modal = document.getElementById('addFloorModal');
-        const closeBtn = document.getElementById('addFloorClose');
-        const form = document.getElementById('addFloorForm');
-
-        closeBtn.onclick = function() {
-            modal.style.display = 'none';
-            form.reset();
-            document.getElementById('errorMessage').style.display = 'none';
-        };
-
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = 'none';
-                form.reset();
-                document.getElementById('errorMessage').style.display = 'none';
-            }
-        };
-
-        form.onsubmit = function(e) {
-            e.preventDefault();
-            handleAddFloor();
-        };
-    }
 
     function openAddFloorModal() {
         document.getElementById('addFloorModal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAddFloorModal() {
+        document.getElementById('addFloorModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+        document.getElementById('addFloorForm').reset();
+        document.getElementById('errorMessage').style.display = 'none';
     }
 
     function loadFloors() {
@@ -182,18 +189,28 @@
                     tbody.innerHTML = '';
                     data.floors.forEach((floor, index) => {
                         const row = document.createElement('tr');
-                        row.className = 'floor-row';
 
                         row.innerHTML = `
                             <td>${index + 1}</td>
-                            <td>Floor ${floor.floor}</td>
-                            <td>${floor.count} room${floor.count !== 1 ? 's' : ''}</td>
                             <td>
-                                <button class="btn-view" onclick="window.location.href='/manage_rooms/floor/${floor.floor}'">
-                                    View Rooms
+                                <div style="display: flex; align-items: center; gap: var(--space-3);">
+                                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--info-500) 0%, var(--info-600) 100%); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">
+                                        ${floor.floor}
+                                    </div>
+                                    <span style="font-weight: var(--weight-semibold);">Floor ${floor.floor}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="background-color: var(--primary-100); color: var(--primary-700); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: var(--weight-semibold);">
+                                    ${floor.count} room${floor.count !== 1 ? 's' : ''}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="action-btn action-btn-view" onclick="window.location.href='/manage_rooms/floor/${floor.floor}'">
+                                    <i class="fas fa-eye"></i> View Rooms
                                 </button>
-                                <button class="btn-delete" onclick="deleteFloor(${floor.floor}, ${floor.count}); event.stopPropagation();">
-                                    Delete Floor
+                                <button class="action-btn action-btn-delete" onclick="deleteFloor(${floor.floor}, ${floor.count}); event.stopPropagation();">
+                                    <i class="fas fa-trash"></i> Delete
                                 </button>
                             </td>
                         `;
@@ -205,8 +222,8 @@
                         <tr>
                             <td colspan="4" class="empty-row">
                                 <div class="empty-icon">🏢</div>
-                                <div>No floors created yet</div>
-                                <div style="font-size: 0.9rem; margin-top: 8px;">Click "Add New Floor" to get started</div>
+                                <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">No floors created yet</h3>
+                                <p class="text-secondary">Click "Add New Floor" to get started</p>
                             </td>
                         </tr>
                     `;
@@ -218,8 +235,8 @@
                     <tr>
                         <td colspan="4" class="empty-row">
                             <div class="empty-icon">⚠️</div>
-                            <div>Error loading floors</div>
-                            <div style="font-size: 0.9rem; margin-top: 8px;">Please refresh the page</div>
+                            <h3 style="color: var(--error-600); margin-bottom: var(--space-2);">Error loading floors</h3>
+                            <p class="text-secondary">Please refresh the page</p>
                         </td>
                     </tr>
                 `;
@@ -227,16 +244,19 @@
     }
 
     function deleteFloor(floorNumber, roomCount) {
-        // Confirmation dialog
-        const confirmMessage = `Are you sure you want to delete Floor ${floorNumber}?\n\nThis will permanently delete all ${roomCount} room${roomCount !== 1 ? 's' : ''} on this floor.\n\nThis action cannot be undone!`;
+        // Create custom confirmation modal
+        const message = `Are you sure you want to delete Floor ${floorNumber}?\n\nThis will permanently delete all ${roomCount} room${roomCount !== 1 ? 's' : ''} on this floor.\n\nThis action cannot be undone!`;
 
-        if (!confirm(confirmMessage)) {
+        if (!confirm(message)) {
             return;
         }
 
         // Show loading state
-        const deleteButtons = document.querySelectorAll('.btn-delete');
-        deleteButtons.forEach(btn => btn.disabled = true);
+        const deleteButtons = document.querySelectorAll('.action-btn-delete');
+        deleteButtons.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        });
 
         fetch(`/delete_floor/${floorNumber}`, {
             method: 'DELETE',
@@ -246,33 +266,54 @@
         })
         .then(response => response.json())
         .then(data => {
-            deleteButtons.forEach(btn => btn.disabled = false);
-
             if (data.success) {
-                alert('✅ ' + data.message);
+                // Show success message
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'position: fixed; top: var(--space-6); right: var(--space-6); background-color: var(--success-100); border: 1px solid var(--success-200); color: var(--success-700); padding: var(--space-4); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 9999;';
+                successDiv.innerHTML = `
+                    <div style="display: flex; gap: var(--space-3); align-items: center;">
+                        <i class="fas fa-check-circle" style="font-size: var(--text-lg);"></i>
+                        <span>${data.message}</span>
+                    </div>
+                `;
+                document.body.appendChild(successDiv);
+
+                setTimeout(() => successDiv.remove(), 3000);
+
                 loadFloors(); // Reload the floor list
             } else {
                 alert('❌ Error: ' + (data.error || 'Failed to delete floor'));
+                deleteButtons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                });
             }
         })
         .catch(error => {
-            deleteButtons.forEach(btn => btn.disabled = false);
             alert('❌ Error deleting floor: ' + error.message);
             console.error('Error:', error);
+            deleteButtons.forEach(btn => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+            });
         });
     }
 
-    function handleAddFloor() {
+    // Handle add floor form submission
+    document.getElementById('addFloorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
         const formData = {
             floor_number: document.getElementById('floor_number').value
         };
 
         const errorMsg = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
         errorMsg.style.display = 'none';
 
-        const submitBtn = document.querySelector('#addFloorForm button[type="submit"]');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Adding...';
+        const submitBtn = e.submitter;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Adding...</span>';
         submitBtn.disabled = true;
 
         fetch('/add_floor', {
@@ -284,25 +325,51 @@
         })
         .then(response => response.json())
         .then(data => {
-            submitBtn.textContent = originalText;
+            submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
 
             if (data.success) {
-                alert('✅ ' + data.message);
-                document.getElementById('addFloorModal').style.display = 'none';
-                document.getElementById('addFloorForm').reset();
+                // Show success message
+                const successDiv = document.createElement('div');
+                successDiv.style.cssText = 'position: fixed; top: var(--space-6); right: var(--space-6); background-color: var(--success-100); border: 1px solid var(--success-200); color: var(--success-700); padding: var(--space-4); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 9999;';
+                successDiv.innerHTML = `
+                    <div style="display: flex; gap: var(--space-3); align-items: center;">
+                        <i class="fas fa-check-circle" style="font-size: var(--text-lg);"></i>
+                        <span>${data.message}</span>
+                    </div>
+                `;
+                document.body.appendChild(successDiv);
+
+                setTimeout(() => successDiv.remove(), 3000);
+
+                closeAddFloorModal();
                 loadFloors();
             } else {
-                errorMsg.textContent = data.error;
+                errorText.textContent = data.error;
                 errorMsg.style.display = 'block';
             }
         })
         .catch(error => {
-            submitBtn.textContent = originalText;
+            submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
-            errorMsg.textContent = 'Error adding floor: ' + error.message;
+            errorText.textContent = 'Error adding floor: ' + error.message;
             errorMsg.style.display = 'block';
         });
-    }
+    });
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('addFloorModal');
+        if (event.target == modal) {
+            closeAddFloorModal();
+        }
+    };
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeAddFloorModal();
+        }
+    });
 </script>
 {% endblock %}

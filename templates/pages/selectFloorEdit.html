@@ -1,268 +1,78 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Manual Timetable Edit{% endblock %}
-
-{% block top_bar %}{% endblock %}
+{% block title %}Manual Timetable Edit - Smart Scheduler{% endblock %}
 
 {% block content %}
-<style>
-    .edit-options-container {
-        max-width: 800px;
-        margin: 50px auto;
-        padding: 40px;
-    }
+<div style="padding: var(--space-8); max-width: 1200px; margin: 0 auto;">
+    <!-- Page Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <h1 style="margin-bottom: var(--space-2);">Manual Timetable Edit</h1>
+        <p class="text-secondary">Select a room and schedule or edit classes</p>
+    </div>
 
-    .edit-title {
-        text-align: center;
-        margin-bottom: 40px;
-        color: var(--text-primary);
-        font-size: 2rem;
-    }
-
-    .edit-description {
-        text-align: center;
-        color: var(--text-secondary);
-        margin-bottom: 50px;
-        font-size: 1rem;
-    }
-
-    .options-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 30px;
-        margin-bottom: 30px;
-    }
-
-    .option-card {
-        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--card-bg) 100%);
-        border: 2px solid var(--border-color);
-        border-radius: 12px;
-        padding: 40px 30px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: block;
-    }
-
-    .option-card:hover {
-        border-color: var(--accent-blue);
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-    }
-
-    .option-icon {
-        font-size: 4rem;
-        margin-bottom: 20px;
-        opacity: 0.9;
-    }
-
-    .option-title {
-        color: var(--text-primary);
-        font-size: 1.4rem;
-        font-weight: 600;
-        margin-bottom: 15px;
-    }
-
-    .option-description {
-        color: var(--text-secondary);
-        font-size: 0.95rem;
-        line-height: 1.6;
-    }
-
-    .option-badge {
-        display: inline-block;
-        background-color: var(--accent-blue);
-        color: var(--text-primary);
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-top: 15px;
-    }
-
-    /* Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.6);
-    }
-
-    .modal-content {
-        background-color: var(--primary-dark);
-        margin: 10% auto;
-        padding: 0;
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        width: 90%;
-        max-width: 500px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    }
-
-    .modal-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 25px 30px;
-        border-radius: 12px 12px 0 0;
-    }
-
-    .modal-header h2 {
-        margin: 0;
-        color: white;
-        font-size: 1.5rem;
-    }
-
-    .modal-body {
-        padding: 30px;
-    }
-
-    .action-buttons {
-        display: grid;
-        gap: 15px;
-        margin-top: 20px;
-    }
-
-    .action-btn {
-        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--card-bg) 100%);
-        border: 2px solid var(--border-color);
-        border-radius: 8px;
-        padding: 20px;
-        text-align: left;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: var(--text-primary);
-    }
-
-    .action-btn:hover {
-        border-color: var(--accent-blue);
-        transform: translateX(5px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-    }
-
-    .action-btn-title {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-
-    .action-btn-desc {
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-    }
-
-    .close-modal {
-        color: white;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-        opacity: 0.8;
-        line-height: 1;
-    }
-
-    .close-modal:hover {
-        opacity: 1;
-    }
-</style>
-
-<button class="back-button" onclick="history.back()">&#8592;</button>
-
-<div class="edit-options-container">
-    <h1 class="edit-title">Manual Timetable Edit</h1>
-    <p class="edit-description">Choose how you want to schedule classes</p>
-
-    <div class="options-grid">
-        <!-- Edit by Course -->
-        <div class="option-card" onclick="showActionModal('course')">
-            <div class="option-icon">📚</div>
-            <h2 class="option-title">Edit by Course</h2>
-            <p class="option-description">
-                Select a course and section, then assign a time slot and room to schedule the class.
-            </p>
-            <span class="option-badge">Recommended</span>
+    <!-- Options Grid -->
+    <div class="card-grid card-grid-sm-2" style="margin-bottom: var(--space-8);">
+        <!-- Schedule New Class -->
+        <div class="card card-interactive card-elevated" onclick="window.location.href='/manual_edit_by_room'">
+            <div class="card-body" style="text-align: center; padding: var(--space-8);">
+                <div style="font-size: var(--text-6xl); margin-bottom: var(--space-4);">
+                    ➕
+                </div>
+                <h3 style="margin-bottom: var(--space-3); font-size: var(--text-2xl);">Schedule New Class</h3>
+                <p class="text-secondary" style="margin-bottom: var(--space-4); line-height: 1.6;">
+                    Select a room, choose a course and section, then assign a time slot to schedule a new class.
+                </p>
+                <span class="badge" style="background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%); color: white; padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--weight-semibold);">
+                    Create New
+                </span>
+            </div>
         </div>
 
-        <!-- Edit by Room -->
-        <div class="option-card" onclick="showActionModal('room')">
-            <div class="option-icon">🚪</div>
-            <h2 class="option-title">Edit by Room</h2>
-            <p class="option-description">
-                Select a room first, then choose courses to schedule in that specific room.
-            </p>
-            <span class="option-badge">Room-based</span>
+        <!-- Edit Scheduled Class -->
+        <div class="card card-interactive card-elevated" onclick="window.location.href='/manual_edit_by_room?edit_mode=true'">
+            <div class="card-body" style="text-align: center; padding: var(--space-8);">
+                <div style="font-size: var(--text-6xl); margin-bottom: var(--space-4);">
+                    ✏️
+                </div>
+                <h3 style="margin-bottom: var(--space-3); font-size: var(--text-2xl);">Edit Scheduled Class</h3>
+                <p class="text-secondary" style="margin-bottom: var(--space-4); line-height: 1.6;">
+                    Select a room to view and modify or delete classes that are already scheduled in that room.
+                </p>
+                <span class="badge" style="background-color: var(--warning-100); color: var(--warning-700); padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--weight-semibold);">
+                    Modify Existing
+                </span>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Action Selection Modal -->
-<div id="actionModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <span class="close-modal" onclick="closeActionModal()">&times;</span>
-            <h2>Choose an Action</h2>
-        </div>
-        <div class="modal-body">
-            <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                What would you like to do?
-            </p>
-            <div class="action-buttons">
-                <div class="action-btn" onclick="scheduleClass()">
-                    <div class="action-btn-title">📅 Schedule a Class</div>
-                    <div class="action-btn-desc">
-                        Add a new class to the timetable
-                    </div>
+    <!-- Info Card -->
+    <div class="card card-flat">
+        <div class="card-body">
+            <div style="display: flex; gap: var(--space-4); align-items: start;">
+                <div style="flex-shrink: 0; color: var(--info-600); font-size: var(--text-2xl);">
+                    <i class="fas fa-info-circle"></i>
                 </div>
-                <div class="action-btn" onclick="editScheduledClass()">
-                    <div class="action-btn-title">✏️ Edit Scheduled Class</div>
-                    <div class="action-btn-desc">
-                        Modify or remove an existing scheduled class
-                    </div>
+                <div>
+                    <h4 style="margin-bottom: var(--space-2); color: var(--text-primary);">How to use Manual Edit</h4>
+                    <p class="text-secondary" style="line-height: 1.6; margin-bottom: var(--space-3);">
+                        Choose one of the options above to get started:
+                    </p>
+                    <ul style="color: var(--text-secondary); line-height: 1.8; margin-left: var(--space-6);">
+                        <li><strong style="color: var(--text-primary);">Schedule New Class:</strong> Select a room from the floor plan, then choose a course, section, day, and time slot to schedule</li>
+                        <li><strong style="color: var(--text-primary);">Edit Scheduled Class:</strong> Select a room to view all classes scheduled in it, then modify or delete any scheduled class</li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-    let selectedEditMode = null; // 'course' or 'room'
-
-    function showActionModal(mode) {
-        selectedEditMode = mode;
-        document.getElementById('actionModal').style.display = 'block';
-    }
-
-    function closeActionModal() {
-        document.getElementById('actionModal').style.display = 'none';
-        selectedEditMode = null;
-    }
-
-    function scheduleClass() {
-        if (selectedEditMode === 'course') {
-            window.location.href = '/manual_edit_by_course';
-        } else if (selectedEditMode === 'room') {
-            window.location.href = '/manual_edit_by_room';
+<style>
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        .card-grid {
+            grid-template-columns: 1fr !important;
         }
     }
-
-    function editScheduledClass() {
-        if (selectedEditMode === 'course') {
-            window.location.href = '/manual_edit_by_course?edit_mode=true';
-        } else if (selectedEditMode === 'room') {
-            window.location.href = '/manual_edit_by_room?edit_mode=true';
-        }
-    }
-
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        const modal = document.getElementById('actionModal');
-        if (event.target == modal) {
-            closeActionModal();
-        }
-    };
-</script>
-
+</style>
 {% endblock %}

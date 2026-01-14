@@ -1,186 +1,329 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scheduler - Sign In</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-</head>
-<body>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="header">
-                <h1>Sign In</h1>
-                <p>Enter your credentials to access the scheduler</p>
-            </div>
-            
-            <form class="login-form" method="post" action="{{ url_for('login') }}">
-                <div class="input-group">
-                    <label for="username">Username / Registration Number</label>
-                    <input type="text" id="username" name="username" placeholder="Admin: 'admin' | Teachers: Registration Number" required>
-                </div>
-                
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="••••••••">
-                </div>
+    <title>SmartScheduler - Sign In</title>
 
-                {% if error %}
-                <div style="background-color: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); color: #ff6b6b; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;">
-                    {{ error }}
-                </div>
-                {% endif %}
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-                <button type="submit" class="btn-primary">Sign In</button>
-                <a href="#" class="forgot-password" onclick="openForgotPasswordModal(); return false;">Forgot Password?</a>
-            </form>
-        </div>
-    </div>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Forgot Password Modal -->
-    <div id="forgotPasswordModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Reset Password</h2>
-                <span class="close" id="closeModal">&times;</span>
-            </div>
-
-            <!-- Step 1: Enter Registration Number -->
-            <div id="step1" class="reset-step">
-                <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                    Enter your registration number to receive an OTP on your registered email.
-                </p>
-                <div class="input-group">
-                    <label for="reset_registration">Registration Number</label>
-                    <input type="text" id="reset_registration" placeholder="Enter your registration number" required>
-                </div>
-                <div id="step1Error" class="error-message" style="display: none;"></div>
-                <button type="button" class="btn-primary" id="sendOtpBtn" onclick="sendOTP()">
-                    Send OTP to Email
-                </button>
-            </div>
-
-            <!-- Step 2: Enter OTP -->
-            <div id="step2" class="reset-step" style="display: none;">
-                <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                    An OTP has been sent to <strong id="userEmail"></strong>.
-                    The OTP is valid for 10 minutes.
-                </p>
-                <div class="input-group">
-                    <label for="reset_otp">Enter OTP</label>
-                    <input type="text" id="reset_otp" placeholder="Enter 6-digit OTP" maxlength="6" required>
-                </div>
-                <div id="step2Error" class="error-message" style="display: none;"></div>
-                <button type="button" class="btn-primary" id="verifyOtpBtn" onclick="verifyOTP()">
-                    Verify OTP
-                </button>
-                <button type="button" class="btn-secondary" onclick="backToStep1()" style="margin-top: 10px;">
-                    Back
-                </button>
-            </div>
-
-            <!-- Step 3: Enter New Password -->
-            <div id="step3" class="reset-step" style="display: none;">
-                <p style="color: var(--text-secondary); margin-bottom: 20px;">
-                    OTP verified! Now create your new password.
-                </p>
-                <div class="input-group">
-                    <label for="new_password">New Password</label>
-                    <input type="password" id="new_password" placeholder="Enter new password" required>
-                </div>
-                <div class="input-group">
-                    <label for="confirm_new_password">Confirm New Password</label>
-                    <input type="password" id="confirm_new_password" placeholder="Confirm new password" required>
-                </div>
-                <div id="step3Error" class="error-message" style="display: none;"></div>
-                <button type="button" class="btn-primary" id="resetPasswordBtn" onclick="resetPassword()">
-                    Reset Password
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/buttons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/forms.css') }}">
 
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-6);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: moveBackground 20s linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes moveBackground {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-50px, -50px); }
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 480px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-2xl);
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%);
+            padding: var(--space-10);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 20%, transparent 50%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-4);
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-logo i {
+            font-size: var(--text-4xl);
+            color: white;
+        }
+
+        .login-header h1 {
+            color: white;
+            font-size: var(--text-3xl);
+            font-weight: var(--weight-bold);
+            margin-bottom: var(--space-2);
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: var(--text-base);
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-form {
+            padding: var(--space-8);
+        }
+
+        .form-group {
+            margin-bottom: var(--space-6);
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: var(--weight-semibold);
+            margin-bottom: var(--space-2);
+            font-size: var(--text-sm);
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: var(--space-4);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            font-size: var(--text-lg);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12);
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            color: var(--text-primary);
+            font-size: var(--text-base);
+            transition: all var(--transition-fast);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-500);
+            background-color: var(--bg-elevated);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: var(--space-4);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            cursor: pointer;
+            transition: color var(--transition-fast);
+            font-size: var(--text-lg);
+        }
+
+        .password-toggle:hover {
+            color: var(--primary-500);
+        }
+
+        .error-message {
+            background-color: var(--error-100);
+            border: 1px solid var(--error-200);
+            color: var(--error-700);
+            padding: var(--space-4);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .forgot-password {
+            display: block;
+            text-align: center;
+            color: var(--primary-500);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            margin-top: var(--space-4);
+            transition: color var(--transition-fast);
+        }
+
+        .forgot-password:hover {
+            color: var(--primary-600);
+            text-decoration: underline;
+        }
+
+        .login-footer {
+            background-color: var(--bg-secondary);
+            padding: var(--space-6);
+            text-align: center;
+            border-top: 1px solid var(--border-primary);
+        }
+
+        .login-footer p {
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+        }
+
+        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
+            z-index: var(--z-modal);
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.8);
             animation: fadeIn 0.3s ease;
+            overflow-y: auto;
         }
 
         .modal-content {
-            background-color: #1e1e2e;
+            background-color: var(--bg-elevated);
             margin: 5% auto;
             padding: 0;
-            border: 1px solid #2a2a3e;
-            border-radius: 12px;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-2xl);
             max-width: 500px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            box-shadow: var(--shadow-2xl);
             animation: slideDown 0.3s ease;
         }
 
         .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px 30px;
-            border-radius: 12px 12px 0 0;
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-600) 100%);
+            padding: var(--space-8);
+            border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
 
         .modal-header h2 {
-            color: #fff;
+            color: white;
             margin: 0;
-            font-size: 1.5rem;
+            font-size: var(--text-2xl);
         }
 
         .close {
-            color: #fff;
-            font-size: 28px;
-            font-weight: bold;
+            color: white;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: all var(--transition-fast);
+            font-size: var(--text-xl);
         }
 
         .close:hover {
-            transform: scale(1.2);
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
         }
 
         .reset-step {
-            padding: 30px;
+            padding: var(--space-8);
         }
 
-        .error-message {
-            background-color: rgba(244, 67, 54, 0.1);
-            border: 1px solid rgba(244, 67, 54, 0.3);
-            color: #ff6b6b;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
+        .reset-step p {
+            color: var(--text-secondary);
+            margin-bottom: var(--space-6);
+            line-height: 1.6;
         }
 
-        .btn-secondary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            opacity: 0.7;
-        }
-
-        .btn-secondary:hover {
-            opacity: 1;
-            transform: translateY(-2px);
+        .reset-step strong {
+            color: var(--primary-500);
         }
 
         @keyframes fadeIn {
@@ -198,18 +341,266 @@
                 transform: translateY(0);
             }
         }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .login-header {
+                padding: var(--space-8);
+            }
+
+            .login-header h1 {
+                font-size: var(--text-2xl);
+            }
+
+            .login-form {
+                padding: var(--space-6);
+            }
+        }
     </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Header -->
+            <div class="login-header">
+                <div class="login-logo">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <h1>SmartScheduler</h1>
+                <p>Sign in to manage your schedule</p>
+            </div>
+
+            <!-- Login Form -->
+            <form class="login-form" method="post" action="{{ url_for('login') }}">
+                {% if error %}
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label class="form-label" for="username">
+                        <i class="fas fa-user"></i> Username / Registration Number
+                    </label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user input-icon"></i>
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            class="form-input"
+                            placeholder="Admin: 'admin' | Teachers: Registration Number"
+                            required
+                            autofocus
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">
+                        <i class="fas fa-lock"></i> Password
+                    </label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            class="form-input"
+                            placeholder="Enter your password"
+                            required
+                        >
+                        <i class="fas fa-eye-slash password-toggle" id="passwordToggle" onclick="togglePassword()"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-bottom: var(--space-4);">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Sign In</span>
+                </button>
+
+                <a href="#" class="forgot-password" onclick="openForgotPasswordModal(); return false;">
+                    <i class="fas fa-question-circle"></i> Forgot Password?
+                </a>
+            </form>
+
+            <!-- Footer -->
+            <div class="login-footer">
+                <p>
+                    <i class="fas fa-shield-alt"></i>
+                    Secure authentication powered by SmartScheduler
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-key"></i> Reset Password</h2>
+                <span class="close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </span>
+            </div>
+
+            <!-- Step 1: Enter Registration Number -->
+            <div id="step1" class="reset-step">
+                <p>
+                    Enter your registration number to receive an OTP on your registered email address.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="reset_registration">Registration Number</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-id-card input-icon"></i>
+                        <input
+                            type="text"
+                            id="reset_registration"
+                            class="form-input"
+                            placeholder="Enter your registration number"
+                            required
+                        >
+                    </div>
+                </div>
+                <div id="step1Error" class="error-message" style="display: none;"></div>
+                <button type="button" class="btn btn-primary btn-lg" id="sendOtpBtn" onclick="sendOTP()" style="width: 100%;">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Send OTP to Email</span>
+                </button>
+            </div>
+
+            <!-- Step 2: Enter OTP -->
+            <div id="step2" class="reset-step" style="display: none;">
+                <p>
+                    An OTP has been sent to <strong id="userEmail"></strong>.
+                    The OTP is valid for <strong>10 minutes</strong>.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="reset_otp">Enter OTP</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-hashtag input-icon"></i>
+                        <input
+                            type="text"
+                            id="reset_otp"
+                            class="form-input"
+                            placeholder="Enter 6-digit OTP"
+                            maxlength="6"
+                            required
+                        >
+                    </div>
+                </div>
+                <div id="step2Error" class="error-message" style="display: none;"></div>
+                <button type="button" class="btn btn-primary btn-lg" id="verifyOtpBtn" onclick="verifyOTP()" style="width: 100%; margin-bottom: var(--space-3);">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Verify OTP</span>
+                </button>
+                <button type="button" class="btn btn-secondary btn-lg" onclick="backToStep1()" style="width: 100%;">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back</span>
+                </button>
+            </div>
+
+            <!-- Step 3: Enter New Password -->
+            <div id="step3" class="reset-step" style="display: none;">
+                <p>
+                    <i class="fas fa-check-circle" style="color: var(--success-500);"></i>
+                    OTP verified! Now create your new password.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="new_password">New Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input
+                            type="password"
+                            id="new_password"
+                            class="form-input"
+                            placeholder="Enter new password"
+                            required
+                        >
+                        <i class="fas fa-eye-slash password-toggle" id="newPasswordToggle" onclick="toggleNewPassword()"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="confirm_new_password">Confirm New Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input
+                            type="password"
+                            id="confirm_new_password"
+                            class="form-input"
+                            placeholder="Confirm new password"
+                            required
+                        >
+                        <i class="fas fa-eye-slash password-toggle" id="confirmPasswordToggle" onclick="toggleConfirmPassword()"></i>
+                    </div>
+                </div>
+                <div id="step3Error" class="error-message" style="display: none;"></div>
+                <button type="button" class="btn btn-success btn-lg" id="resetPasswordBtn" onclick="resetPassword()" style="width: 100%;">
+                    <i class="fas fa-save"></i>
+                    <span>Reset Password</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         let currentRegistration = '';
 
+        // Password visibility toggles
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('passwordToggle');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            }
+        }
+
+        function toggleNewPassword() {
+            const input = document.getElementById('new_password');
+            const icon = document.getElementById('newPasswordToggle');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
+        }
+
+        function toggleConfirmPassword() {
+            const input = document.getElementById('confirm_new_password');
+            const icon = document.getElementById('confirmPasswordToggle');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
+        }
+
+        // Modal functions
         function openForgotPasswordModal() {
             document.getElementById('forgotPasswordModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
             resetModal();
         }
 
         function closeForgotPasswordModal() {
             document.getElementById('forgotPasswordModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
             resetModal();
         }
 
@@ -237,13 +628,13 @@
             const btn = document.getElementById('sendOtpBtn');
 
             if (!registration) {
-                errorDiv.textContent = 'Please enter your registration number';
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Please enter your registration number</span>';
+                errorDiv.style.display = 'flex';
                 return;
             }
 
             errorDiv.style.display = 'none';
-            btn.textContent = 'Sending...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Sending...</span>';
             btn.disabled = true;
 
             fetch('/teacher/send_password_reset_otp', {
@@ -253,7 +644,7 @@
             })
             .then(response => response.json())
             .then(data => {
-                btn.textContent = 'Send OTP to Email';
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i><span>Send OTP to Email</span>';
                 btn.disabled = false;
 
                 if (data.success) {
@@ -262,15 +653,15 @@
                     document.getElementById('step1').style.display = 'none';
                     document.getElementById('step2').style.display = 'block';
                 } else {
-                    errorDiv.textContent = data.error;
-                    errorDiv.style.display = 'block';
+                    errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${data.error}</span>`;
+                    errorDiv.style.display = 'flex';
                 }
             })
             .catch(error => {
-                btn.textContent = 'Send OTP to Email';
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i><span>Send OTP to Email</span>';
                 btn.disabled = false;
-                errorDiv.textContent = 'Error: ' + error.message;
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>Error: ${error.message}</span>`;
+                errorDiv.style.display = 'flex';
             });
         }
 
@@ -280,13 +671,13 @@
             const btn = document.getElementById('verifyOtpBtn');
 
             if (!otp || otp.length !== 6) {
-                errorDiv.textContent = 'Please enter a valid 6-digit OTP';
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Please enter a valid 6-digit OTP</span>';
+                errorDiv.style.display = 'flex';
                 return;
             }
 
             errorDiv.style.display = 'none';
-            btn.textContent = 'Verifying...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Verifying...</span>';
             btn.disabled = true;
 
             fetch('/teacher/verify_password_reset_otp', {
@@ -299,22 +690,22 @@
             })
             .then(response => response.json())
             .then(data => {
-                btn.textContent = 'Verify OTP';
+                btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verify OTP</span>';
                 btn.disabled = false;
 
                 if (data.success) {
                     document.getElementById('step2').style.display = 'none';
                     document.getElementById('step3').style.display = 'block';
                 } else {
-                    errorDiv.textContent = data.error;
-                    errorDiv.style.display = 'block';
+                    errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${data.error}</span>`;
+                    errorDiv.style.display = 'flex';
                 }
             })
             .catch(error => {
-                btn.textContent = 'Verify OTP';
+                btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verify OTP</span>';
                 btn.disabled = false;
-                errorDiv.textContent = 'Error: ' + error.message;
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>Error: ${error.message}</span>`;
+                errorDiv.style.display = 'flex';
             });
         }
 
@@ -325,25 +716,25 @@
             const btn = document.getElementById('resetPasswordBtn');
 
             if (!newPassword || !confirmPassword) {
-                errorDiv.textContent = 'Please fill in both password fields';
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Please fill in both password fields</span>';
+                errorDiv.style.display = 'flex';
                 return;
             }
 
             if (newPassword !== confirmPassword) {
-                errorDiv.textContent = 'Passwords do not match';
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Passwords do not match</span>';
+                errorDiv.style.display = 'flex';
                 return;
             }
 
             if (newPassword.length < 6) {
-                errorDiv.textContent = 'Password must be at least 6 characters long';
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>Password must be at least 6 characters long</span>';
+                errorDiv.style.display = 'flex';
                 return;
             }
 
             errorDiv.style.display = 'none';
-            btn.textContent = 'Resetting...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Resetting...</span>';
             btn.disabled = true;
 
             fetch('/teacher/reset_password', {
@@ -356,26 +747,38 @@
             })
             .then(response => response.json())
             .then(data => {
-                btn.textContent = 'Reset Password';
+                btn.innerHTML = '<i class="fas fa-save"></i><span>Reset Password</span>';
                 btn.disabled = false;
 
                 if (data.success) {
-                    alert('✅ Password reset successful! You can now login with your new password.');
-                    closeForgotPasswordModal();
+                    // Show success modal
+                    const successDiv = document.createElement('div');
+                    successDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-elevated); padding: var(--space-8); border-radius: var(--radius-xl); box-shadow: var(--shadow-2xl); z-index: 10000; text-align: center; max-width: 400px; border: 1px solid var(--success-200);';
+                    successDiv.innerHTML = `
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4);">
+                            <i class="fas fa-check" style="font-size: var(--text-4xl); color: white;"></i>
+                        </div>
+                        <h3 style="color: var(--text-primary); margin-bottom: var(--space-2);">Password Reset Successful!</h3>
+                        <p class="text-secondary" style="margin-bottom: var(--space-6);">You can now login with your new password.</p>
+                        <button class="btn btn-success btn-lg" onclick="this.parentElement.remove(); closeForgotPasswordModal();" style="width: 100%;">
+                            <i class="fas fa-sign-in-alt"></i> Continue to Login
+                        </button>
+                    `;
+                    document.body.appendChild(successDiv);
                 } else {
-                    errorDiv.textContent = data.error;
-                    errorDiv.style.display = 'block';
+                    errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${data.error}</span>`;
+                    errorDiv.style.display = 'flex';
                 }
             })
             .catch(error => {
-                btn.textContent = 'Reset Password';
+                btn.innerHTML = '<i class="fas fa-save"></i><span>Reset Password</span>';
                 btn.disabled = false;
-                errorDiv.textContent = 'Error: ' + error.message;
-                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>Error: ${error.message}</span>`;
+                errorDiv.style.display = 'flex';
             });
         }
 
-        // Close modal when clicking the X button
+        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('closeModal').onclick = closeForgotPasswordModal;
 
@@ -386,6 +789,13 @@
                     closeForgotPasswordModal();
                 }
             };
+
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeForgotPasswordModal();
+                }
+            });
         });
     </script>
 </body>

@@ -215,6 +215,18 @@
   --color-accent: var(--primary-500);
   --color-accent-hover: var(--primary-600);
   --color-accent-light: var(--primary-100);
+
+  /* Common Utilities */
+  --overlay: rgba(0, 0, 0, 0.6);
+  --overlay-light: rgba(0, 0, 0, 0.3);
+  --success-bg: var(--success-100);
+  --success-text: var(--success-700);
+  --error-bg: var(--error-100);
+  --error-text: var(--error-700);
+  --warning-bg: var(--warning-100);
+  --warning-text: var(--warning-700);
+  --info-bg: var(--info-100);
+  --info-text: var(--info-700);
 }
 
 /* ============================================

@@ -192,6 +192,12 @@
   box-shadow: var(--shadow-lg);
   position: relative;
   overflow: hidden;
+  transition: all var(--transition-base);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
 }
 
 .stat-card::before {
@@ -207,34 +213,49 @@
 
 .stat-card-label {
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  opacity: 0.9;
+  font-weight: var(--weight-semibold);
+  color: rgba(255, 255, 255, 0.95);
   margin-bottom: var(--space-2);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card-value {
   font-size: var(--text-4xl);
   font-weight: var(--weight-bold);
+  color: white;
   line-height: 1;
   margin-bottom: var(--space-2);
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card-change {
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  opacity: 0.9;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card-change i {
+  font-size: var(--text-base);
 }
 
 .stat-card-change-positive {
-  color: var(--success-300);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .stat-card-change-negative {
-  color: var(--error-300);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* Stat Card Variants */
