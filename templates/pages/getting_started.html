@@ -1,0 +1,410 @@
+{% extends "layouts/base_v2.html" %}
+
+{% block title %}Getting Started - Smart Scheduler{% endblock %}
+
+{% block content %}
+<div style="padding: var(--space-8); max-width: 1000px; margin: 0 auto;">
+    <!-- Progress Header -->
+    <div style="margin-bottom: var(--space-8);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);">
+            <h1 style="margin: 0;">Getting Started</h1>
+            <button onclick="exitWizard()" class="btn btn-ghost">
+                <i class="fas fa-times"></i> <span>Exit</span>
+            </button>
+        </div>
+        <p class="text-secondary">Follow these steps to set up your timetable system</p>
+    </div>
+
+    <!-- Progress Bar -->
+    <div style="margin-bottom: var(--space-8);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-4);">
+            <div id="step-indicator-1" class="step-indicator active">
+                <div class="step-indicator-circle">1</div>
+                <div class="step-indicator-label">Faculty</div>
+            </div>
+            <div class="step-connector"></div>
+            <div id="step-indicator-2" class="step-indicator">
+                <div class="step-indicator-circle">2</div>
+                <div class="step-indicator-label">Courses</div>
+            </div>
+            <div class="step-connector"></div>
+            <div id="step-indicator-3" class="step-indicator">
+                <div class="step-indicator-circle">3</div>
+                <div class="step-indicator-label">Rooms</div>
+            </div>
+            <div class="step-connector"></div>
+            <div id="step-indicator-4" class="step-indicator">
+                <div class="step-indicator-circle">4</div>
+                <div class="step-indicator-label">Schedule</div>
+            </div>
+        </div>
+        <div style="background: var(--border-primary); height: 4px; border-radius: var(--radius-full); overflow: hidden;">
+            <div id="progress-bar" style="background: linear-gradient(90deg, var(--primary-500), var(--secondary-600)); height: 100%; width: 25%; transition: width 0.3s ease;"></div>
+        </div>
+    </div>
+
+    <!-- Step Content Container -->
+    <div id="step-content">
+        <!-- Step 1: Add Faculty -->
+        <div id="step-1" class="step-content active">
+            <div class="card card-elevated">
+                <div class="card-body" style="padding: var(--space-8);">
+                    <div style="text-align: center; margin-bottom: var(--space-6);">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); color: white; font-size: var(--text-3xl);">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h2 style="margin-bottom: var(--space-2);">Step 1: Add Faculty Members</h2>
+                        <p class="text-secondary">Start by adding the faculty members who will be teaching courses</p>
+                    </div>
+
+                    <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6);">
+                        <h4 style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+                            <i class="fas fa-info-circle" style="color: var(--info-500);"></i>
+                            What you need to provide:
+                        </h4>
+                        <ul style="margin-left: var(--space-6); line-height: 1.8;">
+                            <li>Faculty member's full name</li>
+                            <li>Email address (for login credentials)</li>
+                            <li>Password (they can change it later)</li>
+                            <li>Optional: Additional contact information</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: var(--success-50); border-left: 4px solid var(--success-500); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6);">
+                        <div style="display: flex; gap: var(--space-3);">
+                            <i class="fas fa-lightbulb" style="color: var(--success-600); margin-top: 2px;"></i>
+                            <div>
+                                <strong style="color: var(--success-700);">Pro Tip:</strong>
+                                <span class="text-secondary"> You can bulk import faculty members using the Excel import feature to save time!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: var(--space-3); justify-content: center;">
+                        <button onclick="window.location.href='/manage_users'" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus"></i> <span>Add Faculty Members</span>
+                        </button>
+                        <button onclick="window.location.href='/import_data'" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-file-import"></i> <span>Import from Excel</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Create Courses -->
+        <div id="step-2" class="step-content">
+            <div class="card card-elevated">
+                <div class="card-body" style="padding: var(--space-8);">
+                    <div style="text-align: center; margin-bottom: var(--space-6);">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--success-500), var(--success-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); color: white; font-size: var(--text-3xl);">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <h2 style="margin-bottom: var(--space-2);">Step 2: Create Courses</h2>
+                        <p class="text-secondary">Add the courses that will be taught this semester</p>
+                    </div>
+
+                    <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6);">
+                        <h4 style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+                            <i class="fas fa-info-circle" style="color: var(--info-500);"></i>
+                            What you need to provide:
+                        </h4>
+                        <ul style="margin-left: var(--space-6); line-height: 1.8;">
+                            <li>Course name and code</li>
+                            <li>Course type (Lecture or Lab) - Credit hours auto-set</li>
+                            <li>Shift timing (Morning or Evening)</li>
+                            <li>Assigned faculty member</li>
+                            <li>Section codes (e.g., MOR001, EVE001)</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: var(--warning-50); border-left: 4px solid var(--warning-500); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6);">
+                        <div style="display: flex; gap: var(--space-3);">
+                            <i class="fas fa-exclamation-triangle" style="color: var(--warning-600); margin-top: 2px;"></i>
+                            <div>
+                                <strong style="color: var(--warning-700);">Important:</strong>
+                                <span class="text-secondary"> Credit hours are automatically set: Lecture courses = 3 CH, Lab courses = 1 CH</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: var(--space-3); justify-content: center;">
+                        <button onclick="window.location.href='/manage_courses'" class="btn btn-primary btn-lg">
+                            <i class="fas fa-book-medical"></i> <span>Add Courses</span>
+                        </button>
+                        <button onclick="window.location.href='/import_data'" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-file-import"></i> <span>Import from Excel</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Setup Rooms -->
+        <div id="step-3" class="step-content">
+            <div class="card card-elevated">
+                <div class="card-body" style="padding: var(--space-8);">
+                    <div style="text-align: center; margin-bottom: var(--space-6);">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--info-500), var(--info-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); color: white; font-size: var(--text-3xl);">
+                            <i class="fas fa-door-open"></i>
+                        </div>
+                        <h2 style="margin-bottom: var(--space-2);">Step 3: Setup Rooms</h2>
+                        <p class="text-secondary">Configure the classrooms and labs available for scheduling</p>
+                    </div>
+
+                    <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6);">
+                        <h4 style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+                            <i class="fas fa-info-circle" style="color: var(--info-500);"></i>
+                            What you need to provide:
+                        </h4>
+                        <ul style="margin-left: var(--space-6); line-height: 1.8;">
+                            <li>Room number (determines floor, e.g., 1401 = Floor 14)</li>
+                            <li>Room type (Lecture Hall or Lab)</li>
+                            <li>Capacity (number of students)</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: var(--info-50); border-left: 4px solid var(--info-500); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6);">
+                        <div style="display: flex; gap: var(--space-3);">
+                            <i class="fas fa-lightbulb" style="color: var(--info-600); margin-top: 2px;"></i>
+                            <div>
+                                <strong style="color: var(--info-700);">Smart Matching:</strong>
+                                <span class="text-secondary"> The system automatically assigns 3 CH courses to Lecture Halls and 1 CH courses to Labs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: var(--space-3); justify-content: center;">
+                        <button onclick="window.location.href='/manage_rooms'" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus-circle"></i> <span>Add Rooms</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Schedule Classes -->
+        <div id="step-4" class="step-content">
+            <div class="card card-elevated">
+                <div class="card-body" style="padding: var(--space-8);">
+                    <div style="text-align: center; margin-bottom: var(--space-6);">
+                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--warning-500), var(--warning-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); color: white; font-size: var(--text-3xl);">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <h2 style="margin-bottom: var(--space-2);">Step 4: Generate Timetable</h2>
+                        <p class="text-secondary">Now you're ready to create your schedule!</p>
+                    </div>
+
+                    <div style="background: var(--bg-secondary); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6);">
+                        <h4 style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+                            <i class="fas fa-magic" style="color: var(--warning-500);"></i>
+                            Choose your scheduling method:
+                        </h4>
+                        <div style="display: grid; gap: var(--space-4);">
+                            <div style="display: flex; gap: var(--space-3); padding: var(--space-4); background: white; border-radius: var(--radius-md); border: 2px solid var(--border-primary);">
+                                <i class="fas fa-robot" style="color: var(--success-500); font-size: var(--text-xl); margin-top: 2px;"></i>
+                                <div>
+                                    <strong>Autogenerate (Recommended)</strong>
+                                    <p class="text-secondary" style="margin-top: var(--space-1); font-size: var(--text-sm);">
+                                        Let our AI algorithm automatically create optimal schedules with minimal room usage and no conflicts
+                                    </p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: var(--space-3); padding: var(--space-4); background: white; border-radius: var(--radius-md); border: 2px solid var(--border-primary);">
+                                <i class="fas fa-hand-pointer" style="color: var(--primary-500); font-size: var(--text-xl); margin-top: 2px;"></i>
+                                <div>
+                                    <strong>Manual Scheduling</strong>
+                                    <p class="text-secondary" style="margin-top: var(--space-1); font-size: var(--text-sm);">
+                                        Manually assign specific courses to rooms and time slots for complete control
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-6); text-align: center;">
+                        <i class="fas fa-check-circle" style="color: var(--success-600); font-size: var(--text-4xl); margin-bottom: var(--space-3);"></i>
+                        <h3 style="color: var(--success-700); margin-bottom: var(--space-2);">Setup Complete!</h3>
+                        <p class="text-secondary">You're all set to start scheduling classes</p>
+                    </div>
+
+                    <div style="display: flex; gap: var(--space-3); justify-content: center;">
+                        <button onclick="window.location.href='/autogenerate_select_floor'" class="btn btn-primary btn-lg">
+                            <i class="fas fa-magic"></i> <span>Autogenerate Schedule</span>
+                        </button>
+                        <button onclick="window.location.href='/manual_timetable_edit'" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-calendar-plus"></i> <span>Manual Scheduling</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div style="display: flex; justify-content: space-between; margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--border-primary);">
+        <button id="prev-btn" onclick="previousStep()" class="btn btn-secondary" disabled>
+            <i class="fas fa-arrow-left"></i> <span>Previous</span>
+        </button>
+        <button id="next-btn" onclick="nextStep()" class="btn btn-primary">
+            <span>Next</span> <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<style>
+    .step-content {
+        display: none;
+    }
+
+    .step-content.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .step-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-2);
+        flex: 1;
+        position: relative;
+        z-index: 2;
+    }
+
+    .step-indicator-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-full);
+        background: var(--bg-secondary);
+        border: 3px solid var(--border-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: var(--weight-bold);
+        color: var(--text-tertiary);
+        transition: all 0.3s ease;
+    }
+
+    .step-indicator.active .step-indicator-circle,
+    .step-indicator.completed .step-indicator-circle {
+        background: linear-gradient(135deg, var(--primary-500), var(--secondary-600));
+        border-color: var(--primary-500);
+        color: white;
+    }
+
+    .step-indicator.completed .step-indicator-circle::after {
+        content: '\f00c';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+    }
+
+    .step-indicator-label {
+        font-size: var(--text-sm);
+        color: var(--text-tertiary);
+        font-weight: var(--weight-medium);
+    }
+
+    .step-indicator.active .step-indicator-label,
+    .step-indicator.completed .step-indicator-label {
+        color: var(--text-primary);
+        font-weight: var(--weight-semibold);
+    }
+
+    .step-connector {
+        height: 3px;
+        background: var(--border-primary);
+        margin-top: 24px;
+        flex: 1;
+        position: relative;
+        z-index: 1;
+    }
+
+    .btn-lg {
+        padding: var(--space-4) var(--space-6);
+        font-size: var(--text-lg);
+    }
+</style>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = 4;
+
+    function updateStepDisplay() {
+        // Hide all steps
+        document.querySelectorAll('.step-content').forEach(step => {
+            step.classList.remove('active');
+        });
+
+        // Show current step
+        document.getElementById(`step-${currentStep}`).classList.add('active');
+
+        // Update step indicators
+        for (let i = 1; i <= totalSteps; i++) {
+            const indicator = document.getElementById(`step-indicator-${i}`);
+            if (i < currentStep) {
+                indicator.classList.add('completed');
+                indicator.classList.remove('active');
+            } else if (i === currentStep) {
+                indicator.classList.add('active');
+                indicator.classList.remove('completed');
+            } else {
+                indicator.classList.remove('active', 'completed');
+            }
+        }
+
+        // Update progress bar
+        const progress = (currentStep / totalSteps) * 100;
+        document.getElementById('progress-bar').style.width = `${progress}%`;
+
+        // Update navigation buttons
+        document.getElementById('prev-btn').disabled = currentStep === 1;
+
+        const nextBtn = document.getElementById('next-btn');
+        if (currentStep === totalSteps) {
+            nextBtn.innerHTML = '<i class="fas fa-check"></i> <span>Finish</span>';
+        } else {
+            nextBtn.innerHTML = '<span>Next</span> <i class="fas fa-arrow-right"></i>';
+        }
+    }
+
+    function nextStep() {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            updateStepDisplay();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            // On finish, go to dashboard
+            window.location.href = '/dashboard';
+        }
+    }
+
+    function previousStep() {
+        if (currentStep > 1) {
+            currentStep--;
+            updateStepDisplay();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function exitWizard() {
+        if (confirm('Are you sure you want to exit the setup wizard? You can return to it anytime from the dashboard.')) {
+            window.location.href = '/dashboard';
+        }
+    }
+
+    // Initialize
+    updateStepDisplay();
+</script>
+{% endblock %}

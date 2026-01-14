@@ -172,93 +172,51 @@
         </div>
     </div>
 
-    <!-- Additional Information -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
-        <!-- Getting Started -->
-        <div class="card card-elevated">
-            <div class="card-header">
-                <h3 class="card-title">Getting Started</h3>
-            </div>
-            <div class="card-body">
-                <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-                    <div style="display: flex; gap: var(--space-3);">
-                        <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">1</div>
-                        <div>
-                            <h5 style="margin-bottom: var(--space-1);">Add Faculty</h5>
-                            <p class="text-sm text-secondary">Import or manually add faculty members to the system</p>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: var(--space-3);">
-                        <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">2</div>
-                        <div>
-                            <h5 style="margin-bottom: var(--space-1);">Create Courses</h5>
-                            <p class="text-sm text-secondary">Set up courses with sections and assign faculty</p>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: var(--space-3);">
-                        <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">3</div>
-                        <div>
-                            <h5 style="margin-bottom: var(--space-1);">Setup Rooms</h5>
-                            <p class="text-sm text-secondary">Configure available classrooms and labs</p>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: var(--space-3);">
-                        <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">4</div>
-                        <div>
-                            <h5 style="margin-bottom: var(--space-1);">Schedule Classes</h5>
-                            <p class="text-sm text-secondary">Assign time slots and rooms to courses</p>
-                        </div>
+    <!-- Getting Started Guide -->
+    <div class="card card-elevated">
+        <div class="card-header">
+            <h3 class="card-title">Getting Started</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+                <div style="display: flex; gap: var(--space-3);">
+                    <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">1</div>
+                    <div>
+                        <h5 style="margin-bottom: var(--space-1);">Add Faculty</h5>
+                        <p class="text-sm text-secondary">Import or manually add faculty members to the system</p>
                     </div>
                 </div>
-            </div>
-            <div class="card-footer">
-                <button class="btn btn-secondary" onclick="window.location.href='/manage_users'">
-                    <i class="fas fa-rocket"></i>
-                    <span>Get Started</span>
-                </button>
+
+                <div style="display: flex; gap: var(--space-3);">
+                    <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">2</div>
+                    <div>
+                        <h5 style="margin-bottom: var(--space-1);">Create Courses</h5>
+                        <p class="text-sm text-secondary">Set up courses with sections and assign faculty</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: var(--space-3);">
+                    <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">3</div>
+                    <div>
+                        <h5 style="margin-bottom: var(--space-1);">Setup Rooms</h5>
+                        <p class="text-sm text-secondary">Configure available classrooms and labs</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: var(--space-3);">
+                    <div style="flex-shrink: 0; width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-500), var(--secondary-600)); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; color: white; font-weight: var(--weight-bold);">4</div>
+                    <div>
+                        <h5 style="margin-bottom: var(--space-1);">Schedule Classes</h5>
+                        <p class="text-sm text-secondary">Assign time slots and rooms to courses</p>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- Recent Updates -->
-        <div class="card card-elevated">
-            <div class="card-header">
-                <h3 class="card-title">System Status</h3>
-            </div>
-            <div class="card-body">
-                <div style="display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); background-color: var(--success-100); border-radius: var(--radius-lg); margin-bottom: var(--space-4);">
-                    <div style="font-size: var(--text-2xl); color: var(--success-600);">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div>
-                        <p style="font-weight: var(--weight-semibold); color: var(--success-700); margin-bottom: var(--space-1);">All Systems Operational</p>
-                        <p class="text-sm" style="color: var(--success-600);">Everything is running smoothly</p>
-                    </div>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: var(--space-3);">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span class="text-sm">Database</span>
-                        <span class="text-sm font-semibold text-success">Connected</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span class="text-sm">Email Service</span>
-                        <span class="text-sm font-semibold text-success">Active</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span class="text-sm">Last Backup</span>
-                        <span class="text-sm text-secondary">Never</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card-footer">
-                <button class="btn btn-ghost btn-sm" onclick="window.location.href='/admin'">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </button>
-            </div>
+        <div class="card-footer">
+            <button class="btn btn-secondary" onclick="window.location.href='/getting_started'">
+                <i class="fas fa-rocket"></i>
+                <span>Get Started</span>
+            </button>
         </div>
     </div>
 

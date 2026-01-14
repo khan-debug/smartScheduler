@@ -433,6 +433,8 @@ class TimetableScheduler:
                 parent2 = random.choice(fitness_scores[:50])[0]
 
                 child = self.crossover(parent1, parent2)
+
+            
                 child = self.mutate(child)
 
                 new_population.append(child)
@@ -679,6 +681,12 @@ def dashboard():
     course_count = courses_collection.count_documents({})
     room_count = rooms_collection.count_documents({})
     return render_template("pages/dashboard_v2.html", active_page="dashboard", teacher_count=teacher_count, course_count=course_count, room_count=room_count)
+
+@app.route("/getting_started")
+@login_required
+def getting_started():
+    """Interactive wizard to guide users through the setup process"""
+    return render_template("pages/getting_started.html", active_page="dashboard")
 
 # Route for Generate Timetable
 @app.route("/generate")
