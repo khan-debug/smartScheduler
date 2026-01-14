@@ -189,13 +189,13 @@ class TimetableScheduler:
             # Get valid time slots for this course
             time_slots = get_time_slots_for_course(course)
 
-            # Bias room selection towards first few rooms (80% chance to pick from first 2 rooms if available)
-            if len(valid_rooms_sorted) >= 2 and random.random() < 0.8:
-                selected_room = random.choice(valid_rooms_sorted[:2])
-            elif len(valid_rooms_sorted) == 1:
+            # VERY STRONG BIAS: 95% chance to use the FIRST room only
+            # This maximizes room utilization - fill one room completely before using another
+            if len(valid_rooms_sorted) >= 1 and random.random() < 0.95:
+                # Always try to use the first room (lowest room number)
                 selected_room = valid_rooms_sorted[0]
             else:
-                # 20% chance to use any room (maintains some diversity for genetic algorithm)
+                # Only 5% chance to use any other room (minimal diversity for genetic algorithm)
                 selected_room = random.choice(valid_rooms_sorted)
 
             # Randomly assign day, time slot, and biased room selection
@@ -298,22 +298,24 @@ class TimetableScheduler:
             elif room_type == 'Lab':
                 labs_used.add(room_num)
 
-        # Heavy penalty for each additional room used (increased from 50 to 200)
-        # This strongly encourages using fewer rooms
-        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 200
-        labs_penalty = max(0, len(labs_used) - 1) * 200
+        # EXTREME penalty for each additional room used (increased from 200 to 500)
+        # This VERY strongly encourages using the absolute minimum number of rooms
+        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 500
+        labs_penalty = max(0, len(labs_used) - 1) * 500
         total_room_penalty = lecture_halls_penalty + labs_penalty
 
         score -= total_room_penalty
 
-        # Bonus for using minimal rooms
+        # Large bonus for using minimal rooms
         if len(lecture_halls_used) == 1 and len(labs_used) <= 1:
-            score += 100  # Reward for excellent room concentration
+            score += 300  # Large reward for excellent room concentration
+        elif len(lecture_halls_used) <= 1 or len(labs_used) <= 1:
+            score += 150  # Smaller reward if at least one type uses minimal rooms
 
-        # Reward balanced day distribution (reduced weight to prioritize room minimization)
+        # Reward balanced day distribution (very reduced weight to prioritize room minimization above all)
         avg_per_day = len(chromosome) / len(DAYS_OF_WEEK) if len(DAYS_OF_WEEK) > 0 else 0
         balance_penalty = sum(abs(count - avg_per_day) for count in day_counts.values())
-        score -= balance_penalty * 5  # Reduced from 10 to 5
+        score -= balance_penalty * 2  # Reduced from 5 to 2 - room minimization is top priority
 
         # Bonus for scheduling all courses
         if len(chromosome) == len(self.courses):
@@ -386,12 +388,12 @@ class TimetableScheduler:
                     valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
 
                 if valid_rooms:
-                    # Apply same room concentration bias during mutation
+                    # Apply VERY STRONG room concentration bias during mutation (same as creation)
                     valid_rooms_sorted = sorted(valid_rooms, key=lambda r: r.get('room_number', 999))
 
-                    # 70% chance to prefer first 2 rooms during mutation
-                    if len(valid_rooms_sorted) >= 2 and random.random() < 0.7:
-                        gene['room'] = random.choice(valid_rooms_sorted[:2])
+                    # 95% chance to use FIRST room only during mutation
+                    if len(valid_rooms_sorted) >= 1 and random.random() < 0.95:
+                        gene['room'] = valid_rooms_sorted[0]
                     else:
                         gene['room'] = random.choice(valid_rooms_sorted)
 
