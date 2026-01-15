@@ -140,26 +140,29 @@
 <script>
     const scheduledClasses = {{ scheduled_classes | tojson }};
     const days = {{ days | tojson }};
+    const rooms = {{ rooms | tojson }};
 
-    // All time slots (lectures + labs combined and sorted)
-    const allTimeSlots = [
-        '8:30 AM - 9:20 AM',
-        '9:30 AM - 10:20 AM',
-        '8:30 AM - 11:20 AM',  // Lecture
-        '10:30 AM - 11:20 AM',
-        '11:30 AM - 12:20 PM',
-        '11:30 AM - 2:20 PM',  // Lecture
-        '12:30 PM - 1:20 PM',
-        '1:30 PM - 2:20 PM',
-        '2:30 PM - 3:20 PM',
-        '2:30 PM - 5:20 PM',   // Lecture
-        '3:30 PM - 4:20 PM',
-        '5:00 PM - 5:50 PM',
-        '5:00 PM - 7:50 PM',   // Lecture (evening)
-        '6:00 PM - 6:50 PM',
-        '7:00 PM - 7:50 PM',
-        '8:00 PM - 8:50 PM',
-        '9:00 PM - 9:50 PM'
+    // Lab time slots only (60 min each with 10 min breaks)
+    const labTimeSlots = [
+        '8:30 AM - 9:30 AM',
+        '9:40 AM - 10:40 AM',
+        '10:50 AM - 11:50 AM',
+        '12:00 PM - 1:00 PM',
+        '1:10 PM - 2:10 PM',
+        '2:20 PM - 3:20 PM',
+        '3:30 PM - 4:30 PM',
+        '5:00 PM - 6:00 PM',
+        '6:10 PM - 7:10 PM',
+        '7:20 PM - 8:20 PM',
+        '8:30 PM - 9:30 PM'
+    ];
+
+    // Lecture time slots only (3 hours each)
+    const lectureTimeSlots = [
+        '8:30 AM - 11:20 AM',
+        '11:30 AM - 2:20 PM',
+        '2:30 PM - 5:20 PM',
+        '5:00 PM - 7:50 PM'
     ];
 
     function displayTimetable() {
@@ -176,12 +179,19 @@
             return;
         }
 
+        // Find the room type
+        const selectedRoom = rooms.find(r => parseInt(r.room_number) === roomNumber);
+        const roomType = selectedRoom ? selectedRoom.type : '';
+
+        // Determine which time slots to show based on room type
+        const timeSlots = roomType === 'Lab' ? labTimeSlots : lectureTimeSlots;
+
         // Filter classes for selected room (handle both string and int)
         const roomClasses = scheduledClasses.filter(c =>
             parseInt(c.room_number) === roomNumber || c.room_number === roomNumber.toString()
         );
 
-        console.log('Selected room:', roomNumber);
+        console.log('Selected room:', roomNumber, 'Type:', roomType);
         console.log('All scheduled classes:', scheduledClasses);
         console.log('Filtered room classes:', roomClasses);
 
@@ -210,8 +220,8 @@
         });
         html += '</tr></thead><tbody>';
 
-        // Time slot rows
-        allTimeSlots.forEach(timeSlot => {
+        // Time slot rows (using room-specific time slots)
+        timeSlots.forEach(timeSlot => {
             html += `<tr><td class="time-column">${timeSlot}</td>`;
 
             days.forEach(day => {
@@ -227,14 +237,8 @@
                 });
 
                 if (classInSlot) {
-                    const isLab = timeSlot.includes('9:20') || timeSlot.includes('10:20') ||
-                                  timeSlot.includes('11:20') && !timeSlot.startsWith('8:30') ||
-                                  timeSlot.includes('12:20') || timeSlot.includes('1:20') ||
-                                  timeSlot.includes('2:20') && !timeSlot.startsWith('11:30') ||
-                                  timeSlot.includes('3:20') || timeSlot.includes('4:20') ||
-                                  timeSlot.includes('5:50') || timeSlot.includes('6:50') ||
-                                  timeSlot.includes('7:50') && !timeSlot.startsWith('5:00') ||
-                                  timeSlot.includes('8:50') || timeSlot.includes('9:50');
+                    // Use room type to determine card styling
+                    const isLab = roomType === 'Lab';
 
                     html += `<td><div class="class-card ${isLab ? 'lab' : ''}">`;
                     html += `<div class="class-code">${classInSlot.course_code}</div>`;

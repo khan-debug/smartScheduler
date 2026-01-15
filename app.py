@@ -119,13 +119,13 @@ TIME_SLOTS = {
     },
     'lab': {
         'morning': [
-            ('8:30 AM', '9:20 AM'), ('9:30 AM', '10:20 AM'), ('10:30 AM', '11:20 AM'),
-            ('11:30 AM', '12:20 PM'), ('12:30 PM', '1:20 PM'), ('1:30 PM', '2:20 PM'),
-            ('2:30 PM', '3:20 PM'), ('3:30 PM', '4:20 PM')
+            ('8:30 AM', '9:30 AM'), ('9:40 AM', '10:40 AM'), ('10:50 AM', '11:50 AM'),
+            ('12:00 PM', '1:00 PM'), ('1:10 PM', '2:10 PM'), ('2:20 PM', '3:20 PM'),
+            ('3:30 PM', '4:30 PM')
         ],
         'evening': [
-            ('5:00 PM', '5:50 PM'), ('6:00 PM', '6:50 PM'), ('7:00 PM', '7:50 PM'),
-            ('8:00 PM', '8:50 PM'), ('9:00 PM', '9:50 PM')
+            ('5:00 PM', '6:00 PM'), ('6:10 PM', '7:10 PM'), ('7:20 PM', '8:20 PM'),
+            ('8:30 PM', '9:30 PM')
         ]
     }
 }
@@ -163,60 +163,173 @@ class TimetableScheduler:
         self.existing_schedules = []  # Will be set externally if needed
 
     def create_chromosome(self):
-        """Create a random schedule (chromosome)"""
+        """Create a random schedule (chromosome) with SMART sequential room filling"""
         schedule = []
-        for course in self.courses:
-            # Get credit hours and course type
-            credit_hour = course.get('credit_hour', '3')
-            course_type = course.get('course_type', 'Lecture')
+        skipped_courses = []
 
-            # ENFORCE RULE: 3ch must be in Lecture Hall, 1ch must be in Lab
-            if credit_hour == '3' or credit_hour == 3:
-                valid_rooms = [r for r in self.rooms if r.get('type') == 'Lecture Hall']
-            elif credit_hour == '1' or credit_hour == 1:
-                valid_rooms = [r for r in self.rooms if r.get('type') == 'Lab']
-            else:
-                # Fallback to old logic for any other credit hours
-                valid_rooms = [r for r in self.rooms if r.get('type') == ('Lab' if course_type == 'Lab' else 'Lecture Hall')]
+        # Track room usage: {room_number: [(day, time_slot), ...]}
+        lab_usage = {}
+        lecture_hall_usage = {}
 
-            if not valid_rooms:
+        # Separate courses by type for sequential processing
+        lab_courses = [c for c in self.courses if c.get('credit_hour') in ['1', 1]]
+        lecture_courses = [c for c in self.courses if c.get('credit_hour') in ['3', 3]]
+
+        # Get available rooms
+        labs = sorted([r for r in self.rooms if r.get('type') == 'Lab'],
+                     key=lambda r: r.get('room_number', 999))
+        lecture_halls = sorted([r for r in self.rooms if r.get('type') == 'Lecture Hall'],
+                              key=lambda r: r.get('room_number', 999))
+
+        # Initialize usage tracking
+        for lab in labs:
+            lab_usage[lab['room_number']] = []
+        for hall in lecture_halls:
+            lecture_hall_usage[hall['room_number']] = []
+
+        # PROCESS LABS FIRST (fill labs sequentially)
+        # Use SMART room-first filling: Fill Lab 1 completely before Lab 2
+        for course in lab_courses:
+            time_slots = get_time_slots_for_course(course)
+            if not time_slots:
+                skipped_courses.append(f"{course.get('course_name')} (no time slots)")
                 continue
 
-            # Sort rooms by room number to prefer lower-numbered rooms
-            # This helps concentrate classes in fewer rooms
-            valid_rooms_sorted = sorted(valid_rooms, key=lambda r: r.get('room_number', 999))
+            if not labs:
+                skipped_courses.append(f"{course.get('course_name')} (no lab rooms available)")
+                continue
 
-            # Get valid time slots for this course
+            # Try to find a spot in existing labs (fill current labs completely first)
+            # Strategy: For each lab, try to fill days completely before moving to next day
+            placed = False
+            for lab in labs:
+                room_num = lab['room_number']
+
+                # For this lab, find which day has the most courses already
+                # (to fill that day completely before starting a new day)
+                day_usage_count = {}
+                for day in DAYS_OF_WEEK:
+                    count = sum(1 for (d, t) in lab_usage[room_num] if d == day)
+                    day_usage_count[day] = count
+
+                # Sort days: prioritize days that already have courses (fill those first)
+                # Then try empty days
+                days_sorted = sorted(DAYS_OF_WEEK, key=lambda d: day_usage_count.get(d, 0), reverse=True)
+
+                # Try to find an unused (day, time) slot in this lab
+                for day in days_sorted:
+                    for time_slot in time_slots:
+                        slot_key = (day, time_slot)
+                        if slot_key not in lab_usage[room_num]:
+                            # Found an empty slot! Use it
+                            lab_usage[room_num].append(slot_key)
+                            gene = {
+                                'course_id': str(course['_id']),
+                                'course_code': course.get('section_code', ''),
+                                'course_name': course.get('course_name', ''),
+                                'teacher_name': course.get('teacher_name', ''),
+                                'shift': course.get('shift', ''),
+                                'section_code': course.get('section_code', ''),
+                                'day': day,
+                                'time_slot': time_slot,
+                                'room': lab
+                            }
+                            schedule.append(gene)
+                            placed = True
+                            break
+                    if placed:
+                        break
+                if placed:
+                    break
+
+            # If couldn't place (all slots full), fall back to random
+            if not placed:
+                gene = {
+                    'course_id': str(course['_id']),
+                    'course_code': course.get('section_code', ''),
+                    'course_name': course.get('course_name', ''),
+                    'teacher_name': course.get('teacher_name', ''),
+                    'shift': course.get('shift', ''),
+                    'section_code': course.get('section_code', ''),
+                    'day': random.choice(DAYS_OF_WEEK),
+                    'time_slot': random.choice(time_slots),
+                    'room': random.choice(labs)
+                }
+                schedule.append(gene)
+
+        # PROCESS LECTURE HALLS (keep simple - don't change, focus is on labs)
+        for course in lecture_courses:
             time_slots = get_time_slots_for_course(course)
+            if not time_slots:
+                skipped_courses.append(f"{course.get('course_name')} (no time slots)")
+                continue
 
-            # VERY STRONG BIAS: 95% chance to use the FIRST room only
-            # This maximizes room utilization - fill one room completely before using another
-            if len(valid_rooms_sorted) >= 1 and random.random() < 0.95:
-                # Always try to use the first room (lowest room number)
-                selected_room = valid_rooms_sorted[0]
-            else:
-                # Only 5% chance to use any other room (minimal diversity for genetic algorithm)
-                selected_room = random.choice(valid_rooms_sorted)
+            if not lecture_halls:
+                skipped_courses.append(f"{course.get('course_name')} (no lecture halls available)")
+                continue
 
-            # Randomly assign day, time slot, and biased room selection
-            gene = {
-                'course_id': str(course['_id']),
-                'course_code': course.get('section_code', ''),  # Use section_code as course identifier
-                'course_name': course.get('course_name', ''),
-                'teacher_name': course.get('teacher_name', ''),
-                'shift': course.get('shift', ''),
-                'section_code': course.get('section_code', ''),
-                'day': random.choice(DAYS_OF_WEEK),
-                'time_slot': random.choice(time_slots),
-                'room': selected_room
-            }
-            schedule.append(gene)
+            # Try to find a spot in existing halls first
+            placed = False
+            for hall in lecture_halls:
+                room_num = hall['room_number']
+
+                for day in DAYS_OF_WEEK:
+                    for time_slot in time_slots:
+                        slot_key = (day, time_slot)
+                        if slot_key not in lecture_hall_usage[room_num]:
+                            # Found an empty slot!
+                            lecture_hall_usage[room_num].append(slot_key)
+                            gene = {
+                                'course_id': str(course['_id']),
+                                'course_code': course.get('section_code', ''),
+                                'course_name': course.get('course_name', ''),
+                                'teacher_name': course.get('teacher_name', ''),
+                                'shift': course.get('shift', ''),
+                                'section_code': course.get('section_code', ''),
+                                'day': day,
+                                'time_slot': time_slot,
+                                'room': hall
+                            }
+                            schedule.append(gene)
+                            placed = True
+                            break
+                    if placed:
+                        break
+                if placed:
+                    break
+
+            # Fall back to random if couldn't place
+            if not placed:
+                gene = {
+                    'course_id': str(course['_id']),
+                    'course_code': course.get('section_code', ''),
+                    'course_name': course.get('course_name', ''),
+                    'teacher_name': course.get('teacher_name', ''),
+                    'shift': course.get('shift', ''),
+                    'section_code': course.get('section_code', ''),
+                    'day': random.choice(DAYS_OF_WEEK),
+                    'time_slot': random.choice(time_slots),
+                    'room': random.choice(lecture_halls)
+                }
+                schedule.append(gene)
+
+        # Log skipped courses on first chromosome creation
+        if skipped_courses and not hasattr(self, '_logged_skipped'):
+            self._logged_skipped = True
+            print(f"\n⚠️  WARNING: {len(skipped_courses)} courses skipped during chromosome creation:")
+            for skip in skipped_courses[:10]:  # Show first 10
+                print(f"    - {skip}")
+            if len(skipped_courses) > 10:
+                print(f"    ... and {len(skipped_courses) - 10} more")
+            print()
 
         return schedule
 
     def calculate_fitness(self, chromosome):
         """Calculate fitness score for a schedule"""
-        score = 1000  # Start with base score
+        # Start with base score proportional to courses scheduled
+        # This ensures partial solutions have positive fitness
+        score = len(chromosome) * 100  # 100 points per course scheduled
 
         # Track conflicts
         teacher_schedule = {}  # {(teacher, day, time): count}
@@ -260,34 +373,34 @@ class TimetableScheduler:
                 credit_hour = course.get('credit_hour', '3')
                 # ENFORCE RULE: 3ch must be in Lecture Hall, 1ch must be in Lab
                 if (credit_hour == '3' or credit_hour == 3) and room_type != 'Lecture Hall':
-                    score -= 1000  # Severe penalty for wrong room type
+                    score -= 500  # High penalty but not fatal
                 elif (credit_hour == '1' or credit_hour == 1) and room_type != 'Lab':
-                    score -= 1000  # Severe penalty for wrong room type
+                    score -= 500  # High penalty but not fatal
 
             # Check teacher conflicts (HARD CONSTRAINT)
             teacher_key = (teacher, day, time_slot)
             teacher_schedule[teacher_key] = teacher_schedule.get(teacher_key, 0) + 1
             if teacher_schedule[teacher_key] > 1:
-                score -= 1000  # Severe penalty
+                score -= 50  # Moderate penalty - allow evolution
 
             # Check room conflicts (HARD CONSTRAINT)
             room_key = (room, day, time_slot)
             room_schedule[room_key] = room_schedule.get(room_key, 0) + 1
             if room_schedule[room_key] > 1:
-                score -= 1000  # Severe penalty
+                score -= 50  # Moderate penalty - allow evolution
 
-            # Check shift consistency (HARD CONSTRAINT)
+            # Check shift consistency (SOFT CONSTRAINT)
             start_time = time_slot[0]
             is_morning_slot = 'AM' in start_time and not start_time.startswith('5:')
             is_morning_course = shift == 'Morning' or section_code.startswith('MOR')
 
             if (is_morning_slot and not is_morning_course) or (not is_morning_slot and is_morning_course):
-                score -= 800  # Wrong shift
+                score -= 30  # Small penalty (reduced from 100)
 
-        # STRONG PENALTY for using more rooms - encourage MINIMAL room utilization
-        # Separate penalty for Lecture Halls and Labs to minimize both
+        # STRONG INCENTIVE for room concentration - fill rooms completely before using more
         lecture_halls_used = set()
         labs_used = set()
+        room_course_counts = {}  # Track courses per room
 
         for g in chromosome:
             room_num = g['room']['room_number']
@@ -298,19 +411,37 @@ class TimetableScheduler:
             elif room_type == 'Lab':
                 labs_used.add(room_num)
 
-        # EXTREME penalty for each additional room used (increased from 200 to 500)
-        # This VERY strongly encourages using the absolute minimum number of rooms
-        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 500
-        labs_penalty = max(0, len(labs_used) - 1) * 500
+            # Count courses per room
+            room_course_counts[room_num] = room_course_counts.get(room_num, 0) + 1
+
+        # PENALTY for using more rooms - but allow necessary rooms
+        # Penalty increases with each additional room to encourage concentration
+        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 50
+        labs_penalty = max(0, len(labs_used) - 1) * 50
         total_room_penalty = lecture_halls_penalty + labs_penalty
 
         score -= total_room_penalty
 
-        # Large bonus for using minimal rooms
-        if len(lecture_halls_used) == 1 and len(labs_used) <= 1:
-            score += 300  # Large reward for excellent room concentration
-        elif len(lecture_halls_used) <= 1 or len(labs_used) <= 1:
-            score += 150  # Smaller reward if at least one type uses minimal rooms
+        # MASSIVE BONUS for minimizing room count (prioritize this above all)
+        total_rooms_used = len(lecture_halls_used) + len(labs_used)
+
+        if total_rooms_used == 1:
+            score += 1000  # HUGE reward for using only 1 room total
+        elif total_rooms_used == 2:
+            score += 600   # Great reward for using only 2 rooms
+        elif total_rooms_used == 3:
+            score += 300   # Good reward for 3 rooms
+        elif total_rooms_used <= 4:
+            score += 150   # Decent reward for 4 rooms
+
+        # Additional bonus for balanced room filling (fill rooms evenly)
+        # Reward solutions where rooms have similar course counts
+        if len(room_course_counts) > 0:
+            avg_courses_per_room = sum(room_course_counts.values()) / len(room_course_counts)
+            # Reward if rooms are well-filled (close to average)
+            variance = sum(abs(count - avg_courses_per_room) for count in room_course_counts.values())
+            if variance < len(room_course_counts):  # Low variance = balanced
+                score += 100
 
         # Reward balanced day distribution (very reduced weight to prioritize room minimization above all)
         avg_per_day = len(chromosome) / len(DAYS_OF_WEEK) if len(DAYS_OF_WEEK) > 0 else 0
@@ -402,28 +533,65 @@ class TimetableScheduler:
     def evolve(self):
         """Run the genetic algorithm"""
         # Initialize population
+        print(f"Creating initial population of {self.population_size} chromosomes...")
         population = [self.create_chromosome() for _ in range(self.population_size)]
+
+        # Debug: Check first chromosome
+        if population and len(population) > 0:
+            print(f"First chromosome has {len(population[0])} genes (courses scheduled)")
+            if len(population[0]) == 0:
+                print("❌ ERROR: Chromosomes are empty! No courses being added to schedule.")
+                return None, 0
+            elif len(population[0]) < len(self.courses):
+                print(f"⚠️  WARNING: Only {len(population[0])}/{len(self.courses)} courses in chromosome")
 
         best_fitness = 0
         best_schedule = None
+        generations_without_improvement = 0
+        max_stagnant_generations = 100  # Early termination if no improvement
 
         for generation in range(self.generations):
             # Evaluate fitness
             fitness_scores = [(chromo, self.calculate_fitness(chromo)) for chromo in population]
             fitness_scores.sort(key=lambda x: x[1], reverse=True)
 
-            # Track best
-            if fitness_scores[0][1] > best_fitness:
-                best_fitness = fitness_scores[0][1]
-                best_schedule = copy.deepcopy(fitness_scores[0][0])
-                print(f"Generation {generation}: Best fitness = {best_fitness}")
+            # Debug first generation
+            if generation == 0:
+                print(f"\nFirst generation fitness scores:")
+                print(f"  Best: {fitness_scores[0][1]}")
+                print(f"  Worst: {fitness_scores[-1][1]}")
+                print(f"  Average: {sum(f for _, f in fitness_scores) / len(fitness_scores):.1f}")
+                if fitness_scores[0][1] <= 0:
+                    print(f"  ❌ All fitness scores are ≤ 0! Severe penalties detected.")
+                print()
 
-            # Check for perfect solution
-            if best_fitness >= 1000 + 500:  # Base score + all courses scheduled
-                print(f"Perfect solution found at generation {generation}!")
+            # Track best
+            current_best_fitness = fitness_scores[0][1]
+            if current_best_fitness > best_fitness:
+                best_fitness = current_best_fitness
+                best_schedule = copy.deepcopy(fitness_scores[0][0])
+                generations_without_improvement = 0
+                print(f"Generation {generation}: Best fitness = {best_fitness}")
+            else:
+                generations_without_improvement += 1
+
+            # Check for perfect solution (no conflicts)
+            # Perfect = all courses scheduled with no penalties
+            # With new scoring: len(courses) * 100 - small penalties
+            expected_perfect_score = len(self.courses) * 100
+            if best_fitness >= expected_perfect_score * 0.95:  # Allow small penalties
+                print(f"✓ Near-perfect solution found at generation {generation}!")
                 break
 
+            # Early termination if stuck
+            if generations_without_improvement >= max_stagnant_generations:
+                print(f"Early termination at generation {generation}: No improvement for {max_stagnant_generations} generations")
+                break
 
+            # If fitness is very low relative to courses, likely impossible
+            if generation > 50 and best_fitness < len(self.courses) * 20:
+                print(f"Early termination at generation {generation}: Fitness too low ({best_fitness}), likely impossible scenario")
+                break
 
             # Selection: Keep elite
             new_population = [chromo for chromo, _ in fitness_scores[:self.elite_size]]
@@ -436,7 +604,7 @@ class TimetableScheduler:
 
                 child = self.crossover(parent1, parent2)
 
-            
+
                 child = self.mutate(child)
 
                 new_population.append(child)
@@ -907,11 +1075,42 @@ def autogenerate_autopick():
     print(f"  1ch Labs (Evening): {len(unscheduled_labs_evening)}")
     print()
 
-    # Calculate shift-specific capacity
-    morning_lecture_capacity = lecture_halls * 3 * DAYS_PER_WEEK
-    evening_lecture_capacity = lecture_halls * 1 * DAYS_PER_WEEK
-    morning_lab_capacity = labs * 8 * DAYS_PER_WEEK
-    evening_lab_capacity = labs * 5 * DAYS_PER_WEEK
+    # Calculate REALISTIC capacity based on ACTUAL constraints:
+    # 1. Each course scheduled ONCE per week (1 day × 1 time slot)
+    # 2. Teacher conflicts: A teacher with 3 courses needs 3 different (day,time) slots
+    # 3. Room conflicts: Multiple courses can't use same room at same time
+
+    # ACTUAL time slots defined in TIME_SLOTS:
+    morning_lecture_slots = 3  # 8:30-11:20, 11:30-2:20, 2:30-5:20
+    evening_lecture_slots = 1  # 5:00-7:50
+    morning_lab_slots = 8      # 8:30 AM - 4:20 PM (8 one-hour slots)
+    evening_lab_slots = 5      # 5:00 PM - 9:50 PM (5 one-hour slots)
+
+    # SAFE capacity: Each room handles 3-5 courses per week to avoid conflicts
+    # This leaves enough slack for the genetic algorithm to resolve teacher conflicts
+    courses_per_lecture_hall_per_week = 3
+    courses_per_lab_per_week = 5  # Labs have more time slots, less conflicts
+
+    # Split by shift (60% morning, 40% evening based on available time slots)
+    morning_lecture_capacity = int(lecture_halls * courses_per_lecture_hall_per_week * 0.6)
+    evening_lecture_capacity = int(lecture_halls * courses_per_lecture_hall_per_week * 0.4)
+    morning_lab_capacity = int(labs * courses_per_lab_per_week * 0.6)
+    evening_lab_capacity = int(labs * courses_per_lab_per_week * 0.4)
+
+    # Ensure at least 1 course per category if rooms exist
+    if lecture_halls > 0:
+        morning_lecture_capacity = max(morning_lecture_capacity, 1)
+        evening_lecture_capacity = max(evening_lecture_capacity, 1)
+    if labs > 0:
+        morning_lab_capacity = max(morning_lab_capacity, 1)
+        evening_lab_capacity = max(evening_lab_capacity, 1)
+
+    print(f"Calculated REALISTIC capacity (accounting for teacher conflicts):")
+    print(f"  Morning Lectures: {morning_lecture_capacity} ({lecture_halls} halls × {courses_per_lecture_hall_per_week} courses/week × 60%)")
+    print(f"  Evening Lectures: {evening_lecture_capacity} ({lecture_halls} halls × {courses_per_lecture_hall_per_week} courses/week × 40%)")
+    print(f"  Morning Labs: {morning_lab_capacity} ({labs} labs × {courses_per_lab_per_week} courses/week × 60%)")
+    print(f"  Evening Labs: {evening_lab_capacity} ({labs} labs × {courses_per_lab_per_week} courses/week × 40%)")
+    print()
 
     # Randomly shuffle the lists to ensure fairness in selection up to capacity
     random.shuffle(unscheduled_lectures_morning)
@@ -925,12 +1124,41 @@ def autogenerate_autopick():
     selected_labs_morning = unscheduled_labs_morning[:morning_lab_capacity]
     selected_labs_evening = unscheduled_labs_evening[:evening_lab_capacity]
 
+    print(f"Selected courses for scheduling:")
+    print(f"  Morning Lectures: {len(selected_lectures_morning)}/{len(unscheduled_lectures_morning)} available")
+    print(f"  Evening Lectures: {len(selected_lectures_evening)}/{len(unscheduled_lectures_evening)} available")
+    print(f"  Morning Labs: {len(selected_labs_morning)}/{len(unscheduled_labs_morning)} available")
+    print(f"  Evening Labs: {len(selected_labs_evening)}/{len(unscheduled_labs_evening)} available")
+    print(f"  TOTAL SELECTED: {len(selected_lectures_morning) + len(selected_lectures_evening) + len(selected_labs_morning) + len(selected_labs_evening)}")
+    print()
+
     selected_schedulable_units = (selected_lectures_morning + selected_lectures_evening +
                                   selected_labs_morning + selected_labs_evening)
+
+    # Calculate total available courses that were not selected
+    total_available = len(unscheduled_lectures_morning) + len(unscheduled_lectures_evening) + len(unscheduled_labs_morning) + len(unscheduled_labs_evening)
+    total_selected = len(selected_schedulable_units)
+
+    if total_selected < total_available:
+        courses_not_selected = total_available - total_selected
+        print(f"⚠️  NOTE: {courses_not_selected} courses were NOT selected due to capacity limits on Floor {floor_number}")
+        print(f"   To schedule more courses, either:")
+        print(f"   1. Add more rooms to Floor {floor_number}, OR")
+        print(f"   2. Use autopick on another floor for remaining courses")
+        print()
 
     # Store selected sections (course_id, section_code) in session for the next step
     session['autopicked_sections'] = [(str(unit['_id']), unit['section_code']) for unit in selected_schedulable_units]
     session['autogenerate_floor'] = floor_number
+
+    # Store capacity info for display on confirmation page
+    session['autopick_info'] = {
+        'total_available': total_available,
+        'total_selected': total_selected,
+        'floor_number': floor_number,
+        'lecture_halls': lecture_halls,
+        'labs': labs
+    }
 
     # Redirect to confirmation/scheduling page
     return redirect(url_for('autogenerate_confirm_autopick', floor=floor_number))
@@ -1201,6 +1429,49 @@ def execute_autogenerate_scheduling():
         print(f"Courses to schedule: {len(selected_schedulable_units)}")
         print(f"Available rooms: {len(floor_rooms)}")
 
+        # PRE-VALIDATION: Check room capacity and course requirements
+        lecture_courses = [c for c in selected_schedulable_units if c.get('credit_hour') in ['3', 3]]
+        lab_courses = [c for c in selected_schedulable_units if c.get('credit_hour') in ['1', 1]]
+
+        lecture_halls = [r for r in floor_rooms if r.get('type') == 'Lecture Hall']
+        lab_rooms = [r for r in floor_rooms if r.get('type') == 'Lab']
+
+        print(f"  - Lecture courses (3 credit hours): {len(lecture_courses)}")
+        print(f"  - Lab courses (1 credit hour): {len(lab_courses)}")
+        print(f"  - Lecture Hall rooms: {len(lecture_halls)}")
+        print(f"  - Lab rooms: {len(lab_rooms)}")
+
+        # Calculate theoretical capacity
+        lecture_slots_per_day = int(HOURS_PER_DAY / LECTURE_DURATION_HOURS)
+        lab_slots_per_day = int(HOURS_PER_DAY / LAB_DURATION_HOURS)
+
+        lecture_capacity = len(lecture_halls) * lecture_slots_per_day * DAYS_PER_WEEK
+        lab_capacity = len(lab_rooms) * lab_slots_per_day * DAYS_PER_WEEK
+
+        print(f"  - Lecture capacity: {lecture_capacity} slots/week ({len(lecture_halls)} halls × {lecture_slots_per_day} slots × {DAYS_PER_WEEK} days)")
+        print(f"  - Lab capacity: {lab_capacity} slots/week ({len(lab_rooms)} labs × {lab_slots_per_day} slots × {DAYS_PER_WEEK} days)")
+
+        # Check for impossible scheduling scenarios
+        validation_errors = []
+
+        if len(lecture_courses) > 0 and len(lecture_halls) == 0:
+            validation_errors.append(f"Cannot schedule {len(lecture_courses)} lecture course(s): No Lecture Hall rooms available on Floor {floor_number}")
+
+        if len(lab_courses) > 0 and len(lab_rooms) == 0:
+            validation_errors.append(f"Cannot schedule {len(lab_courses)} lab course(s): No Lab rooms available on Floor {floor_number}")
+
+        if len(lecture_courses) > lecture_capacity:
+            validation_errors.append(f"Insufficient capacity: {len(lecture_courses)} lecture courses need {lecture_capacity} available slots")
+
+        if len(lab_courses) > lab_capacity:
+            validation_errors.append(f"Insufficient capacity: {len(lab_courses)} lab courses need {lab_capacity} available slots")
+
+        if validation_errors:
+            error_message = "Scheduling validation failed:\n" + "\n".join(f"  • {err}" for err in validation_errors)
+            error_message += f"\n\nSuggestion: Either add more rooms to Floor {floor_number} or reduce the number of courses to schedule."
+            print(f"\n❌ {error_message}")
+            return jsonify({'success': False, 'error': error_message}), 400
+
         # Check if we need to preserve existing schedules
         autogenerate_mode = session.get('autogenerate_mode', 'replace')
         if autogenerate_mode == 'add':
@@ -1221,6 +1492,14 @@ def execute_autogenerate_scheduling():
                 scheduler.existing_schedules = existing_schedules
 
             best_schedule, fitness_score = scheduler.evolve()
+
+            # Check if scheduling failed (returned None)
+            if best_schedule is None:
+                error_msg = f"Genetic algorithm failed to generate a valid schedule. Final fitness: {fitness_score}. "
+                error_msg += f"This usually means there are too many courses ({len(selected_schedulable_units)}) for the available rooms ({len(floor_rooms)}) on Floor {floor_number}."
+                print(f"\n❌ {error_msg}")
+                return jsonify({'success': False, 'error': error_msg}), 500
+
         except Exception as ga_error:
             print(f"ERROR in genetic algorithm: {str(ga_error)}")
             import traceback
@@ -1476,6 +1755,10 @@ def get_floors_with_capacity():
                 'start_time': SCHEDULE_START_TIME,
                 'end_time': SCHEDULE_END_TIME
             }
+
+        
+        
+
         })
     except Exception as e:
         print(f"Error getting floors with capacity: {str(e)}")
