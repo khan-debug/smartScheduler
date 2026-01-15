@@ -94,7 +94,9 @@ def extract_floor_number_from_room(room_number):
 def calculate_floor_capacity(lecture_halls, labs):
     """Calculate weekly class capacity for a floor based on room counts"""
     lectures_per_day = int(HOURS_PER_DAY / LECTURE_DURATION_HOURS)
-    labs_per_day = int(HOURS_PER_DAY / LAB_DURATION_HOURS)
+
+    # Labs: 11 slots per day (7 morning + 4 evening) with 60-min slots and 10-min breaks
+    labs_per_day = 11
 
     lecture_capacity = lecture_halls * lectures_per_day * DAYS_PER_WEEK
     lab_capacity = labs * labs_per_day * DAYS_PER_WEEK
@@ -415,24 +417,24 @@ class TimetableScheduler:
             room_course_counts[room_num] = room_course_counts.get(room_num, 0) + 1
 
         # PENALTY for using more rooms - but allow necessary rooms
-        # Penalty increases with each additional room to encourage concentration
-        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 50
-        labs_penalty = max(0, len(labs_used) - 1) * 50
+        # Small penalty for using additional rooms (encourage filling rooms but not aggressively)
+        lecture_halls_penalty = max(0, len(lecture_halls_used) - 1) * 5
+        labs_penalty = max(0, len(labs_used) - 1) * 5
         total_room_penalty = lecture_halls_penalty + labs_penalty
 
         score -= total_room_penalty
 
-        # MASSIVE BONUS for minimizing room count (prioritize this above all)
+        # Small bonus for using fewer rooms (but prioritize day filling over room minimization)
         total_rooms_used = len(lecture_halls_used) + len(labs_used)
 
         if total_rooms_used == 1:
-            score += 1000  # HUGE reward for using only 1 room total
+            score += 50  # Small reward for using only 1 room total
         elif total_rooms_used == 2:
-            score += 600   # Great reward for using only 2 rooms
+            score += 30   # Small reward for using only 2 rooms
         elif total_rooms_used == 3:
-            score += 300   # Good reward for 3 rooms
+            score += 15   # Small reward for 3 rooms
         elif total_rooms_used <= 4:
-            score += 150   # Decent reward for 4 rooms
+            score += 5   # Tiny reward for 4 rooms
 
         # Additional bonus for balanced room filling (fill rooms evenly)
         # Reward solutions where rooms have similar course counts
@@ -1083,13 +1085,13 @@ def autogenerate_autopick():
     # ACTUAL time slots defined in TIME_SLOTS:
     morning_lecture_slots = 3  # 8:30-11:20, 11:30-2:20, 2:30-5:20
     evening_lecture_slots = 1  # 5:00-7:50
-    morning_lab_slots = 8      # 8:30 AM - 4:20 PM (8 one-hour slots)
-    evening_lab_slots = 5      # 5:00 PM - 9:50 PM (5 one-hour slots)
+    morning_lab_slots = 7      # 8:30 AM - 4:30 PM (7 sixty-minute slots with 10-min breaks)
+    evening_lab_slots = 4      # 5:00 PM - 9:30 PM (4 sixty-minute slots with 10-min breaks)
 
-    # SAFE capacity: Each room handles 3-5 courses per week to avoid conflicts
-    # This leaves enough slack for the genetic algorithm to resolve teacher conflicts
-    courses_per_lecture_hall_per_week = 3
-    courses_per_lab_per_week = 5  # Labs have more time slots, less conflicts
+    # MAXIMUM capacity: Fill rooms to near-capacity
+    # This maximizes room utilization - genetic algorithm will handle conflicts
+    courses_per_lecture_hall_per_week = 20  # Lecture Halls: 4 slots/day × 6 days = 24 slots/week, use ~83% (20 courses)
+    courses_per_lab_per_week = 60  # Labs: 11 slots/day × 6 days = 66 slots/week, use ~90% (60 courses)
 
     # Split by shift (60% morning, 40% evening based on available time slots)
     morning_lecture_capacity = int(lecture_halls * courses_per_lecture_hall_per_week * 0.6)
@@ -1260,8 +1262,9 @@ def autogenerate_pick_courses():
     lecture_capacity_per_room_per_week = 4 * days_per_week  # 24 classes/week
     total_lecture_capacity = len(lecture_halls) * lecture_capacity_per_room_per_week
 
-    # For labs: 1ch courses (each occupies 1-hour slot)
-    lab_capacity_per_room_per_week = 13 * days_per_week  # 78 classes/week
+    # For labs: 1ch courses (each occupies 60-min slot with 10-min break)
+    # 11 slots per day (7 morning + 4 evening)
+    lab_capacity_per_room_per_week = 11 * days_per_week  # 66 classes/week
     total_lab_capacity = len(labs) * lab_capacity_per_room_per_week
 
     # Count how many slots are already occupied
@@ -1443,7 +1446,7 @@ def execute_autogenerate_scheduling():
 
         # Calculate theoretical capacity
         lecture_slots_per_day = int(HOURS_PER_DAY / LECTURE_DURATION_HOURS)
-        lab_slots_per_day = int(HOURS_PER_DAY / LAB_DURATION_HOURS)
+        lab_slots_per_day = 11  # 7 morning + 4 evening (60-min slots with 10-min breaks)
 
         lecture_capacity = len(lecture_halls) * lecture_slots_per_day * DAYS_PER_WEEK
         lab_capacity = len(lab_rooms) * lab_slots_per_day * DAYS_PER_WEEK
