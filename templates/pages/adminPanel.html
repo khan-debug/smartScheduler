@@ -77,6 +77,17 @@
                 <p class="text-sm text-secondary">Update admin password</p>
             </div>
         </div>
+
+        <!-- Delete All Schedules -->
+        <div class="card card-interactive card-elevated" onclick="openDeleteSchedulesModal()" style="border: 2px solid var(--error-300);">
+            <div class="card-body" style="text-align: center; padding: var(--space-6);">
+                <div style="width: 56px; height: 56px; background: linear-gradient(135deg, var(--error-600) 0%, var(--error-700) 100%); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); color: white; font-size: var(--text-2xl);">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <h3 style="margin-bottom: var(--space-2);">Delete All Schedules</h3>
+                <p class="text-sm text-secondary">Clear all scheduled classes</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -330,9 +341,90 @@
             if (modal.style.display === 'block') {
                 closePasswordModal();
             }
+            const deleteModal = document.getElementById('deleteSchedulesModal');
+            if (deleteModal && deleteModal.style.display === 'block') {
+                closeDeleteSchedulesModal();
+            }
         }
     });
+
+    // Delete Schedules Modal Functions
+    function openDeleteSchedulesModal() {
+        document.getElementById('deleteSchedulesModal').style.display = 'block';
+    }
+
+    function closeDeleteSchedulesModal() {
+        document.getElementById('deleteSchedulesModal').style.display = 'none';
+    }
+
+    function confirmDeleteAllSchedules() {
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+
+        fetch('/delete_all_schedules', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Success: ${data.message}`);
+                closeDeleteSchedulesModal();
+                // Optionally reload the page
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.error || 'Failed to delete schedules'}`);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All';
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error);
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All';
+        });
+    }
 </script>
+
+<!-- Delete All Schedules Modal -->
+<div id="deleteSchedulesModal" style="display: none; position: fixed; z-index: var(--z-modal); left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); overflow: auto;">
+    <div style="background-color: var(--bg-elevated); margin: 10% auto; padding: 0; border: 1px solid var(--border-primary); border-radius: var(--radius-xl); width: 90%; max-width: 500px; box-shadow: var(--shadow-2xl);">
+        <!-- Modal Header -->
+        <div style="background: linear-gradient(135deg, var(--error-600) 0%, var(--error-700) 100%); padding: var(--space-6) var(--space-8); border-radius: var(--radius-xl) var(--radius-xl) 0 0; position: relative;">
+            <span onclick="closeDeleteSchedulesModal()" style="position: absolute; right: var(--space-6); top: var(--space-6); color: white; font-size: var(--text-2xl); font-weight: var(--weight-bold); cursor: pointer; opacity: 0.8; transition: opacity var(--transition-fast);" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">
+                &times;
+            </span>
+            <h2 style="margin: 0; color: white; font-size: var(--text-2xl);"><i class="fas fa-exclamation-triangle"></i> Delete All Schedules</h2>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding: var(--space-8);">
+            <p style="margin-bottom: var(--space-6); font-size: var(--text-lg);">
+                <strong>Warning:</strong> This will permanently delete all scheduled classes from the database.
+            </p>
+            <p style="margin-bottom: var(--space-6); color: var(--text-secondary);">
+                This action cannot be undone. Courses, rooms, and teachers will NOT be affected - only the schedule data will be cleared.
+            </p>
+            <p style="margin-bottom: var(--space-8); font-weight: var(--weight-semibold);">
+                Are you sure you want to continue?
+            </p>
+
+            <div style="display: flex; gap: var(--space-4); justify-content: flex-end;">
+                <button type="button" onclick="closeDeleteSchedulesModal()" style="padding: var(--space-3) var(--space-6); background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-base); transition: all var(--transition-fast);">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" id="confirmDeleteBtn" onclick="confirmDeleteAllSchedules()" style="padding: var(--space-3) var(--space-6); background: linear-gradient(135deg, var(--error-600) 0%, var(--error-700) 100%); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; font-size: var(--text-base); transition: all var(--transition-fast);">
+                    <i class="fas fa-trash-alt"></i> Delete All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
 
 <style>
     /* Responsive adjustments */

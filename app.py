@@ -2773,6 +2773,42 @@ def change_admin_password():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route("/delete_all_schedules", methods=["POST"])
+@login_required
+def delete_all_schedules():
+    """Delete all scheduled classes from the database"""
+    try:
+        # Check if user is admin
+        if session.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
+
+        # Count schedules before deletion
+        count_before = scheduled_classes_collection.count_documents({})
+
+        # Delete all scheduled classes
+        result = scheduled_classes_collection.delete_many({})
+        deleted_count = result.deleted_count
+
+        print(f"\n{'='*60}")
+        print(f"DELETE ALL SCHEDULES")
+        print(f"{'='*60}")
+        print(f"Schedules deleted: {deleted_count}")
+        print(f"Verified count before: {count_before}")
+        print(f"Verified count after: {scheduled_classes_collection.count_documents({})}")
+        print(f"{'='*60}\n")
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully deleted {deleted_count} scheduled classes',
+            'deleted_count': deleted_count
+        })
+
+    except Exception as e:
+        print(f"Error deleting all schedules: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route("/get_users", methods=["GET"])
 @login_required
 def get_users():

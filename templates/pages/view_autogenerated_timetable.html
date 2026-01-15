@@ -99,34 +99,38 @@
     }
 
     .class-card {
-        background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
-        border-left: 4px solid var(--primary-500);
+        background: linear-gradient(135deg, #1e3a2e 0%, #2d5a45 100%);
+        border-left: 4px solid #3b7a5d;
         padding: var(--space-3);
         border-radius: var(--radius-md);
         font-size: var(--text-sm);
     }
 
     .class-card.lab {
-        background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%);
-        border-left-color: var(--success-500);
+        background: linear-gradient(135deg, #1e3a2e 0%, #2d5a45 100%);
+        border-left-color: #3b7a5d;
     }
 
     .class-code {
         font-weight: var(--weight-bold);
-        color: var(--primary-700);
+        color: #ffffff;
         margin-bottom: var(--space-1);
     }
 
     .class-card.lab .class-code {
-        color: var(--success-700);
+        color: #ffffff;
     }
 
     .class-teacher {
-        color: var(--text-secondary);
+        color: #d1d5db;
         font-size: var(--text-xs);
         display: flex;
         align-items: center;
         gap: var(--space-1);
+    }
+
+    .class-card .course-name {
+        color: #e5e7eb;
     }
 
     .empty-slot {
@@ -242,7 +246,7 @@
 
                     html += `<td><div class="class-card ${isLab ? 'lab' : ''}">`;
                     html += `<div class="class-code">${classInSlot.course_code}</div>`;
-                    html += `<div style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--space-1);">${classInSlot.course_name}</div>`;
+                    html += `<div class="course-name" style="font-size: var(--text-xs); margin-bottom: var(--space-1);">${classInSlot.course_name}</div>`;
                     html += `<div class="class-teacher"><i class="fas fa-user"></i> ${classInSlot.teacher_name}</div>`;
                     html += `</div></td>`;
                 } else {
